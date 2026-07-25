@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package nvs.runtime.v1;
+
+option py_generic_services = false;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// NVS Runtime Service
+//
+// Exposes the DAK pipeline over gRPC with bidirectional streaming support.
+// All methods are model-agnostic; the server selects the adapter internally.
+// ──────────────────────────────────────────────────────────────────────────────
+
+service NVSRuntime {
+  // Unary generation request (no streaming)
+  rpc Generate(GenerateRequest) returns (GenerateResponse);
+
+  // Server-streaming generation: sends one GenerateEvent per decode step
+  rpc GenerateStream(GenerateRequest) returns (stream GenerateEvent);
+
+  // Run DAK diagnosis on an activation trajectory
+  rpc Diagnose(DiagnoseRequest) returns (DiagnoseResponse);
+
+  // Replay a .traj file and return step-by-step results
+  rpc Replay(ReplayRequest) returns (ReplayResponse);
+
+  // Stream replay results step by step
+  rpc ReplayStream(ReplayRequest) returns (stream ReplayEvent);
+
+  // Get or set the active DAK policy
+  rpc Policy(PolicyRequest) returns (PolicyResponse);
+
+  // Get DAK hook status
+  rpc Status(StatusRequest) returns (StatusResponse);
+
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Common
+// ──────────────────────────────────────────────────────────────────────────────
+
+message F17Result {
+  string class_name        = 1;
+  float  confidence        = 2;
+  float  risk              = 3;
+  float  lambda            = 4;
+  string recommended_action = 5;
+  int32  step              = 6;
+  float  latency_ms        = 7;
+}
+
+message HiddenStateSummary {
+  int32  hidden_dim        = 1;
+  float  norm              = 2;
+  float  mean              = 3;
+  float  std               = 4;
+  int32  layer             = 5;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Generate
+// ──────────────────────────────────────────────────────────────────────────────
+
+message GenerateRequest {
+  string prompt            = 1;
+  string model_id          = 2;   // optional; uses server default if empty
+  int32  max_tokens        = 3;
+  string policy            = 4;   // optional; uses server default if empty
+  bool   stream            = 5;   // hint: use GenerateStream for streaming
+  string request_id        = 6;   // optional idempotency key
+}
+
+message GenerateResponse {
+  string text              = 1;
+  int32  tokens_generated  = 2;
+  float  total_latency_ms  = 3;
+  F17Result last_dak_result = 4;
+  string trajectory_id     = 5;
+  string request_id        = 6;
+  bool   aborted           = 7;
+}
+
+// One event per decode step (for GenerateStream)
+message GenerateEvent {
+  int32  step              = 1;
+  string token             = 2;
+  HiddenStateSummary hidden_state = 3;
+  F17Result dak_result     = 4;
+  string trajectory_id     = 5;
+  bool   is_final          = 6;
+  bool   aborted           = 7;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Diagnose
+// ──────────────────────────────────────────────────────────────────────────────
+
+message DiagnoseRequest {
+  repeated float hidden_states = 1;  // flattened (n_steps, hidden_dim)
+  int32  hidden_dim            = 2;
+  int32  n_steps               = 3;
+  string policy                = 4;
+}
+
+message DiagnoseResponse {
+  F17Result result             = 1;
+  string trajectory_hash       = 2;
+  float  total_latency_ms      = 3;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Replay
+// ──────────────────────────────────────────────────────────────────────────────
+
+message ReplayRequest {
+  bytes  traj_bytes            = 1;  // raw .traj file bytes
+  string traj_path             = 2;  // alternative: server-side path
+}
+
+message ReplayResponse {
+  float  replay_mse            = 1;
+  int32  n_steps               = 2;
+  repeated F17Result step_results = 3;
+  float  total_latency_ms      = 4;
+  string trajectory_id         = 5;
+}
+
+message ReplayEvent {
+  int32  step                  = 1;
+  F17Result dak_result         = 2;
+  float  mse_so_far            = 3;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Policy
+// ──────────────────────────────────────────────────────────────────────────────
+
+message PolicyRequest {
+  string action                = 1;  // "get" | "set" | "list"
+  string policy_name           = 2;
+}
+
+message PolicyResponse {
+  string current_policy        = 1;
+  repeated string available    = 2;
+  bool   success               = 3;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Status / Health
+// ──────────────────────────────────────────────────────────────────────────────
+
+message StatusRequest {}
+
+message StatusResponse {
+  bool   dak_enabled           = 1;
+  string current_policy        = 2;
+  int32  steps_processed       = 3;
+  string adapter_type          = 4;
+  int32  hidden_dim            = 5;
+  string version               = 6;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status                = 1;  // "ok" | "degraded" | "down"
+  string version               = 2;
+  map<string, string> checks   = 3;
+}

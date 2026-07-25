@@ -1,0 +1,90 @@
+# DAK — Dynamic Abort Kernel Configuration
+# NVS-Kernel Sprint 1 (2026-06-25)
+# RFC-NVS-DAK01 / EXP-Phase36
+
+# Master switch — set to false to disable DAK entirely.
+# The kernel boots normally when DAK is disabled.
+enabled: true
+
+# --- Recorder ---
+# Number of decode steps in the sliding trajectory window.
+trajectory_window: 20
+
+# Maximum raw frames to keep in HiddenStateRecorder history (None = unlimited).
+recorder_capacity: 500
+
+# Layer index to monitor (0 = first, -1 = last).
+layer_idx: 0
+
+# Hidden state dimensionality (set to match the target LLM layer width).
+# Set to 0 to auto-detect from the first received hidden state.
+hidden_dim: 128
+
+# --- Policy ---
+# Active domain policy for interventions.
+# Must correspond to a YAML file in kernel/dak/policy/ (without .yaml extension).
+# Supported: creative, defense, finance, government, medical
+policy: creative
+
+# --- Replay ---
+# Enable replay engine and .traj serialisation.
+replay_enabled: true
+
+# Directory for .traj files (relative to container WORKDIR /app).
+traj_dir: logs/dak/traj
+
+# --- Reporter ---
+# Enable JSONL audit logging.
+reporter_enabled: true
+
+# Directory for audit logs (relative to WORKDIR /app).
+log_dir: logs/dak
+
+# --- Benchmark ---
+# Enable benchmark mode at startup (runs synthetic bench and writes CSV).
+benchmark_enabled: false
+
+benchmark_output: logs/dak/benchmark_phase37.csv
+
+# --- Hidden State Extraction (Phase37-A) ---
+# Configuration for real hidden state extraction via HiddenStateAdapter.
+# These settings are read by HiddenStateConfig.
+hidden_state:
+  # Which decoder layer to extract from.
+  # "last"   = final decoder layer (recommended for semantic richness)
+  # "middle" = middle decoder layer
+  # integer  = absolute 0-based layer index
+  layer: last
+
+  # NumPy dtype for the returned hidden state array.
+  # Always float32 for DAK pipeline compatibility.
+  dtype: float32
+
+  # Device placement.
+  # "auto"   = use CUDA if available, MPS on Apple Silicon, else CPU
+  # "cpu"    = force CPU (slower, no GPU needed)
+  # "cuda"   = force CUDA
+  device: auto
+
+  # Normalise hidden states (L2) before passing to Recorder.
+  # Set to true when comparing across models with different scales.
+  normalize: false
+
+  # Maximum decode steps per prompt (used in streaming mode).
+  max_tokens: 50
+
+# --- Adapter ---
+# Adapter to use for hidden state extraction.
+# "mock"  = synthetic adapter (no GPU required, for CI/testing)
+# "auto"  = select based on model_id (llama/qwen/gemma/generic)
+# "hf"    = generic HuggingFace adapter
+adapter: mock
+
+# HuggingFace model identifier (used when adapter != "mock").
+# Example: "meta-llama/Llama-3.2-1B"
+model_id: ""
+
+# --- Performance ---
+# Minimum number of steps before DAK begins classifying.
+# DAK returns NONE before this threshold to allow the window to fill.
+warmup_steps: 5

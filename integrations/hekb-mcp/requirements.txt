@@ -1,0 +1,8 @@
+# hekb_mcp additional dependencies beyond the repo-root requirements.txt
+# (which already provides httpx, PyJWT, PyYAML, pydantic, numpy, scipy —
+# JWT via runtime.auth / Phase4 MIG-AUTH; RFC-NVS-0100 verification suite).
+mcp==1.9.0
+
+# RFC-NVS-0100 Observation Engine encoder (see Vault EXP-0109 reports).
+sentence-transformers==5.6.0
+

@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CTS-21 TestCase",
+  "type": "object",
+  "properties": {
+    "case_id": { "type": "string" },
+    "user_instruction": { "type": "string" },
+    "gold_standard_R": {
+      "type": "object",
+      "properties": {
+        "nodes": { "type": "array", "items": { "type": "string" } },
+        "edges": { "type": "array", "items": { "type": "array", "minItems": 2, "maxItems": 2 } }
+      },
+      "required": ["nodes", "edges"]
+    },
+    "literal_constraints_given": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "injected_observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "integer" },
+          "payload_graph": {
+            "type": "object",
+            "properties": {
+              "nodes": { "type": "array", "items": { "type": "string" } },
+              "edges": { "type": "array", "items": { "type": "array", "minItems": 2, "maxItems": 2 } }
+            },
+            "required": ["nodes", "edges"]
+          }
+        },
+        "required": ["timestamp", "payload_graph"]
+      }
+    }
+  },
+  "required": ["case_id", "user_instruction", "gold_standard_R", "literal_constraints_given", "injected_observations"]
+}

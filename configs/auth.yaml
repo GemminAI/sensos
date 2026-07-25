@@ -1,0 +1,63 @@
+# NVS Runtime Server — Authentication Configuration
+# Phase37-B
+
+jwt:
+  # SECURITY: Override via NVS_JWT_SECRET env var in production
+  secret: "CHANGE_ME_IN_PRODUCTION"
+  algorithm: "HS256"
+  access_token_expire_minutes: 60
+  refresh_token_expire_days: 7
+  issuer: "nvs-runtime"
+  audience: "nvs-clients"
+
+  scopes:
+    - name: "generate"
+      description: "Run LLM generation with DAK monitoring"
+    - name: "diagnose"
+      description: "Run DAK diagnostics on a trajectory"
+    - name: "replay"
+      description: "Replay a .traj file"
+    - name: "policy"
+      description: "Read/write DAK policies"
+    - name: "admin"
+      description: "Administrative operations (metrics, policy management)"
+    - name: "stream"
+      description: "Subscribe to SSE event streams"
+
+  roles:
+    user:
+      scopes: ["generate", "diagnose", "stream"]
+    analyst:
+      scopes: ["generate", "diagnose", "replay", "policy", "stream"]
+    admin:
+      scopes: ["generate", "diagnose", "replay", "policy", "admin", "stream"]
+
+api_keys:
+  # Static API keys for service-to-service auth.
+  # SECURITY: Move to a secrets manager in production.
+  # Format: key_id: {key_hash, scopes, description}
+  dev_key:
+    # SHA-256 hash of "nvs-dev-api-key-CHANGE-ME"
+    key_hash: "placeholder_hash_change_in_production"
+    scopes: ["generate", "diagnose", "stream"]
+    description: "Development API key"
+    enabled: true
+  admin_key:
+    key_hash: "placeholder_admin_hash_change_in_production"
+    scopes: ["generate", "diagnose", "replay", "policy", "admin", "stream"]
+    description: "Admin API key"
+    enabled: true
+
+clients:
+  # OAuth2 client-credentials registry for POST /auth/token.
+  # secret_hash: SHA-256 of the plaintext client_secret.
+  # To generate: python3 -c "import hashlib; print(hashlib.sha256(b'YOUR_SECRET').hexdigest())"
+  # SECURITY: Replace placeholder hashes before production use.
+  nvs_service:
+    secret_hash: "placeholder_secret_hash_change_in_production"
+    scopes: ["generate", "diagnose", "stream"]
+    description: "Default NVS service client"
+    enabled: true
+
+# Enforce HTTPS in production
+require_https: false       # set to true in production

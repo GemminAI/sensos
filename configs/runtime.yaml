@@ -1,0 +1,79 @@
+# NVS Runtime Server Configuration
+# Phase37-B
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  reload: false
+  workers: 1                 # uvicorn worker count
+  access_log: true
+
+grpc:
+  enabled: true
+  host: "0.0.0.0"
+  port: 50051
+  max_workers: 4
+  max_message_length_mb: 64  # max message size in MB
+
+streaming:
+  enabled: true
+  heartbeat_interval_s: 15   # SSE heartbeat / keepalive interval
+  max_clients: 100           # max concurrent SSE connections
+  buffer_size: 256           # per-client event buffer (tokens)
+  send_hidden_state_summary: true
+  send_geometry_metrics: true
+
+authentication:
+  enabled: true
+  jwt_enabled: true
+  api_key_enabled: true
+  # Paths exempt from authentication
+  public_paths:
+    - "/health"
+    - "/metrics"
+    - "/version"
+    - "/docs"
+    - "/openapi.json"
+    - "/redoc"
+
+logging:
+  level: "INFO"             # DEBUG | INFO | WARNING | ERROR
+  format: "json"            # "json" | "text"
+  request_log: true
+  response_log: false       # disable to reduce payload logging
+  include_body: false
+
+metrics:
+  enabled: true
+  path: "/metrics"
+  include_in_schema: false  # hide from OpenAPI docs
+
+cors:
+  enabled: true
+  # SECURITY: Replace wildcard with explicit allowed origins in production.
+  # Wildcard "*" is intentionally absent. Add your frontend URL(s) below.
+  origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  methods:
+    - "GET"
+    - "POST"
+    - "OPTIONS"
+  headers:
+    - "*"
+  allow_credentials: false
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  burst: 20
+  per_ip: true
+
+timeouts:
+  request_timeout_s: 60     # max request processing time
+  stream_timeout_s: 300     # max SSE connection duration
+  grpc_timeout_s: 60
+
+worker_count: 1             # also used for thread pool in gRPC
+
+dak_config: "config/dak.yaml"

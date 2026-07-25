@@ -1,0 +1,38 @@
+# hekb_mcp — ObservationToken / TrustManifest signing configuration
+#
+# Deliberately a SEPARATE file from the repo-root config/auth.yaml (which
+# governs the NVS Runtime DAK/API stack). This package uses
+# runtime.auth.AuthConfig/AuthProvider for JWT mechanics only (Phase4 MIG-AUTH)
+# and does not share issuer/audience/scopes with the root NVS Runtime auth config.
+#
+# EXPERIMENTAL: this secret is a placeholder, as in the root config. This
+# package is not production-hardened; see hekb_mcp/docs/EXPERIMENT_REPORT.md.
+
+jwt:
+  secret: "CHANGE_ME_HEKB_MCP_EXPERIMENTAL"
+  algorithm: "HS256"
+  access_token_expire_minutes: 60
+  refresh_token_expire_days: 7
+  issuer: "hekb-mcp"
+  audience: "hekb-mcp-clients"
+
+  scopes:
+    - name: "sys_observe"
+      description: "NVS.SysObserve — map text to semantic coordinates (RFC-NVS-SEC001 4.1)"
+    - name: "sys_navigate"
+      description: "NVS.SysNavigate — follow a verified geodesic (RFC-NVS-SEC001 4.1)"
+    - name: "sys_render"
+      description: "NVS.SysRender — read RenderResult metadata only (RFC-NVS-SEC001 4.1)"
+
+  roles:
+    observer:
+      scopes: ["sys_observe"]
+    navigator:
+      scopes: ["sys_observe", "sys_navigate"]
+    renderer:
+      scopes: ["sys_observe", "sys_navigate", "sys_render"]
+
+api_keys: {}
+clients: {}
+
+require_https: false

@@ -1,0 +1,9 @@
+tests/
+README.md
+MIGRATION.md
+docker-compose.yml
+.git
+.pytest_cache
+__pycache__/
+*.pyc
+.venv/

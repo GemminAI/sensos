@@ -1,0 +1,14 @@
+backend: redis
+redis_url: redis://redis:6379/0
+
+topics:
+  - Observation
+  - Trajectory
+  - TrajectoryFlow
+  - Replay
+  - Controller
+  - Reality
+  - Diagnostic
+  - Metrics
+
+history_days: 30

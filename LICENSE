@@ -1,0 +1,18 @@
+Copyright (c) 2026 Gemmina Intelligence LLC.
+
+All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary property of Gemmina Intelligence LLC.
+
+Unauthorized copying, modification, distribution, public display, or use of
+this Software, in whole or in part, is strictly prohibited except as expressly
+permitted in a written license agreement with Gemmina Intelligence LLC.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+SensOS depends on external open-source components (including HEKB and HEXT
+ecosystem projects) under their respective licenses. Those licenses apply only
+to the external components and do not alter the proprietary status of SensOS.

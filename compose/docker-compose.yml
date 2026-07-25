@@ -1,0 +1,239 @@
+# SensOS product stack — canonical local / staging orchestration
+#
+# Usage:
+#   docker compose -f compose/docker-compose.yml up --build -d
+#   docker compose -f compose/docker-compose.yml config
+
+name: sensos
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+networks:
+  sensos_net:
+    driver: bridge
+
+volumes:
+  sensos_logs:
+  hext_redis_data:
+  hekb_data:
+  nvs_runtime_logs:
+  postgres_data:
+
+services:
+
+  postgres:
+    <<: [*restart-policy, *default-logging]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nvs
+      POSTGRES_USER: nvs
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-nvs-dev-password}"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nvs -d nvs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    <<: [*restart-policy, *default-logging]
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - hext_redis_data:/data
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mock-llm:
+    <<: [*restart-policy, *default-logging]
+    image: python:3.12-slim
+    command: ["python", "/app/mock_llm_server.py", "--host", "0.0.0.0", "--port", "8099"]
+    volumes:
+      - ../scripts/mock_llm_server.py:/app/mock_llm_server.py:ro
+    ports:
+      - "8099:8099"
+    networks: [sensos_net]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  observation-runtime:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/observation-runtime
+      dockerfile: Dockerfile
+    image: sensos/observation-runtime:0.3.0
+    ports:
+      - "8090:8090"
+    environment:
+      SENSOS_HOST: "0.0.0.0"
+      SENSOS_PORT: "8090"
+      SENSOS_RUNTIME_BACKEND: "${SENSOS_RUNTIME_BACKEND:-mock}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      LOCAL_LLM_BASE_URL: "${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434}"
+      SENSOS_LOG_LEVEL: "${SENSOS_LOG_LEVEL:-info}"
+    volumes:
+      - sensos_logs:/app/logs
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  semantic-annotator:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/semantic-annotator
+      dockerfile: Dockerfile
+    image: sensos/semantic-annotator:0.1.0
+    ports:
+      - "8011:8011"
+    environment:
+      SEMANTIC_ANNOTATOR_HOST: "0.0.0.0"
+      SEMANTIC_ANNOTATOR_PORT: "8011"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  hext-stream:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/hext-stream
+      dockerfile: Dockerfile
+    image: sensos/hext-stream:0.1.0
+    ports:
+      - "8030:8030"
+    environment:
+      HEXT_STREAM_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      HEXT_STREAM_CONFIG: /app/hext_stream/config/stream.yaml
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  hekb-projection:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../integrations/hekb-projection
+      dockerfile: Dockerfile
+    image: sensos/hekb-projection:0.1.0
+    ports:
+      - "8040:8080"
+    environment:
+      HEKB_HOST: "0.0.0.0"
+      HEKB_PORT: "8080"
+    volumes:
+      - hekb_data:/app/data
+    networks: [sensos_net]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nvs-runtime:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/nvs-runtime
+      dockerfile: Dockerfile
+    image: sensos/nvs-runtime:0.3.0
+    ports:
+      - "8020:8020"
+    environment:
+      PORT: "8020"
+      NVS_HOST: "0.0.0.0"
+      NVS_LOG_LEVEL: "info"
+      NVS_JWT_SECRET: "${NVS_JWT_SECRET:-change-me-in-production-min-32-bytes!}"
+    volumes:
+      - nvs_runtime_logs:/app/logs
+      - ../configs:/app/config:ro
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  dashboard:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/dashboard
+      dockerfile: Dockerfile
+    image: sensos/dashboard:0.3.0
+    ports:
+      - "3000:80"
+    networks: [sensos_net]
+
+  gateway:
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../services/gateway
+      dockerfile: Dockerfile
+    image: sensos/gateway:0.3.0
+    ports:
+      - "8080:8080"
+    depends_on:
+      - observation-runtime
+      - semantic-annotator
+      - hext-stream
+      - hekb-projection
+      - nvs-runtime
+      - dashboard
+    networks: [sensos_net]

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SensOS</title>
+  <style>
+    :root {
+      --bg0: #0b1220;
+      --bg1: #121a2b;
+      --ink: #e8eefc;
+      --muted: #9aadc8;
+      --accent: #3d8bfd;
+      --line: rgba(232, 238, 252, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(61, 139, 253, 0.25), transparent 55%),
+        linear-gradient(160deg, var(--bg0), var(--bg1));
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4.5rem 1.5rem 3rem;
+    }
+    h1 {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(2.4rem, 5vw, 3.4rem);
+      letter-spacing: -0.03em;
+      margin: 0 0 0.75rem;
+    }
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 1.05rem;
+      max-width: 38rem;
+    }
+    .path {
+      margin: 2rem 0;
+      padding: 1rem 1.1rem;
+      border-left: 3px solid var(--accent);
+      background: rgba(255, 255, 255, 0.03);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.92rem;
+      white-space: pre-line;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 2rem 0 0;
+      border-top: 1px solid var(--line);
+    }
+    li {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.95rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .note {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SensOS</h1>
+    <p>
+      Commercial observation-centered platform. Operator console shell for the
+      integration product built on the HEXT AI ecosystem.
+    </p>
+    <div class="path">Observation
+→ Semantic Annotator
+→ HEKB
+→ NVS Runtime
+→ Applications</div>
+    <ul>
+      <li><span>Gateway health</span><a href="/healthz">/healthz</a></li>
+      <li><span>Observation Runtime</span><a href="/observation/health">/observation/health</a></li>
+      <li><span>Semantic Annotator</span><a href="/annotator/health">/annotator/health</a></li>
+      <li><span>HEXT Stream</span><a href="/hext/health">/hext/health</a></li>
+      <li><span>HEKB Projection</span><a href="/hekb/health">/hekb/health</a></li>
+      <li><span>NVS Runtime</span><a href="/runtime/health">/runtime/health</a></li>
+    </ul>
+    <p class="note">
+      Rich UI widgets ship as <code>packages/runtime-ui</code> (<code>@nvs/runtime-ui</code>).
+      This container is the product dashboard release unit shell.
+    </p>
+  </main>
+</body>
+</html>

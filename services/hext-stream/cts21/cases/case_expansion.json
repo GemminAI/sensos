@@ -1,0 +1,18 @@
+{
+  "case_id": "CTS21-CASE-EXPANSION-01",
+  "user_instruction": "JSONをパースしてローカルに保存して",
+  "gold_standard_R": { "nodes": ["JSON", "Storage"], "edges": [["JSON", "Storage"]] },
+  "literal_constraints_given": [],
+  "injected_observations": [
+    {
+      "timestamp": 1717978400,
+      "payload_graph": { "nodes": ["JSON", "Repository"], "edges": [["JSON", "Repository"]] }
+    },
+    {
+      "timestamp": 1717978401,
+      "payload_graph": { "nodes": ["Repository", "Storage"], "edges": [["Repository", "Storage"]] }
+    }
+  ],
+  "agent_output_text": "Saved via a Repository abstraction layer, JSON -> Repository -> Storage.",
+  "_implementation_note": "injected_observations are merged (union of nodes/edges, timestamp order) into one generated_graph fed to the real pipeline's single-shot seed observation, since the built pipeline is not an incremental multi-observation accumulator. This is the canonical Repository-insertion example from EXP-4010/CTS-21.md itself, chosen specifically because it's where the SED formula divergence (0.0 real vs 2.0 reference) is directly observable."
+}
