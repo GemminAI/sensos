@@ -22,7 +22,7 @@ curl -sf http://localhost:8020/health   # nvs-runtime (profile runtime)
 | Annotator unhealthy | Missing LLM API keys (if required) | Check env; use mock backends for local |
 | HEXT Stream down | Redis not ready | Wait for redis health; check `REDIS_URL` |
 | HEKB projection restart loop | Volume / data dir perms | Inspect `hekb_data` volume |
-| NVS Runtime auth errors | Weak/missing JWT secret | Set `NVS_JWT_SECRET` (≥32 bytes) |
+| NVS Runtime auth errors | Weak/missing JWT secret | Set `NVS_JWT_SECRET` to a generated secret (≥32 bytes); never use `CHANGE_ME` |
 
 ## Logs
 

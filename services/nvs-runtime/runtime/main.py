@@ -1,10 +1,12 @@
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from runtime.api import api_router
+from runtime.auth import AuthConfig, validate_startup_credentials
 from runtime.core.config import get_settings
 from runtime.core.exceptions import RuntimeErrorBase
 from runtime.db.session import init_db
@@ -13,6 +15,22 @@ from runtime.services.redis_service import RedisService
 from runtime.services.semantic_annotator_client import SemanticAnnotatorClient
 
 settings = get_settings()
+
+
+def _auth_config_path() -> Path:
+    candidates = [
+        os.getenv("NVS_AUTH_CONFIG", ""),
+        "/app/config/auth.yaml",
+        "configs/auth.yaml",
+        "config/auth.yaml",
+    ]
+    for raw in candidates:
+        if not raw:
+            continue
+        path = Path(raw)
+        if path.is_file():
+            return path
+    return Path("configs/auth.yaml")
 
 app = FastAPI(
     title="NVS MCP Runtime Server",
@@ -61,6 +79,8 @@ async def runtime_error_handler(_request, exc: RuntimeErrorBase):
 async def on_startup():
     if os.getenv("TESTING"):
         return
+    # Refuse template JWT secrets (e.g. CHANGE_ME) before serving traffic.
+    validate_startup_credentials(AuthConfig.from_yaml(_auth_config_path()))
     init_db()
     # Version Negotiation: refuse to finish starting up against a Semantic
     # Annotator whose schema_version this Runtime build doesn't know how

@@ -49,8 +49,20 @@ NVS-Kernel decides.
 
 Requirements: Docker Engine 24+ and Compose v2.
 
+1. Copy the development template and generate your own secrets:
+
 ```bash
-docker compose -f compose/docker-compose.yml up --build -d
+cp .env.example .env
+# Replace every CHANGE_ME value. Example:
+#   openssl rand -base64 32
+```
+
+`.env.example` is a development template only. Never commit `.env`. Never use template values in production. Production secrets must come from a secret manager or the deployment environment—not from files in this repository.
+
+2. Start the stack:
+
+```bash
+docker compose --env-file .env -f compose/docker-compose.yml up --build -d
 # or
 make up
 

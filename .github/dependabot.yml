@@ -1,0 +1,22 @@
+# Dependency updates for the public repository
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: "/services/nvs-runtime"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: "/services/observation-runtime"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: "/services/semantic-annotator"
+    schedule:
+      interval: weekly
