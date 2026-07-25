@@ -64,7 +64,12 @@ jobs:
         continue-on-error: true
 
       - name: Compose config
-        run: docker compose -f compose/docker-compose.yml config >/dev/null
+        env:
+          # CI-only non-secret placeholders so compose interpolation succeeds.
+          # Not usable as production credentials; NVS Runtime rejects CHANGE_ME.
+          POSTGRES_PASSWORD: ci-compose-interpolation-only
+          NVS_JWT_SECRET: ci-compose-interpolation-only-not-for-production-use
+        run: docker compose --env-file /dev/null -f compose/docker-compose.yml config >/dev/null
 
       - name: Docker build (core product images)
         run: |

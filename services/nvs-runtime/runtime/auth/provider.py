@@ -388,17 +388,27 @@ def make_scope_checker(provider: "AuthProvider", required_scope: str):
 # ---------------------------------------------------------------------------
 
 _PLACEHOLDER_JWT_SECRETS = frozenset({
+    "CHANGE_ME",
     "CHANGE_ME_IN_PRODUCTION",
+    "change_me",
     "change_me_in_production",
+    "change-me-in-production-min-32-bytes!",
     "changeme",
     "",
 })
 
 _PLACEHOLDER_KEY_HASHES = frozenset({
+    "CHANGE_ME",
     "placeholder_hash_change_in_production",
     "placeholder_admin_hash_change_in_production",
     "placeholder_secret_hash_change_in_production",
 })
+
+_DEFAULT_JWT_FATAL = (
+    "FATAL\n"
+    "Default JWT secret detected.\n"
+    "Generate your own secret."
+)
 
 
 def validate_startup_credentials(cfg: AuthConfig) -> None:
@@ -409,7 +419,7 @@ def validate_startup_credentials(cfg: AuthConfig) -> None:
 
     Raises
     ------
-    RuntimeError
+    SystemExit
         If ``jwt_secret`` is a known placeholder and auth is enabled.
     """
     if os.environ.get("NVS_SKIP_STARTUP_VALIDATION", "").lower() in ("1", "true", "yes"):
@@ -422,13 +432,10 @@ def validate_startup_credentials(cfg: AuthConfig) -> None:
     if not cfg.enabled:
         return
 
-    if cfg.jwt_secret in _PLACEHOLDER_JWT_SECRETS:
-        raise RuntimeError(
-            "SECURITY STARTUP FAILURE: JWT secret is still the default placeholder "
-            "('CHANGE_ME_IN_PRODUCTION'). "
-            "Set the NVS_JWT_SECRET environment variable to a cryptographically "
-            "random secret (>= 32 bytes) before starting the server."
-        )
+    secret = (cfg.jwt_secret or "").strip()
+    if secret in _PLACEHOLDER_JWT_SECRETS or secret.upper() == "CHANGE_ME":
+        logger.critical(_DEFAULT_JWT_FATAL)
+        raise SystemExit(_DEFAULT_JWT_FATAL)
 
     # Warn (not error) when all API keys still use placeholder hashes.
     enabled_keys = {k: v for k, v in cfg.api_keys.items() if v.get("enabled", True)}

@@ -39,9 +39,38 @@ Out of scope:
 - Research Vault artifacts
 - Third-party LLM provider outages
 
+## GitHub Secret Scanning
+
+This repository is intended to be protected by:
+
+- Secret Scanning
+- Push Protection
+- Dependabot
+- CodeQL
+
+Contributors must never commit credentials or production secrets.
+
 ## Hardening expectations
 
 - No secrets in git; use environment variables or a secret manager
 - Prefer least-privilege service accounts between containers
 - Gateway is the only public edge in production deployments
 - Proprietary NVS-Kernel remains outside this repository; only ABI/interfaces ship here
+
+## Development templates
+
+`.env.example` and placeholder entries in `configs/auth.yaml` are **development templates only**.
+
+- Copy `.env.example` → `.env` for local Compose
+- Replace every `CHANGE_ME` / placeholder with secrets you generate
+- Never commit `.env`
+- Never deploy template values to production
+- Production secrets must come from a secret manager or the deployment environment
+
+If `NVS_JWT_SECRET` is still a template value such as `CHANGE_ME`, NVS Runtime refuses to start.
+
+## Security Philosophy
+
+SensOS is designed so that production secrets never live inside the repository.
+
+All production credentials must be supplied externally through the deployment environment, secret managers, or orchestration systems.

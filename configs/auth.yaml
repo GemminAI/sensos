@@ -2,7 +2,9 @@
 # Phase37-B
 
 jwt:
-  # SECURITY: Override via NVS_JWT_SECRET env var in production
+  # Template only. Override with NVS_JWT_SECRET from the environment.
+  # Never commit a real signing secret. This placeholder is rejected at startup
+  # when auth is enabled unless NVS_SKIP_STARTUP_VALIDATION is set.
   secret: "CHANGE_ME_IN_PRODUCTION"
   algorithm: "HS256"
   access_token_expire_minutes: 60
@@ -33,31 +35,25 @@ jwt:
       scopes: ["generate", "diagnose", "replay", "policy", "admin", "stream"]
 
 api_keys:
-  # Static API keys for service-to-service auth.
-  # SECURITY: Move to a secrets manager in production.
+  # Static API keys for service-to-service auth (hashes only — never plaintext).
+  # Disabled in this template. Enable only after replacing hashes with your own.
   # Format: key_id: {key_hash, scopes, description}
-  dev_key:
-    # SHA-256 hash of "nvs-dev-api-key-CHANGE-ME"
-    key_hash: "placeholder_hash_change_in_production"
+  # Generate: python3 -c "import hashlib; print(hashlib.sha256(b'YOUR_SECRET').hexdigest())"
+  example_key:
+    key_hash: "CHANGE_ME"
     scopes: ["generate", "diagnose", "stream"]
-    description: "Development API key"
-    enabled: true
-  admin_key:
-    key_hash: "placeholder_admin_hash_change_in_production"
-    scopes: ["generate", "diagnose", "replay", "policy", "admin", "stream"]
-    description: "Admin API key"
-    enabled: true
+    description: "Template API key entry — disabled"
+    enabled: false
 
 clients:
   # OAuth2 client-credentials registry for POST /auth/token.
-  # secret_hash: SHA-256 of the plaintext client_secret.
-  # To generate: python3 -c "import hashlib; print(hashlib.sha256(b'YOUR_SECRET').hexdigest())"
-  # SECURITY: Replace placeholder hashes before production use.
-  nvs_service:
-    secret_hash: "placeholder_secret_hash_change_in_production"
+  # secret_hash must be a SHA-256 hex digest of a secret you generate.
+  # Disabled in this template. Enable only after replacing the placeholder.
+  example_client:
+    secret_hash: "CHANGE_ME"
     scopes: ["generate", "diagnose", "stream"]
-    description: "Default NVS service client"
-    enabled: true
+    description: "Template client entry — disabled"
+    enabled: false
 
-# Enforce HTTPS in production
-require_https: false       # set to true in production
+# Enforce HTTPS in production deployments.
+require_https: false

@@ -7,6 +7,13 @@ Versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Reject template JWT secrets (`CHANGE_ME`, etc.) at NVS Runtime startup with a fatal error
+- Require Compose secrets via `.env` (no published default passwords)
+- Add Gitleaks and CodeQL workflows; document Secret Scanning / Push Protection intent
+- Harden `.gitignore` for env files, keystores, and cloud credential filenames
+
 ### Added
 
 - Initial production repository layout for `GemminAI/sensos`

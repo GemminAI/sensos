@@ -1,8 +1,12 @@
 # SensOS product stack — canonical local / staging orchestration
 #
-# Usage:
-#   docker compose -f compose/docker-compose.yml up --build -d
-#   docker compose -f compose/docker-compose.yml config
+# Usage (from repository root):
+#   cp .env.example .env   # then replace CHANGE_ME with generated secrets
+#   docker compose --env-file .env -f compose/docker-compose.yml up --build -d
+#   docker compose --env-file .env -f compose/docker-compose.yml config
+#
+# Secrets must be supplied via .env or the process environment.
+# Compose has no usable default passwords or JWT secrets.
 
 name: sensos
 
@@ -35,7 +39,7 @@ services:
     environment:
       POSTGRES_DB: nvs
       POSTGRES_USER: nvs
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-nvs-dev-password}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}"
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -199,7 +203,7 @@ services:
       PORT: "8020"
       NVS_HOST: "0.0.0.0"
       NVS_LOG_LEVEL: "info"
-      NVS_JWT_SECRET: "${NVS_JWT_SECRET:-change-me-in-production-min-32-bytes!}"
+      NVS_JWT_SECRET: "${NVS_JWT_SECRET:?Set NVS_JWT_SECRET in .env (see .env.example)}"
     volumes:
       - nvs_runtime_logs:/app/logs
       - ../configs:/app/config:ro

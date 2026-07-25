@@ -9,15 +9,23 @@ compose/docker-compose.yml
 ## Bring-up
 
 ```bash
-# Full product stack
-docker compose -f compose/docker-compose.yml up --build -d
+# 1. Local secrets (required)
+cp .env.example .env
+# Replace every CHANGE_ME. Never commit .env.
+# Production: inject secrets from a secret manager / deployment env instead.
+
+# 2. Full product stack
+docker compose --env-file .env -f compose/docker-compose.yml up --build -d
 
 # Validate rendered config
-docker compose -f compose/docker-compose.yml config
+docker compose --env-file .env -f compose/docker-compose.yml config
 
 # Tear down
-docker compose -f compose/docker-compose.yml down
+docker compose --env-file .env -f compose/docker-compose.yml down
 ```
+
+Compose fails fast if `POSTGRES_PASSWORD` or `NVS_JWT_SECRET` are unset.
+There are no default passwords or JWT secrets in the compose file.
 
 ## Default services
 
@@ -41,7 +49,8 @@ configs/dak.yaml
 configs/runtime.yaml
 ```
 
-Secrets via environment variables (see `.env.example`). Never commit real secrets.
+Secrets via `.env` (from `.env.example`) or a secret manager.  
+`.env.example` values are non-functional placeholders. Never commit real secrets.
 
 ## Production note
 

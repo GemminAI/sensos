@@ -5,11 +5,11 @@
 # runtime.auth.AuthConfig/AuthProvider for JWT mechanics only (Phase4 MIG-AUTH)
 # and does not share issuer/audience/scopes with the root NVS Runtime auth config.
 #
-# EXPERIMENTAL: this secret is a placeholder, as in the root config. This
-# package is not production-hardened; see hekb_mcp/docs/EXPERIMENT_REPORT.md.
+# Template secret only. Never commit a real signing secret.
+# Override via environment or a secrets manager before any shared deployment.
 
 jwt:
-  secret: "CHANGE_ME_HEKB_MCP_EXPERIMENTAL"
+  secret: "CHANGE_ME"
   algorithm: "HS256"
   access_token_expire_minutes: 60
   refresh_token_expire_days: 7
