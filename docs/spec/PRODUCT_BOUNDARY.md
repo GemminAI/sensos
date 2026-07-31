@@ -78,6 +78,20 @@ Applications
 - NVS-Kernel remains **proprietary** and outside this tree
 - Keep interfaces clean under `interfaces/nvs-kernel/`
 - Product services talk to the kernel through ABI / HTTP gateway clients
+- The only path in is `services/nvs-runtime/runtime/gateway/kernel_gateway.py`'s
+  `KernelGateway`; the kernel is **not** routed through the public Gateway
+  (`services/gateway/nginx.conf`) or linked from the Dashboard — it is reachable
+  only from `nvs-runtime` over the internal docker network
+- The canonical HTTP contract (verified against `GemminAI/nvs-kernel`, confirmed
+  by a live end-to-end test in `test_kernel_gateway_live_e2e.py`) is:
+  `POST /observe`, `POST /project`, `POST /geometry`, `POST /belief`,
+  `POST /trajectory`, `POST /predict`, `POST /risk`, `POST /control`,
+  `POST /memory`, `POST /hekb/query`, `GET /health`
+- `POST /kernel/ingest` and `POST /kernel/v2/observations` **never existed** on
+  the kernel — an earlier `KernelGateway` implementation called them and
+  silently degraded every forward to `PENDING`. Do not reintroduce either path;
+  all runtime-event forwarding goes through `POST /observe` via the
+  Observation-ABI shape in `runtime/abi/observation.py`.
 
 ### 3.4 Research
 

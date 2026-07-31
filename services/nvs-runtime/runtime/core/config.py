@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://nvs:nvs@postgres:5432/nvs_runtime"
     redis_url: str = "redis://redis:6379/0"
 
-    nvs_kernel_url: str = "http://localhost:8000"
+    nvs_kernel_url: str = "http://nvs-kernel:8100"
     kernel_forward_timeout: float = 10.0
     kernel_retry_max: int = 5
 

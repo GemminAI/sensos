@@ -191,6 +191,29 @@ services:
       retries: 5
       start_period: 20s
 
+  nvs-kernel:
+    <<: [*restart-policy, *default-logging]
+    # Built and tagged separately from the sibling `nvs-kernel` repository
+    # (`cd ../../nvs-kernel && docker compose build`) — external, proprietary,
+    # consumed as a published image only, per docs/spec/PRODUCT_BOUNDARY.md
+    # §3.3 (NVS-Kernel remains outside this tree).
+    image: nvs-kernel:5.0.0
+    ports:
+      - "8100:8100"
+    networks: [sensos_net]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/health',timeout=2).status==200 else 1)",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   nvs-runtime:
     <<: [*restart-policy, *default-logging]
     build:
@@ -204,9 +227,13 @@ services:
       NVS_HOST: "0.0.0.0"
       NVS_LOG_LEVEL: "info"
       NVS_JWT_SECRET: "${NVS_JWT_SECRET:?Set NVS_JWT_SECRET in .env (see .env.example)}"
+      NVS_KERNEL_URL: "http://nvs-kernel:8100"
     volumes:
       - nvs_runtime_logs:/app/logs
       - ../configs:/app/config:ro
+    depends_on:
+      nvs-kernel:
+        condition: service_healthy
     networks: [sensos_net]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8020/health"]

@@ -11,7 +11,7 @@ def test_health(client):
 
 def test_agent_session_event_flow(client, sep_payload):
     with patch(
-        "runtime.services.event_service.KernelGateway.forward_event",
+        "runtime.services.event_service.KernelGateway.forward_runtime_event",
         return_value=(ForwardStatus.SKIPPED, None),
     ):
         agent_resp = client.post(

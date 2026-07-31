@@ -2,16 +2,49 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
+from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 import httpx
 
 from runtime.core.config import Settings, get_settings
 from runtime.models.enums import ForwardStatus, RuntimeEventType
+from runtime.abi.observation import EventKind, ObservationEvent, ObserveRequest, ObserveResponse
 
 logger = logging.getLogger(__name__)
+
+#: Runtime event types that get forwarded to the kernel as an Observation-ABI
+#: event, and the EventKind they're recorded as. Every other RuntimeEventType
+#: is a lifecycle/control-plane signal, not a Reality fact, and is skipped —
+#: this preserves exactly what today's forwarding does, only fixing transport.
+_FORWARDED_EVENT_KINDS: dict[RuntimeEventType, EventKind] = {
+    RuntimeEventType.STATE_RAW: EventKind.OBSERVATION,
+    RuntimeEventType.SEP_EXCITATION: EventKind.USER,
+    RuntimeEventType.SEP_DISTURBANCE: EventKind.USER,
+    RuntimeEventType.SEP_RAW: EventKind.USER,
+}
+
+
+def _string_attributes(payload: dict[str, Any]) -> dict[str, str]:
+    """Coerce an arbitrary runtime payload into the kernel's dict[str, str]
+    attributes shape, losslessly (non-string values are JSON-encoded)."""
+    result: dict[str, str] = {}
+    for key, value in payload.items():
+        result[str(key)] = value if isinstance(value, str) else json.dumps(value, default=str)
+    return result
+
+
+def _timestamp_ns(envelope: dict[str, Any]) -> int:
+    raw = envelope.get("timestamp")
+    if raw:
+        try:
+            return int(datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp() * 1e9)
+        except ValueError:
+            pass
+    return time.time_ns()
 
 
 class KernelGateway:
@@ -32,69 +65,55 @@ class KernelGateway:
         except httpx.HTTPError:
             return False
 
-    def forward_event(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
-        event_type = envelope.get("event_type")
-        if event_type == RuntimeEventType.SEP_CONTROL.value:
+    def observe(self, request: ObserveRequest) -> ObserveResponse:
+        """Forward an Observation ABI request to nvs-kernel's real /observe.
+
+        Pure transport: no vocabulary translation happens here. `request`
+        must already be Observation-ABI-conformant before this is called.
+        """
+        with self._client() as client:
+            resp = client.post("/observe", json=request.model_dump(mode="json"))
+            resp.raise_for_status()
+            return ObserveResponse.model_validate(resp.json())
+
+    def forward_runtime_event(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
+        """Forward a runtime envelope to the kernel via the real /observe contract.
+
+        Only the event types in `_FORWARDED_EVENT_KINDS` are Reality facts;
+        everything else (session lifecycle, narrative, control, heartbeat,
+        error) is skipped, unchanged from prior behavior.
+        """
+        try:
+            event_type = RuntimeEventType(envelope.get("event_type"))
+        except ValueError:
             return ForwardStatus.SKIPPED, None
 
-        try:
-            with self._client() as client:
-                if event_type == RuntimeEventType.STATE_RAW.value:
-                    return self._forward_ingest(client, envelope)
-                if event_type in {
-                    RuntimeEventType.SEP_EXCITATION.value,
-                    RuntimeEventType.SEP_DISTURBANCE.value,
-                    RuntimeEventType.SEP_RAW.value,
-                }:
-                    return self._forward_observation(client, envelope)
-                if event_type == RuntimeEventType.NARRATIVE_APPEND.value:
-                    return ForwardStatus.SKIPPED, None
+        kind = _FORWARDED_EVENT_KINDS.get(event_type)
+        if kind is None:
             return ForwardStatus.SKIPPED, None
+
+        payload = envelope.get("payload", {}) or {}
+        request = ObserveRequest(
+            session_id=str(envelope.get("session_id")),
+            events=[
+                ObservationEvent(
+                    step=envelope.get("sequence_id", 0),
+                    timestamp_ns=_timestamp_ns(envelope),
+                    kind=kind,
+                    text=str(payload.get("text", "")),
+                    source=envelope.get("source_provider"),
+                    agent_id=envelope.get("agent_id"),
+                    attributes=_string_attributes(payload),
+                )
+            ],
+        )
+        try:
+            response = self.observe(request)
         except httpx.HTTPError as exc:
             logger.warning("Kernel unavailable: %s", exc)
             return ForwardStatus.PENDING, None
-
-    def forward_observation(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
-        if envelope.get("event_type") == RuntimeEventType.SEP_CONTROL.value:
-            return ForwardStatus.SKIPPED, None
-        try:
-            with self._client() as client:
-                return self._forward_observation(client, envelope)
-        except httpx.HTTPError as exc:
-            logger.warning("Kernel observation forward failed: %s", exc)
-            return ForwardStatus.PENDING, None
-
-    def _forward_ingest(self, client: httpx.Client, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
-        payload = envelope.get("payload", {})
-        vector = payload.get("vector", [])
-        run_id = str(envelope.get("session_id", ""))[:8]
-        body = {
-            "run_id": run_id,
-            "states": [{"vector": vector, "confidence": payload.get("confidence", 1.0)}],
-            "context": {"session_id": str(envelope.get("session_id")), "agent_id": str(envelope.get("agent_id"))},
-        }
-        resp = client.post("/kernel/ingest", json=body)
-        if resp.status_code >= 500:
-            return ForwardStatus.PENDING, run_id
-        resp.raise_for_status()
-        data = resp.json()
-        return ForwardStatus.FORWARDED, data.get("run_id", run_id)
-
-    def _forward_observation(
-        self, client: httpx.Client, envelope: dict[str, Any]
-    ) -> tuple[ForwardStatus, str | None]:
-        body = {
-            "session_id": str(envelope.get("session_id")),
-            "agent_id": str(envelope.get("agent_id")),
-            "experiment_id": str(envelope.get("experiment_id")) if envelope.get("experiment_id") else None,
-            "runtime_event": envelope,
-            "sep_payload": envelope.get("payload"),
-        }
-        resp = client.post("/kernel/v2/observations", json=body)
-        if resp.status_code >= 500:
-            return ForwardStatus.PENDING, None
-        if resp.status_code == 404:
-            return ForwardStatus.PENDING, None
-        resp.raise_for_status()
-        data = resp.json()
-        return ForwardStatus.FORWARDED, data.get("observation_id") or data.get("run_id")
+        # TODO(RFC-SensOS21-Follow-up): ObserveResponse.control (tier/intervention)
+        # is discarded here. RFC-SensOS21/22/23 define a Governance -> Goal ->
+        # Directive -> Instruction chain; this is the likely future bridge from
+        # Kernel Executive into that chain. Not wired up in this change.
+        return ForwardStatus.FORWARDED, str(response.cycle)

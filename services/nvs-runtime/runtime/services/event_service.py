@@ -62,7 +62,7 @@ class EventService:
 
         sep_event_type = validate_sep_event(envelope)
 
-        forward_status, kernel_ref = self.gateway.forward_event(envelope)
+        forward_status, kernel_ref = self.gateway.forward_runtime_event(envelope)
         if forward_status == ForwardStatus.PENDING:
             self.redis.enqueue_forward({"event_id": str(event_id), "envelope": envelope})
 

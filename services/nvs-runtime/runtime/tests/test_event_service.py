@@ -16,26 +16,40 @@ from runtime.models.enums import AgentProvider
 def test_forward_state_raw(db_session, fake_redis):
     gateway = KernelGateway()
 
-    def handler(request):
-        import httpx
-
-        return httpx.Response(200, json={"run_id": "abc12345"})
-
     import httpx
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "session_id": "demo",
+                "cycle": 1,
+                "control": {
+                    "tier": 0,
+                    "tier_label": "L0",
+                    "intervention": "MONITOR",
+                    "actionable": False,
+                    "requires_approval": False,
+                    "authorized": True,
+                    "reason": "steady at L0",
+                },
+            },
+        )
 
     transport = httpx.MockTransport(handler)
     gateway._client = lambda: httpx.Client(transport=transport, base_url="http://k", timeout=5)
 
-    status, ref = gateway.forward_event(
+    status, ref = gateway.forward_runtime_event(
         {
             "event_type": RuntimeEventType.STATE_RAW.value,
             "session_id": str(uuid4()),
             "agent_id": str(uuid4()),
-            "payload": {"vector": [0.1, 0.2]},
+            "sequence_id": 0,
+            "payload": {"text": "raw state sample"},
         }
     )
     assert status == ForwardStatus.FORWARDED
-    assert ref == "abc12345"
+    assert ref == "1"
 
 
 def test_event_ingest_pending_forward(db_session, fake_redis):
@@ -47,7 +61,7 @@ def test_event_ingest_pending_forward(db_session, fake_redis):
     db_session.flush()
 
     gateway = MagicMock()
-    gateway.forward_event.return_value = (ForwardStatus.PENDING, None)
+    gateway.forward_runtime_event.return_value = (ForwardStatus.PENDING, None)
     service = EventService(gateway=gateway)
 
     from runtime.models.enums import SEP_VERSION
