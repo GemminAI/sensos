@@ -1,8 +1,9 @@
-from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import httpx
 import pytest
 
+from runtime.gateway import http_pool
 from runtime.gateway.kernel_gateway import KernelGateway
 from runtime.models.enums import ForwardStatus, RuntimeEventType
 from runtime.models.schemas import AgentCreate, EventIngestRequest, SessionCreate
@@ -13,11 +14,7 @@ from runtime.services.session_service import SessionService
 from runtime.models.enums import AgentProvider
 
 
-def test_forward_state_raw(db_session, fake_redis):
-    gateway = KernelGateway()
-
-    import httpx
-
+async def test_forward_state_raw(db_session, fake_redis, monkeypatch):
     def handler(request):
         return httpx.Response(
             200,
@@ -37,9 +34,14 @@ def test_forward_state_raw(db_session, fake_redis):
         )
 
     transport = httpx.MockTransport(handler)
-    gateway._client = lambda: httpx.Client(transport=transport, base_url="http://k", timeout=5)
 
-    status, ref = gateway.forward_runtime_event(
+    async def fake_get_pooled_client(base_url, profile=None):
+        return httpx.AsyncClient(transport=transport, base_url=base_url)
+
+    monkeypatch.setattr(http_pool, "get_pooled_client", fake_get_pooled_client)
+    gateway = KernelGateway()
+
+    status, ref = await gateway.forward_runtime_event(
         {
             "event_type": RuntimeEventType.STATE_RAW.value,
             "session_id": str(uuid4()),
@@ -52,7 +54,9 @@ def test_forward_state_raw(db_session, fake_redis):
     assert ref == "1"
 
 
-def test_event_ingest_pending_forward(db_session, fake_redis):
+def test_event_ingest_always_queues(db_session, fake_redis):
+    """EXP-Ubuntu011: ingest() no longer calls the kernel inline — every
+    event is unconditionally queued for ForwardWorker to deliver later."""
     agent_svc = AgentService()
     session_svc = SessionService()
     agent = agent_svc.create(db_session, AgentCreate(provider=AgentProvider.CUSTOM, model="m1"))
@@ -60,9 +64,7 @@ def test_event_ingest_pending_forward(db_session, fake_redis):
     session = session_svc.create(db_session, SessionCreate(participants=[agent.agent_id]))
     db_session.flush()
 
-    gateway = MagicMock()
-    gateway.forward_runtime_event.return_value = (ForwardStatus.PENDING, None)
-    service = EventService(gateway=gateway)
+    service = EventService()
 
     from runtime.models.enums import SEP_VERSION
 
@@ -82,7 +84,10 @@ def test_event_ingest_pending_forward(db_session, fake_redis):
             },
         ),
     )
-    assert result.forward_status == ForwardStatus.PENDING
+    assert result.forward_status == ForwardStatus.QUEUED
+
+    queued = fake_redis.xrange("runtime:forward:queue")
+    assert len(queued) == 1
 
 
 def test_experiment_not_found(db_session):

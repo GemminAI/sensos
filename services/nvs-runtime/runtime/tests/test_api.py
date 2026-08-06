@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 from runtime.models.enums import ForwardStatus, RuntimeEventType
 
 
@@ -10,39 +8,39 @@ def test_health(client):
 
 
 def test_agent_session_event_flow(client, sep_payload):
-    with patch(
-        "runtime.services.event_service.KernelGateway.forward_runtime_event",
-        return_value=(ForwardStatus.SKIPPED, None),
-    ):
-        agent_resp = client.post(
-            "/api/v1/agents",
-            json={"provider": "anthropic", "model": "claude-sonnet-4", "capabilities": ["sep.excitation"]},
-        )
-        assert agent_resp.status_code == 201
-        agent_id = agent_resp.json()["agent_id"]
+    # EXP-Ubuntu011: ingest() no longer calls KernelGateway inline (it only
+    # enqueues — see EventService.ingest / ForwardWorker), so this no longer
+    # needs to mock the kernel call to exercise the HTTP flow end to end.
+    agent_resp = client.post(
+        "/api/v1/agents",
+        json={"provider": "anthropic", "model": "claude-sonnet-4", "capabilities": ["sep.excitation"]},
+    )
+    assert agent_resp.status_code == 201
+    agent_id = agent_resp.json()["agent_id"]
 
-        session_resp = client.post("/api/v1/sessions", json={"label": "test", "participants": [agent_id]})
-        assert session_resp.status_code == 201
-        session_id = session_resp.json()["session_id"]
+    session_resp = client.post("/api/v1/sessions", json={"label": "test", "participants": [agent_id]})
+    assert session_resp.status_code == 201
+    session_id = session_resp.json()["session_id"]
 
-        exp_resp = client.post(f"/api/v1/sessions/{session_id}/experiments", json={"label": "sep-run"})
-        assert exp_resp.status_code == 201
+    exp_resp = client.post(f"/api/v1/sessions/{session_id}/experiments", json={"label": "sep-run"})
+    assert exp_resp.status_code == 201
 
-        event_resp = client.post(
-            f"/api/v1/sessions/{session_id}/events",
-            json={
-                "event_type": RuntimeEventType.SEP_EXCITATION.value,
-                "agent_id": agent_id,
-                "source_provider": "anthropic",
-                "payload": sep_payload,
-            },
-        )
-        assert event_resp.status_code == 202
-        assert event_resp.json()["accepted"] == 1
+    event_resp = client.post(
+        f"/api/v1/sessions/{session_id}/events",
+        json={
+            "event_type": RuntimeEventType.SEP_EXCITATION.value,
+            "agent_id": agent_id,
+            "source_provider": "anthropic",
+            "payload": sep_payload,
+        },
+    )
+    assert event_resp.status_code == 202
+    assert event_resp.json()["accepted"] == 1
+    assert event_resp.json()["forward_status"] == ForwardStatus.QUEUED.value
 
-        query_resp = client.get(f"/api/v1/sessions/{session_id}/events")
-        assert query_resp.status_code == 200
-        assert len(query_resp.json()) == 1
+    query_resp = client.get(f"/api/v1/sessions/{session_id}/events")
+    assert query_resp.status_code == 200
+    assert len(query_resp.json()) == 1
 
 
 def test_capabilities(client):

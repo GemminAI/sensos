@@ -13,8 +13,23 @@ os.environ["TESTING"] = "1"
 from runtime.api import deps
 from runtime.core.config import Settings
 from runtime.db.tables import Base
+from runtime.gateway.http_pool import close_all_pooled_clients
 from runtime.main import app
 from runtime.services.redis_service import RedisService
+
+
+@pytest.fixture(autouse=True)
+async def _reset_pooled_http_clients():
+    """EXP-Ubuntu011: http_pool caches one AsyncClient per base_url for the
+    process lifetime — correct in production (one long-lived event loop),
+    but each test function gets its own event loop
+    (asyncio_default_fixture_loop_scope=function), so a client cached by one
+    test and reused by a later one fails with "Event loop is closed". Clear
+    the cache around every test instead of only where http_pool is tested
+    directly."""
+    await close_all_pooled_clients()
+    yield
+    await close_all_pooled_clients()
 
 
 @compiles(JSONB, "sqlite")
@@ -58,14 +73,18 @@ def db_session(db_engine):
 
 @pytest.fixture()
 def fake_redis(monkeypatch):
+    """Patches both RedisService.client (sync) and .aclient (async,
+    EXP-Ubuntu011) onto the same fakeredis FakeServer, so data enqueued via
+    the sync client (EventService.ingest) is visible to the async consumer
+    group reads (ForwardWorker) within one test."""
     import fakeredis
 
-    client = fakeredis.FakeRedis(decode_responses=True)
+    server = fakeredis.FakeServer()
+    client = fakeredis.FakeRedis(server=server, decode_responses=True)
+    aclient = fakeredis.FakeAsyncRedis(server=server, decode_responses=True)
 
-    def _get_client(self):
-        return client
-
-    monkeypatch.setattr(RedisService, "client", property(_get_client))
+    monkeypatch.setattr(RedisService, "client", property(lambda self: client))
+    monkeypatch.setattr(RedisService, "aclient", property(lambda self: aclient))
     return client
 
 

@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     nvs_kernel_url: str = "http://nvs-kernel:8100"
+    # Superseded by config/network_profile.yaml (EXP-Ubuntu011) as the source
+    # of transport timeout/retry for KernelGateway. Kept as the pre-profile
+    # fallback default (network_profile.py) — not read by KernelGateway.
     kernel_forward_timeout: float = 10.0
     kernel_retry_max: int = 5
 
@@ -21,6 +24,19 @@ class Settings(BaseSettings):
     dedup_ttl_seconds: int = 3600
 
     semantic_annotator_url: str = "http://localhost:8011"
+
+    # EXP-Ubuntu011: outbound legs the ForwardWorker/http_pool can reach.
+    # CLE/HEKB are transport-only extension points today (no payload mapping
+    # — see runtime/gateway/cle_client.py, hekb_client.py).
+    cle_url: str = "http://localhost:8000"
+    # Default matches integrations/hekb-mcp/client.py's DEFAULT_BASE_URL —
+    # the only confirmed HEKB REST port in this repo today. Override via env
+    # for the actual local HEKB API host in a given deployment.
+    hekb_url: str = "http://localhost:8080"
+
+    # EXP-Ubuntu011: WAN-aware network profile (LOCAL/GCP_INTERNAL/WAN).
+    sensos_env: str = "local"
+    network_profile_path: str = "config/network_profile.yaml"
 
 
 @lru_cache

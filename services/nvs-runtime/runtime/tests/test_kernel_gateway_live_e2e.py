@@ -1,17 +1,22 @@
 """End-to-end verification of the Observation Runtime -> KernelGateway ->
-canonical NVS-Kernel contract fix, against a real live nvs-kernel process
-(no mocks). Skips automatically if no live kernel is reachable at
-NVS_KERNEL_URL, so it never blocks the regular unit test run.
+canonical NVS-Kernel contract, against a real live nvs-kernel process (no
+mocks). Skips automatically if no live kernel is reachable at
+NVS_KERNEL_URL_LIVE, so it never blocks the regular unit test run.
 
-    Observation Runtime (EventService.ingest)
-          -> KernelGateway.forward_runtime_event
-          -> Canonical NVS-Kernel (live /observe)
-          -> ObserveResponse
-          -> KernelGateway
-          -> Runtime Event (forward_status=FORWARDED)
+EXP-Ubuntu011: the chain is now fully async / queue-first —
+
+    Observation Runtime (EventService.ingest) -> Queue (Redis stream,
+    forward_status=QUEUED in the response) -> ForwardWorker.drain_once()
+    -> KernelGateway.observe_batch -> Canonical NVS-Kernel (live /observe)
+    -> ObserveResponse -> Runtime Event (forward_status=FORWARDED)
+
+`service.ingest()` alone no longer proves delivery (it only enqueues); this
+test drives the worker's drain_once() once, synchronously, to observe the
+same transition the background task performs continuously in production.
 """
 
 import os
+from contextlib import nullcontext
 from uuid import uuid4
 
 import pytest
@@ -22,20 +27,21 @@ from runtime.models.enums import ForwardStatus, RuntimeEventType
 from runtime.models.schemas import AgentCreate, EventIngestRequest, SessionCreate
 from runtime.services.agent_service import AgentService
 from runtime.services.event_service import EventService
+from runtime.services.forward_worker import ForwardWorker
 from runtime.services.session_service import SessionService
 
 LIVE_KERNEL_URL = os.environ.get("NVS_KERNEL_URL_LIVE", "http://127.0.0.1:18100")
 
 
-def _live_gateway() -> KernelGateway | None:
+async def _live_gateway() -> KernelGateway | None:
     gateway = KernelGateway(settings=Settings(nvs_kernel_url=LIVE_KERNEL_URL, redis_url="redis://localhost:6379/15"))
-    if not gateway.health_check():
+    if not await gateway.health_check():
         return None
     return gateway
 
 
-def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
-    gateway = _live_gateway()
+async def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
+    gateway = await _live_gateway()
     if gateway is None:
         pytest.skip(f"no live nvs-kernel reachable at {LIVE_KERNEL_URL}")
 
@@ -48,7 +54,11 @@ def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
     session = session_svc.create(db_session, SessionCreate(participants=[agent.agent_id]))
     db_session.flush()
 
-    service = EventService(gateway=gateway)
+    service = EventService()
+    # Same db_session the test uses, not the process-global engine — see
+    # ForwardWorker.db_session_factory docstring.
+    worker = ForwardWorker(gateway=gateway, db_session_factory=lambda: nullcontext(db_session))
+
     result = service.ingest(
         db_session,
         session.session_id,
@@ -59,8 +69,11 @@ def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
             payload={"text": "e2e verification: real state observation"},
         ),
     )
+    assert result.forward_status == ForwardStatus.QUEUED
 
-    assert result.forward_status == ForwardStatus.FORWARDED
+    processed = await worker.drain_once(block_ms=100)
+    assert processed == 1
+
     stored = service.list_events(db_session, session.session_id)[0]
     assert stored.forward_status == ForwardStatus.FORWARDED.value
     assert stored.kernel_run_id is not None
@@ -87,6 +100,9 @@ def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
             },
         ),
     )
-    assert result2.forward_status == ForwardStatus.FORWARDED
+    assert result2.forward_status == ForwardStatus.QUEUED
+    await worker.drain_once(block_ms=100)
+
     events = service.list_events(db_session, session.session_id)
+    assert events[1].forward_status == ForwardStatus.FORWARDED.value
     assert int(events[1].kernel_run_id) > int(events[0].kernel_run_id)

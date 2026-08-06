@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from runtime.core.exceptions import ConflictError, NotFoundError
 from runtime.db.tables import Agent, Event, Session as SessionModel
-from runtime.gateway.kernel_gateway import KernelGateway
 from runtime.models.enums import ForwardStatus, SCHEMA_VERSION
 from runtime.models.schemas import EventIngestRequest, EventIngestResponse, EventResponse
 from runtime.services.redis_service import RedisService
@@ -14,13 +13,8 @@ from runtime.validators.sep_validator import validate_sep_event
 
 
 class EventService:
-    def __init__(
-        self,
-        redis: RedisService | None = None,
-        gateway: KernelGateway | None = None,
-    ):
+    def __init__(self, redis: RedisService | None = None):
         self.redis = redis or RedisService()
-        self.gateway = gateway or KernelGateway()
 
     def ingest(
         self,
@@ -62,9 +56,16 @@ class EventService:
 
         sep_event_type = validate_sep_event(envelope)
 
-        forward_status, kernel_ref = self.gateway.forward_runtime_event(envelope)
-        if forward_status == ForwardStatus.PENDING:
-            self.redis.enqueue_forward({"event_id": str(event_id), "envelope": envelope})
+        # EXP-Ubuntu011: synchronous RPC to the kernel is removed from the
+        # request path entirely — every event is queued, unconditionally,
+        # and ForwardWorker (runtime/services/forward_worker.py) delivers it
+        # to NVS asynchronously. This is why the route already answers 202
+        # Accepted (runtime/api/routes.py) rather than 200: the response was
+        # already documented as "accepted for later processing", just not
+        # implemented that way until now.
+        forward_status = ForwardStatus.QUEUED
+        kernel_ref = None
+        self.redis.enqueue_forward({"event_id": str(event_id), "envelope": envelope})
 
         event = Event(
             event_id=event_id,
@@ -94,6 +95,24 @@ class EventService:
             event_ids=[event_id],
             forward_status=forward_status,
         )
+
+    def update_forward_status(
+        self,
+        db: Session,
+        event_id: UUID,
+        status: ForwardStatus,
+        kernel_ref: str | None = None,
+    ) -> None:
+        """Applied by ForwardWorker after it actually delivers (or gives up
+        on) a queued event — ingest() no longer knows the outcome, only that
+        the event was queued."""
+        event = db.get(Event, event_id)
+        if event is None:
+            return
+        event.forward_status = status.value
+        if kernel_ref is not None:
+            event.kernel_run_id = kernel_ref
+        db.add(event)
 
     def list_events(
         self,
