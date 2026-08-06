@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY runtime/ ./runtime/
 COPY migrations/ ./migrations/
+COPY config/ ./config/
 
 EXPOSE 8020
 

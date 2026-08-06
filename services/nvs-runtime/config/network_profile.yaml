@@ -1,0 +1,55 @@
+# Network Profile — EXP-Ubuntu011
+#
+# Selects Runtime transport behavior (timeouts/retry/batch/pooling) per
+# deployment environment, grounded in measured RTT from EXP-Ubuntu010A/010B:
+#   WAN (Ubuntu -> GCP) measured ~155ms ping RTT, p99 keep-alive ~161ms,
+#   p99 connection-close (fresh TCP handshake per call) ~330ms.
+# This file changes Runtime transport only — it does not change the
+# NVS-Kernel/CLE/HEKB HTTP contracts (paths, payload shapes) at all.
+#
+# Active profile selection: SENSOS_ENV env var (local|gcp|wan — the RFC /
+# EXP-Ubuntu010A-012 canonical names) overrides `active_profile` below;
+# falls back to "local" if neither is set. SENSOS_ENV=gcp_internal is kept
+# as a backward-compatible alias for "gcp" (see network_profile.py).
+
+active_profile: local
+
+profiles:
+  local:
+    mode: local
+    base_rtt_ms: 2
+    request_timeout_ms: 500
+    connect_timeout_ms: 200
+    retry_count: 2
+    retry_backoff_ms: 50
+    keep_alive: true
+    async_only: true
+    batch_size: 1
+    max_keepalive_connections: 20
+    max_connections: 50
+
+  gcp:
+    mode: gcp
+    base_rtt_ms: 15
+    request_timeout_ms: 800
+    connect_timeout_ms: 250
+    retry_count: 3
+    retry_backoff_ms: 100
+    keep_alive: true
+    async_only: true
+    batch_size: 10
+    max_keepalive_connections: 20
+    max_connections: 50
+
+  wan:
+    mode: wan
+    base_rtt_ms: 155
+    request_timeout_ms: 1500
+    connect_timeout_ms: 300
+    retry_count: 3
+    retry_backoff_ms: 250
+    keep_alive: true
+    async_only: true
+    batch_size: 20
+    max_keepalive_connections: 20
+    max_connections: 50
