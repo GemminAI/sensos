@@ -20,10 +20,12 @@ def _make_session(db_session):
     return agent, session
 
 
-def _worker(db_session, gateway, redis, consumer="test-worker") -> ForwardWorker:
+def _worker(db_session, gateway, redis, consumer="test-worker", cle=None, hekb=None) -> ForwardWorker:
     return ForwardWorker(
         redis=redis,
         gateway=gateway,
+        cle=cle,
+        hekb=hekb,
         consumer=consumer,
         db_session_factory=lambda: nullcontext(db_session),
     )
@@ -32,12 +34,24 @@ def _worker(db_session, gateway, redis, consumer="test-worker") -> ForwardWorker
 class _FakeGateway:
     """Records every observe_batch() call instead of doing real transport —
     the queue/batch/status-update wiring is what this test file verifies,
-    not KernelGateway's own HTTP behavior (see test_kernel_gateway.py)."""
+    not KernelGateway's own HTTP behavior (see test_kernel_gateway.py).
 
-    def __init__(self, cycle_start: int = 1, fail_sessions: frozenset[str] = frozenset()):
+    `geometry` defaults to None (no `position` key), which is exactly what a
+    real ObserveResponse looks like when include_vectors wasn't honoured —
+    ForwardWorker._propagate_semantic_mapping() returns immediately in that
+    case, so every pre-EXP-Ubuntu012B test below still runs without ever
+    touching CLEClient/HekbClient."""
+
+    def __init__(
+        self,
+        cycle_start: int = 1,
+        fail_sessions: frozenset[str] = frozenset(),
+        geometry: dict | None = None,
+    ):
         self.calls: list[tuple[str, int]] = []
         self._cycle = cycle_start
         self._fail_sessions = fail_sessions
+        self._geometry = geometry
 
     async def observe_batch(self, session_id: str, events: list):
         if session_id in self._fail_sessions:
@@ -49,8 +63,43 @@ class _FakeGateway:
 
         class _Resp:
             cycle = self._cycle
+            geometry = self._geometry
 
         return _Resp()
+
+
+class _FakeCLE:
+    def __init__(self, fail: bool = False):
+        self.calls: list[list[float]] = []
+        self._fail = fail
+
+    async def lift(self, position: list[float]) -> dict:
+        if self._fail:
+            from runtime.gateway.http_pool import RetryExhaustedError
+
+            raise RetryExhaustedError("simulated CLE failure")
+        self.calls.append(position)
+        return {
+            "concept_id": "fake-concept",
+            "normalized_hash": "fake-hash",
+            "invariants": {"betti_0": 1, "betti_1": 0, "betti_2": 0, "euler_characteristic": 1},
+            "compression_ratio": 1.0,
+            "proof": {"is_valid": True},
+        }
+
+
+class _FakeHekb:
+    def __init__(self, fail: bool = False):
+        self.calls: list[dict] = []
+        self._fail = fail
+
+    async def store(self, knowledge_object: dict) -> dict:
+        if self._fail:
+            from runtime.gateway.http_pool import RetryExhaustedError
+
+            raise RetryExhaustedError("simulated HEKB failure")
+        self.calls.append(knowledge_object)
+        return {"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
 
 
 def _redis_service_from(fake_redis):
@@ -195,3 +244,96 @@ async def test_transport_failure_leaves_entry_unacked_for_redelivery(db_session,
 
     stored2 = service.list_events(db_session, session.session_id)[0]
     assert stored2.forward_status == ForwardStatus.FORWARDED.value
+
+
+async def test_successful_forward_propagates_through_cle_to_hekb(db_session, fake_redis):
+    """EXP-Ubuntu012B: once NVS returns geometry.position, ForwardWorker
+    carries it through CLEClient.lift() and HEKBClient.store() — the
+    target NVS -> CLE -> HEKB pipeline, with fakes standing in for the
+    real HTTP clients (see test_extension_point_clients.py for those)."""
+    agent, session = _make_session(db_session)
+    service = EventService()
+    service.ingest(
+        db_session,
+        session.session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.STATE_RAW.value,
+            agent_id=agent.agent_id,
+            source_provider="custom",
+            payload={"text": "semantic mapping happy path"},
+        ),
+    )
+
+    gateway = _FakeGateway(geometry={"position": [0.1, 0.2, 0.3]})
+    cle, hekb = _FakeCLE(), _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), cle=cle, hekb=hekb)
+
+    processed = await worker.drain_once(block_ms=50)
+
+    assert processed == 1
+    stored = service.list_events(db_session, session.session_id)[0]
+    assert stored.forward_status == ForwardStatus.FORWARDED.value  # NVS leg unaffected
+
+    assert cle.calls == [[0.1, 0.2, 0.3]]
+    assert len(hekb.calls) == 1
+    assert hekb.calls[0]["kind"] == "OBSERVATION"
+    assert hekb.calls[0]["vector"] == [0.1, 0.2, 0.3]
+    assert hekb.calls[0]["labels"]["session_id"] == str(session.session_id)
+
+
+async def test_forward_without_geometry_skips_semantic_mapping(db_session, fake_redis):
+    """No include_vectors/position on the response (e.g. an nvs-kernel that
+    predates EXP-Ubuntu012B) -> CLE/HEKB are never called, NVS forwarding
+    still succeeds."""
+    agent, session = _make_session(db_session)
+    service = EventService()
+    service.ingest(
+        db_session,
+        session.session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.STATE_RAW.value,
+            agent_id=agent.agent_id,
+            source_provider="custom",
+            payload={"text": "no geometry"},
+        ),
+    )
+
+    gateway = _FakeGateway()  # geometry=None by default
+    cle, hekb = _FakeCLE(), _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), cle=cle, hekb=hekb)
+
+    processed = await worker.drain_once(block_ms=50)
+
+    assert processed == 1
+    stored = service.list_events(db_session, session.session_id)[0]
+    assert stored.forward_status == ForwardStatus.FORWARDED.value
+    assert cle.calls == []
+    assert hekb.calls == []
+
+
+async def test_semantic_mapping_failure_does_not_affect_nvs_forward_status(db_session, fake_redis):
+    """CLE/HEKB unreachable -> logged and swallowed; the already-successful
+    NVS forward (and its FORWARDED status) must not be undone by it."""
+    agent, session = _make_session(db_session)
+    service = EventService()
+    service.ingest(
+        db_session,
+        session.session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.STATE_RAW.value,
+            agent_id=agent.agent_id,
+            source_provider="custom",
+            payload={"text": "cle is down"},
+        ),
+    )
+
+    gateway = _FakeGateway(geometry={"position": [0.5]})
+    cle, hekb = _FakeCLE(fail=True), _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), cle=cle, hekb=hekb)
+
+    processed = await worker.drain_once(block_ms=50)
+
+    assert processed == 1
+    stored = service.list_events(db_session, session.session_id)[0]
+    assert stored.forward_status == ForwardStatus.FORWARDED.value
+    assert hekb.calls == []  # never reached — lift() failed first

@@ -1,7 +1,5 @@
-"""CLE/HEKB clients are transport-only extension points (EXP-Ubuntu011) —
-these tests verify the pooled/retried transport works against each
-service's real health-check convention, and that no payload-mapping method
-(lift/store/etc.) exists yet. Semantic Mapping is EXP-Ubuntu012+.
+"""CLE/HEKB clients: pooled/retried transport (EXP-Ubuntu011) plus the
+Semantic Mapping payload methods `lift()`/`store()` (EXP-Ubuntu012B).
 """
 
 import httpx
@@ -9,7 +7,7 @@ import httpx
 from runtime.core.config import Settings
 from runtime.gateway import http_pool
 from runtime.gateway.cle_client import CLEClient
-from runtime.gateway.hekb_client import HekbClient
+from runtime.gateway.hekb_client import HekbClient, build_hekb_object
 
 
 def _mock_pooled_client(monkeypatch, handler):
@@ -60,10 +58,27 @@ async def test_cle_generic_call_reaches_real_route_shape(monkeypatch):
     assert result == {"concept_id": "c1"}
 
 
-def test_cle_client_has_no_lift_method_yet():
-    """Semantic Mapping (Observation -> LiftRequest) is explicitly deferred
-    to EXP-Ubuntu012+ — this client must not commit to a payload shape."""
-    assert not hasattr(CLEClient, "lift")
+async def test_cle_lift_posts_concept_shaped_from_position(monkeypatch):
+    """EXP-Ubuntu012B: lift() wraps a position vector in CLE's existing
+    ConceptInput/MeaningStatePoint shape and posts it to the real /lift
+    route — no new CLE payload shape invented."""
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"concept_id": "c1", "normalized_hash": "h1"})
+
+    _mock_pooled_client(monkeypatch, handler)
+    client = CLEClient(Settings(cle_url="http://cle-test:8000"))
+
+    result = await client.lift([0.1, 0.2, 0.3])
+
+    assert captured["path"] == "/lift"
+    assert captured["json"] == {"concept": {"states": [{"theta": [0.1, 0.2, 0.3]}]}}
+    assert result == {"concept_id": "c1", "normalized_hash": "h1"}
 
 
 async def test_hekb_health_check_success(monkeypatch):
@@ -85,5 +100,56 @@ async def test_hekb_health_check_unreachable(monkeypatch):
     assert await client.health_check() is False
 
 
-def test_hekb_client_has_no_store_method_yet():
-    assert not hasattr(HekbClient, "store")
+async def test_hekb_store_posts_object_to_v1_objects(monkeypatch):
+    """EXP-Ubuntu012B: store() posts to the real POST /v1/objects and
+    returns the {object_id, hash, timestamp} response verbatim."""
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(
+            201, json={"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
+        )
+
+    _mock_pooled_client(monkeypatch, handler)
+    client = HekbClient(Settings(hekb_url="http://hekb-test:8080"))
+
+    knowledge_object = build_hekb_object(
+        {"concept_id": "c1", "normalized_hash": "h1", "invariants": {}, "proof": {}},
+        position=[0.1, 0.2],
+        session_id="sess-1",
+        cycle=3,
+    )
+    result = await client.store(knowledge_object)
+
+    assert captured["path"] == "/v1/objects"
+    assert captured["json"]["kind"] == "OBSERVATION"
+    assert captured["json"]["vector"] == [0.1, 0.2]
+    assert captured["json"]["labels"]["session_id"] == "sess-1"
+    assert captured["json"]["labels"]["cycle"] == "3"
+    assert result["object_id"] == "a" * 64
+
+
+def test_build_hekb_object_maps_lift_response_fields():
+    lift_result = {
+        "concept_id": "c1",
+        "normalized_hash": "h1",
+        "invariants": {"betti_0": 1, "betti_1": 0, "betti_2": 0, "euler_characteristic": 1},
+        "compression_ratio": 2.5,
+        "proof": {"is_valid": True},
+    }
+    obj = build_hekb_object(lift_result, position=[1.0, 2.0], session_id="sess-1", cycle=7)
+
+    assert obj["kind"] == "OBSERVATION"
+    assert obj["vector"] == [1.0, 2.0]
+    assert obj["attributes"] == {
+        "betti_0": 1.0, "betti_1": 0.0, "betti_2": 0.0,
+        "euler_characteristic": 1.0, "compression_ratio": 2.5,
+    }
+    assert obj["labels"] == {
+        "concept_id": "c1", "normalized_hash": "h1",
+        "session_id": "sess-1", "cycle": "7", "proof_is_valid": "True",
+    }

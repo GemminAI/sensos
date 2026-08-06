@@ -1,4 +1,4 @@
-"""Observation -> Queue -> Worker -> NVS (EXP-Ubuntu011).
+"""Observation -> Queue -> Worker -> NVS -> CLE -> HEKB (EXP-Ubuntu011 + 012B).
 
 Background task that drains the Redis forward queue populated by
 EventService.ingest() and delivers events to NVS-Kernel through
@@ -6,9 +6,13 @@ KernelGateway, batching same-session envelopes into a single /observe call
 per NetworkProfile.batch_size (fewer WAN round trips under the ~155ms RTT
 measured in EXP-Ubuntu010B).
 
-CLE/HEKB are not called from here — see runtime/gateway/cle_client.py and
-hekb_client.py. Wiring a real NVS -> CLE -> HEKB chain is Semantic Mapping
-(EXP-Ubuntu012+), out of scope for the Transport Layer built here.
+EXP-Ubuntu012B: after a successful /observe, `_propagate_semantic_mapping()`
+carries the resulting geometry through CLEClient.lift() and HEKBClient.store()
+— see runtime/gateway/cle_client.py and hekb_client.py. This is wiring only
+(minimal field mapping in build_hekb_object()); no new CLE/HEKB business
+logic lives here. It is deliberately best-effort: a CLE/HEKB failure is
+logged and does not affect the Observation -> NVS forward, which has already
+succeeded by the time this runs, nor does it change ForwardStatus.
 """
 
 from __future__ import annotations
@@ -23,9 +27,11 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from runtime.abi.observation import ObservationEvent
+from runtime.abi.observation import ObservationEvent, ObserveResponse
 from runtime.core.network_profile import get_network_profile
 from runtime.db.session import get_db_session
+from runtime.gateway.cle_client import CLEClient
+from runtime.gateway.hekb_client import HekbClient, build_hekb_object
 from runtime.gateway.http_pool import RetryExhaustedError
 from runtime.gateway.kernel_gateway import KernelGateway, build_observation_event
 from runtime.models.enums import ForwardStatus
@@ -46,11 +52,15 @@ class ForwardWorker:
         self,
         redis: RedisService | None = None,
         gateway: KernelGateway | None = None,
+        cle: CLEClient | None = None,
+        hekb: HekbClient | None = None,
         consumer: str = "forward-worker-1",
         db_session_factory: Callable[[], AbstractContextManager[Session]] | None = None,
     ):
         self.redis = redis or RedisService()
         self.gateway = gateway or KernelGateway()
+        self.cle = cle or CLEClient()
+        self.hekb = hekb or HekbClient()
         self.consumer = consumer
         # Injectable so tests can point the worker at the same session/engine
         # a test's fixtures use instead of the process-global DB (which
@@ -133,6 +143,39 @@ class ForwardWorker:
                         db, event_id, ForwardStatus.FORWARDED, str(response.cycle)
                     )
                 ack_ids.extend(batch_msg_ids)
+                await self._propagate_semantic_mapping(session_id, response)
 
         await self.redis.ack_forward(*ack_ids)
         return len(entries)
+
+    async def _propagate_semantic_mapping(
+        self, session_id: str, response: ObserveResponse
+    ) -> None:
+        """NVS -> CLEClient.lift() -> HEKBClient.store() (EXP-Ubuntu012B).
+
+        Best-effort: the Observation -> NVS forward this follows has already
+        succeeded and is already ACKed/FORWARDED by the time this runs, so a
+        CLE/HEKB failure here is logged, not raised — it must not undo or
+        block delivery that already happened.
+        """
+        geometry = response.geometry or {}
+        position = geometry.get("position")
+        if not position:
+            logger.debug(
+                "ForwardWorker: no geometry.position on cycle %s for session %s "
+                "(include_vectors not honoured?) — skipping Semantic Mapping",
+                response.cycle, session_id,
+            )
+            return
+
+        try:
+            lift_result = await self.cle.lift(position)
+            hekb_object = build_hekb_object(
+                lift_result, position=position, session_id=session_id, cycle=response.cycle
+            )
+            await self.hekb.store(hekb_object)
+        except _TRANSPORT_ERRORS as exc:
+            logger.warning(
+                "ForwardWorker: Semantic Mapping failed for session %s (cycle %s): %s",
+                session_id, response.cycle, exc,
+            )

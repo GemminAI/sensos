@@ -123,8 +123,14 @@ class KernelGateway:
         already accepts `events: list[ObservationEvent]` — batching here is
         purely a Runtime-side grouping change (fewer WAN round trips), the
         wire contract is unchanged.
+
+        include_vectors=True (EXP-Ubuntu012B): Semantic Mapping needs the
+        resulting geometry.position vector as CLE's lift input; without this
+        flag nvs-kernel omits it (docs/OBSERVATION.md: "Vectors are opt-in").
         """
-        return await self.observe(ObserveRequest(session_id=session_id, events=events))
+        return await self.observe(
+            ObserveRequest(session_id=session_id, events=events, include_vectors=True)
+        )
 
     async def forward_runtime_event(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
         """Forward a single runtime envelope to the kernel via the real

@@ -7,14 +7,19 @@ kernel's published contract exactly, per Greenfield Priority (adopt the
 mature, tested ABI rather than inventing a parallel one).
 
 Only the response fields KernelGateway callers need today are modeled.
-nvs-kernel's full `/observe` response also carries geometry, belief, field,
-trajectory, prediction, and hext blocks — deliberately not modeled yet, since
-nothing downstream consumes them in this PR.
+nvs-kernel's full `/observe` response also carries belief, field, trajectory,
+prediction, and hext blocks — deliberately not modeled yet, since nothing
+downstream consumes them in this PR. `geometry` (specifically its `position`
+vector, confirmed live against nvs-kernel with `include_vectors=true`) is
+modeled as of EXP-Ubuntu012B: it is Semantic Mapping's only input, passed
+through as a raw dict rather than a new typed block since nothing here
+interprets its shape beyond `["position"]`.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -54,6 +59,8 @@ class ObserveRequest(BaseModel):
     adapter: str = "generic"
     approval_token: str | None = None
     horizon_steps: int | None = None
+    # EXP-Ubuntu012B: KernelGateway.observe_batch() now sets this True — the
+    # geometry.position vector it unlocks is Semantic Mapping's CLE input.
     include_vectors: bool = False
 
 
@@ -75,3 +82,9 @@ class ObserveResponse(BaseModel):
     session_id: str
     cycle: int
     control: ControlDecision
+    # Raw passthrough of nvs-kernel's `geometry` block (only populated when
+    # the request set include_vectors=true). Untyped on purpose: Semantic
+    # Mapping (EXP-Ubuntu012B) reads only `geometry["position"]`, and giving
+    # the whole block its own model would mean maintaining a second copy of
+    # nvs-kernel's schema for fields nothing here uses.
+    geometry: dict[str, Any] | None = None

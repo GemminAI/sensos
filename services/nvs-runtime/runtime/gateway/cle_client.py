@@ -1,15 +1,15 @@
-"""CLE (Categorical Lift Engine) client — transport-only extension point.
+"""CLE (Categorical Lift Engine) client.
 
-EXP-Ubuntu011 scope is the Runtime Transport Layer only: pooled/async HTTP,
-retry, timeout, batching. This client proves that transport against CLE's
-real API (verified against `categorical-lift-engine/src/cle/api/router.py`:
-GET /health, POST /lift, /pullback, /recover, /compress) but does **not**
-implement the Observation -> LiftRequest payload mapping — that is Semantic
-Mapping, out of scope here and deferred to EXP-Ubuntu012+.
-
-Do not call `lift()`/`pullback()`/`recover()`/`compress()` from the Worker
-in this phase; only `health_check()` and the generic `call()` transport are
-exercised today.
+EXP-Ubuntu011 gave this client pooled/async HTTP, retry, timeout, batching —
+proven against CLE's real API (`categorical-lift-engine/src/cle/api/router.py`:
+GET /health, POST /lift, /pullback, /recover, /compress). EXP-Ubuntu012B adds
+`lift()`, the Observation -> LiftRequest payload mapping (Semantic Mapping):
+it wraps a meaning-space position vector in CLE's own existing wire shape
+(`cle.api.models.LiftRequest` / `ConceptInput` / `MeaningStatePoint` — this
+client stays a plain HTTP client, so that shape is reproduced as a dict here
+rather than imported cross-repo) and posts it to the existing `/lift` route.
+No new CLE algorithm, endpoint, or object model — `pullback()`/`recover()`/
+`compress()` remain unimplemented; only `lift()` is EXP-Ubuntu012B's scope.
 """
 
 from __future__ import annotations
@@ -45,9 +45,17 @@ class CLEClient:
         response.raise_for_status()
         return response.json()
 
-    # TODO(EXP-Ubuntu012, Semantic Mapping): implement
-    #   async def lift(self, observation: ...) -> LiftResult
-    # once the Observation -> LiftRequest(concept, subject_context,
-    # observer_context, human_knowledge_context) mapping is designed and
-    # agreed (see cle.api.models.LiftRequest). Not implemented in
-    # EXP-Ubuntu011 — Runtime infra only, no CLE business logic.
+    async def lift(self, position: list[float]) -> dict[str, Any]:
+        """Lift a meaning-space position vector through CLE's existing /lift.
+
+        `position` is `ObserveResponse.geometry["position"]` (nvs-kernel's
+        real coordinate array, EXP-Ubuntu012B). It is wrapped as one point
+        in a single-state `ConceptInput` — CLE's existing minimal point-cloud
+        shape (`cle.runtime.engine._coordinates_of` reads exactly one
+        `.states[i].theta` per point) — with no subject/observer/knowledge
+        context, since the Runtime does not have three-view data to offer
+        yet; `LiftRequest` already defaults those to `None` for this case.
+        Returns CLE's `LiftResponse` body verbatim.
+        """
+        concept = {"states": [{"theta": list(position)}]}
+        return await self.call("POST", "/lift", json={"concept": concept})
