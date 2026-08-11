@@ -1,124 +1,202 @@
 # SensOS
 
-> **Status: Documentation-only repository**
->
-> The current repository contains only a project description (this README).
-> It does not currently include a runnable SensOS implementation — there is
-> no source code, no installable package, no CLI, and no dependency manifest
-> in this repository yet.
+## 1. Title / Status
 
-## A. What this repository currently contains
+**SensOS** is an Observation-Centered Intelligence platform: a small set
+of independently-versioned components (a Semantic Annotator, an
+inference `RuntimeBridge`, a Linux installer, and — separately — a
+knowledge-storage library, HEKB) connected by narrow, explicit
+contracts, rather than one monolithic runtime.
 
-As of the current `empty` branch (the repository's default branch), cloning
-this repository gives you exactly one file:
+> **Where the verified implementation actually lives today:** this
+> repository (`GemminAI/sensos`) does not yet contain the code described
+> below. Everything in this README has been implemented and verified
+> inside `GemminAI/nvs-platform-runtime`, under `sensos/`, on branch
+> `feature/linux-sensos-installer` — not yet merged into
+> `nvs-platform-runtime`'s own `main`, and not yet migrated into this
+> repository. This README describes that verified implementation
+> accurately, including exactly what has and hasn't been checked, so
+> that migrating it here is a matter of moving code, not resolving
+> ambiguity about what state it's in.
 
-```text
-README.md
+Status, in one line per area (see §3 for the full table): the **Linux
+installer, Semantic Annotator, and vLLM path are implemented and
+fresh-install verified**; **Apple Silicon MLX inference is implemented
+and real-hardware verified, but not installer-integrated**; **HEKB is a
+separate, standalone library, Fresh-Install verified on its own, with
+no SensOS integration implemented yet**; **MCP integration does not
+exist**.
+
+## 2. What is SensOS
+
+SensOS observes the world, annotates what it observes, and (in later,
+not-yet-implemented phases) is intended to store and reason over that
+knowledge. Today, the implemented slice of that pipeline is:
+
+```
+Observation → Semantic Annotator → LLMAnnotator → RuntimeBridge → (vLLM or MLX) → AnnotatedObservation
 ```
 
-There is no `pyproject.toml`, `setup.py`, `requirements.txt`, `src/`,
-`sensos/`, `tests/`, `mcp_config.json`, or `LICENSE` file in this
-repository. No `sensos` CLI, MCP server, or MLX/inference integration code
-is present.
+`RuntimeBridge` is a Protocol with two independent implementations —
+`VLLMRuntimeBridge` (Linux, vLLM/CUDA) and `MLXRuntimeBridge` (Apple
+Silicon, MLX/Metal) — both feeding the same, unmodified `LLMAnnotator`.
+Knowledge storage (HEKB) exists as a separate, standalone library (§8)
+that nothing in this pipeline currently calls.
 
-## What is SensOS (project description)
+## 3. Current Status
 
-SensOS is described as a next-generation distributed AI operating runtime
-intended to dynamically connect and integrate normalized knowledge bases
-(such as HEKBv2), mathematical cores, and local inference engines
-(MLX/CUDA/CPU) via the Model Context Protocol (MCP).
+| Component | Status |
+|---|---|
+| SensOS Runtime (`sensos` package: `doctor`, `smoke` CLI) | **Implemented, fresh-install verified** (Linux/Docker) |
+| Semantic Annotator (`RuntimeBridge`, `LLMAnnotator`) | **Implemented, tested** (45 tests) |
+| Linux Installer (`install.sh`) | **Implemented, fresh-install verified** (Ubuntu 24.04 Docker) |
+| `VLLMRuntimeBridge` + vLLM | **Implemented, package installs and imports verified**; real inference against a running vLLM server on a CUDA GPU **not yet verified** |
+| CUDA / NVIDIA GPU inference (end-to-end) | **Not yet verified** — no CUDA GPU environment was available for this verification pass |
+| Apple Silicon / MLX (`MLXRuntimeBridge`) | **Implemented, real-hardware verified end-to-end** (Apple M3 Pro, GPT-OSS-20B); **not integrated into the Linux installer**, and no Apple Silicon installer exists |
+| HEKB | **Standalone library, Fresh-Install verified on its own**; **not integrated with SensOS** — the Linux installer does not install it, and no code connects it to Semantic Annotator |
+| MCP | **Not implemented** |
 
-The intent is for SensOS to act as inter-AI runtime middleware, enabling AI
-agents (e.g., Claude Code, Cursor, custom agents) to interact with
-structured backend knowledge assets — mathematical models, normalized RFCs,
-and knowledge bases.
-
-**Intended key features (not yet implemented in this repository):**
-
-- **MCP-native** — knowledge bases and computational cores exposed as MCP
-  servers, queryable by multiple AI agents concurrently.
-- **Distributed knowledge & inference hybrid** — bridging normalized
-  knowledge (such as HEKBv2) with Apple Silicon (MLX) or GPU-accelerated
-  inference infrastructure.
-- **Context collapse prevention** — structured, on-demand knowledge access
-  instead of dumping raw text into prompt windows.
-
-These are design goals for the project, not capabilities available in the
-current repository.
-
-## B. What you can do today
+## 4. Quick Start — Linux
 
 ```bash
 git clone https://github.com/GemminAI/sensos.git
 cd sensos
-ls
+./install.sh
 ```
 
-At this point you will see `README.md` and nothing else. There is no
-further installation, build, or run step that will currently succeed —
-this document is the extent of what is available.
+This is the intended flow once the verified implementation (see the
+note in §1) is migrated into this repository. **Right now**, the
+equivalent — and what was actually run to produce the verification
+results in this README — is:
 
-## C. What is not yet available
-
-The following do **not** exist in this repository yet:
-
-- Any Python package, module, or source code (`sensos/`, `src/`)
-- A dependency manifest (`requirements.txt`, `pyproject.toml`)
-- A `sensos` CLI or any executable entry point
-- An MCP server implementation or `mcp_config.json` example that
-  corresponds to real code
-- MLX, vLLM, or PyTorch integration code
-- HEKB / HEKBv2 integration code
-- Tests
-- A `LICENSE` file (license terms are therefore undetermined at this time)
-
-If your goal is to install and run SensOS, that is not yet possible from
-this repository. Check back for updates, or refer to the project's other
-repositories under the GemminAI organization for related, independently
-maintained components.
-
-## Planned / Target architecture
-
-The diagram below describes the **intended future architecture** of
-SensOS. None of the components shown are implemented in this repository
-today; this section exists to communicate project direction only.
-
-```text
-Planned / Target architecture (not implemented in this repository)
-
-flowchart TD
-    subgraph Clients["AI Clients / Agents"]
-        Claude["Claude Code"]
-        Cursor["Cursor"]
-        Agent["SensOS Agent"]
-    end
-
-    subgraph Core["SensOS Runtime Core"]
-        Orchestrator["Task Orchestrator"]
-        Abstraction["Model Abstraction Layer"]
-        MCPClient["MCP Client / Hub"]
-        Optimizer["Context Optimization"]
-    end
-
-    subgraph Infrastructure["Backend Resources"]
-        Inference["Inference Engine (MLX / vLLM / PyTorch)"]
-        Knowledge["HEKBv2 Knowledge (Normalized RFCs / Math Cores)"]
-    end
-
-    Clients <-->|MCP Protocol / stdio / SSE| Core
-    Core <--> Inference
-    Core <--> Knowledge
+```bash
+git clone git@github.com:GemminAI/nvs-platform-runtime.git
+cd nvs-platform-runtime
+git checkout feature/linux-sensos-installer
+cd sensos
+./install.sh
 ```
 
-## MLX
+`install.sh` installs the SensOS Runtime, Semantic Annotator, and vLLM
+(`uv sync` + `uv pip install vllm`). It does **not** start a vLLM
+server and does **not** download or assume any specific model.
 
-MLX support / runtime integration is not included in the current
-repository state. No MLX installation steps, provider code, model
-loading, or inference examples exist here. MLX-related verification for
-Apple Silicon hardware, where it exists, is tracked in a separate,
-independent repository and is out of scope for this document.
+## 5. `sensos doctor`
 
-## License
+```bash
+uv run sensos doctor
+```
 
-No `LICENSE` file is currently present in this repository. License terms
-are therefore undetermined until one is added.
+Checks OS, architecture, Python, uv, SensOS Runtime, Semantic
+Annotator, vLLM, and CUDA/GPU availability — PASS/FAIL per item, never
+loads a model. In an environment with no CUDA GPU, the GPU check
+**honestly reports FAIL**; this is correct behavior, not an installer
+defect (see §9).
+
+## 6. `sensos smoke`
+
+```bash
+uv run vllm serve <model> --port 8000 --dtype auto
+export RUNTIME_BRIDGE_URL=http://localhost:8000
+export SENSOS_MODEL_ID=<model>
+uv run sensos smoke
+```
+
+Runs one real `Observation` through `LLMAnnotator` → `VLLMRuntimeBridge`
+→ vLLM → `AnnotatedObservation`. No model is assumed or downloaded by
+default — you choose it. If the backend isn't configured or reachable,
+`smoke` reports a real FAIL and which layer failed — never a fabricated
+PASS.
+
+## 7. Architecture
+
+Linux and Apple Silicon are two separate, non-overlapping paths that
+share only `RuntimeBridge` / `CompletionResult` / `LLMAnnotator`.
+
+**Linux** (installer-integrated):
+```
+SensOS
+  → Semantic Annotator
+    → VLLMRuntimeBridge
+      → vLLM
+        → CUDA
+```
+
+**Apple Silicon** (implemented and real-hardware verified, but **not**
+installer-integrated — no Apple Silicon installer exists):
+```
+SensOS
+  → Semantic Annotator
+    → MLXRuntimeBridge
+      → MLX / Metal
+```
+
+## 8. HEKB
+
+Canonical implementation: [`GemminAI/HEKB`](https://github.com/GemminAI/HEKB)
+— a separate, standalone, storage-ignorant, category-theoretic
+knowledge library. It has its own Fresh Install verification (clone,
+`uv sync`, empty-state initialization, read/write, 29 tests — all PASS)
+documented in its own README.
+
+- Persistent storage backends (PostgreSQL, ScyllaDB, ...) are **not**
+  part of the current HEKB package — only an in-memory backend, for
+  tests/demos, ships today.
+- **SensOS integration is not yet implemented.** No code in
+  `semantic_annotator`, the SensOS Linux Installer, or this repository
+  connects to HEKB. The SensOS installer does not install HEKB.
+- HEKB can be installed and used entirely on its own (see its README),
+  independent of SensOS.
+
+## 9. Verification
+
+Test suites (`nvs-platform-runtime`, branch `feature/linux-sensos-installer`):
+
+| Suite | Result |
+|---|---|
+| `sensos` | **35 tests PASS** |
+| `semantic_annotator` | **45 tests PASS** |
+| `integration` | **27 tests PASS** |
+| `ruff check .` (all three) | **PASS** |
+| `mypy .` (all three) | **PASS** |
+
+**Linux:**
+- Ubuntu 24.04 Docker fresh install (`install.sh`, including `uv pip
+  install vllm`): **PASS**
+- `sensos doctor` in that container: every check **PASS** except
+  GPU/CUDA, which correctly **FAIL**ed — that container has no GPU
+  passthrough; this is the installer honestly reporting its
+  environment, not a defect.
+- Real inference against vLLM on a Linux NVIDIA GPU: **NOT YET
+  VERIFIED**.
+
+**Apple Silicon:**
+- MLX 0.32.0 / mlx-lm 0.31.3 on Apple M3 Pro, `Device(gpu, 0)`: **PASS**
+- `mlx-community/gpt-oss-20b-MXFP4-Q4` load + generation via
+  `MLXRuntimeBridge`: **PASS**
+- Harmony `final`-channel extraction (`harmony.py`): **PASS**
+- Full chain `MLXRuntimeBridge → GPT-OSS-20B → Harmony extraction →
+  LLMAnnotator → AnnotatedObservation`: **PASS**
+
+**HEKB** (standalone, see §8): fresh clone → `uv sync` → empty-state
+initialization → read/write test → 29 tests: **all PASS**.
+**SensOS integration: NOT YET IMPLEMENTED.**
+
+## 10. Current Limitations / Next Phase
+
+Explicitly not yet done — none of the following should be read as
+implemented:
+
+- **Linux NVIDIA GPU end-to-end inference** — vLLM and CUDA install
+  correctly; a real GPU has not yet run a real generation through this
+  stack.
+- **HEKB integration** — no code connects Semantic Annotator's
+  `AnnotatedObservation` output to HEKB's `HEKBCoreRuntime`.
+- **MCP integration** — does not exist in any form yet.
+- **Apple Silicon installer** — `MLXRuntimeBridge` works and is
+  real-hardware verified, but there is no installer for it; only the
+  Linux installer exists.
+- **A common CUDA/MLX inference abstraction above `RuntimeBridge`** —
+  today, `VLLMRuntimeBridge` and `MLXRuntimeBridge` are two independent
+  implementations of the same Protocol; there is no higher-level
+  backend-selection layer.
