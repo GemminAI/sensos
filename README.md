@@ -1,149 +1,124 @@
-**
+# SensOS
 
-# SensOS Runtime v1.0
+> **Status: Documentation-only repository**
+>
+> The current repository contains only a project description (this README).
+> It does not currently include a runnable SensOS implementation — there is
+> no source code, no installable package, no CLI, and no dependency manifest
+> in this repository yet.
 
-SensOS Runtime is a next-generation distributed AI operating runtime that dynamically connects and integrates normalized knowledge bases (such as HEKBv2), mathematical cores, and local inference engines (MLX/CUDA/CPU) via MCP (Model Context Protocol).
+## A. What this repository currently contains
 
-## 💡 What is SensOS?
+As of the current `empty` branch (the repository's default branch), cloning
+this repository gives you exactly one file:
 
-SensOS is an inter-AI runtime middleware that enables seamless interaction between AI agents (e.g., Claude Code, Cursor, custom agents) and structured backend knowledge assets (mathematical models, normalized RFCs, and knowledge bases).
+```text
+README.md
+```
 
-### Key Features
+There is no `pyproject.toml`, `setup.py`, `requirements.txt`, `src/`,
+`sensos/`, `tests/`, `mcp_config.json`, or `LICENSE` file in this
+repository. No `sensos` CLI, MCP server, or MLX/inference integration code
+is present.
 
-1. MCP (Model Context Protocol) Native
-    
+## What is SensOS (project description)
 
-- Knowledge bases and computational cores are exposed as MCP Servers, allowing multiple AI agents to concurrently query and operate on them.
-    
+SensOS is described as a next-generation distributed AI operating runtime
+intended to dynamically connect and integrate normalized knowledge bases
+(such as HEKBv2), mathematical cores, and local inference engines
+(MLX/CUDA/CPU) via the Model Context Protocol (MCP).
 
-2. Distributed Knowledge & Inference Hybrid
-    
+The intent is for SensOS to act as inter-AI runtime middleware, enabling AI
+agents (e.g., Claude Code, Cursor, custom agents) to interact with
+structured backend knowledge assets — mathematical models, normalized RFCs,
+and knowledge bases.
 
-- Seamlessly bridges Linux-hosted normalized knowledge (such as HEKBv2) with Apple Silicon (MLX) or GPU-accelerated inference infrastructure.
-    
+**Intended key features (not yet implemented in this repository):**
 
-3. Context Collapse Prevention
-    
+- **MCP-native** — knowledge bases and computational cores exposed as MCP
+  servers, queryable by multiple AI agents concurrently.
+- **Distributed knowledge & inference hybrid** — bridging normalized
+  knowledge (such as HEKBv2) with Apple Silicon (MLX) or GPU-accelerated
+  inference infrastructure.
+- **Context collapse prevention** — structured, on-demand knowledge access
+  instead of dumping raw text into prompt windows.
 
-- Prevents LLM context overflow by providing structured tools and resources for on-demand knowledge access rather than dumping massive raw text directly into prompt windows.
-    
+These are design goals for the project, not capabilities available in the
+current repository.
 
-## 🏗 System Architecture
+## B. What you can do today
 
-flowchart TD  
-    subgraph Clients["AI Clients / Agents"]  
-        Claude["Claude Code"]  
-        Cursor["Cursor"]  
-        Agent["SensOS Agent"]  
-    end  
-  
-    subgraph Core["SensOS Runtime Core"]  
-        Orchestrator["Task Orchestrator"]  
-        Abstraction["Model Abstraction Layer"]  
-        MCPClient["MCP Client / Hub"]  
-        Optimizer["Context Optimization"]  
-    end  
-  
-    subgraph Infrastructure["Backend Resources"]  
-        Inference["Inference Engine<br/>(MLX / vLLM / PyTorch)"]  
-        Knowledge["HEKBv2 Knowledge<br/>(Normalized RFCs / Math Cores)"]  
-    end  
-  
-    Clients <-->|MCP Protocol / stdio / SSE| Core  
-    Core <--> Inference  
-    Core <--> Knowledge  
-  
+```bash
+git clone https://github.com/GemminAI/sensos.git
+cd sensos
+ls
+```
 
-## 🚀 Quick Start for Clean Linux Environments
+At this point you will see `README.md` and nothing else. There is no
+further installation, build, or run step that will currently succeed —
+this document is the extent of what is available.
 
-Follow these steps to set up and initialize SensOS Runtime on a clean Linux installation (e.g., Ubuntu 22.04 LTS / 24.04 LTS).
+## C. What is not yet available
 
-### 1. Install System Dependencies
+The following do **not** exist in this repository yet:
 
-Install required build tools, Git, and Python development utilities:
+- Any Python package, module, or source code (`sensos/`, `src/`)
+- A dependency manifest (`requirements.txt`, `pyproject.toml`)
+- A `sensos` CLI or any executable entry point
+- An MCP server implementation or `mcp_config.json` example that
+  corresponds to real code
+- MLX, vLLM, or PyTorch integration code
+- HEKB / HEKBv2 integration code
+- Tests
+- A `LICENSE` file (license terms are therefore undetermined at this time)
 
-sudo apt update && sudo apt install -y \  
-    git \  
-    python3 \  
-    python3-pip \  
-    python3-venv \  
-    build-essential \  
-    curl  
-  
+If your goal is to install and run SensOS, that is not yet possible from
+this repository. Check back for updates, or refer to the project's other
+repositories under the GemminAI organization for related, independently
+maintained components.
 
-### 2. Clone the Repository
+## Planned / Target architecture
 
-git clone https://github.com/GemminAI/sensos.git  
-cd sensos  
-  
+The diagram below describes the **intended future architecture** of
+SensOS. None of the components shown are implemented in this repository
+today; this section exists to communicate project direction only.
 
-### 3. Set Up Python Virtual Environment
+```text
+Planned / Target architecture (not implemented in this repository)
 
-Create an isolated virtual environment to avoid polluting global system packages:
+flowchart TD
+    subgraph Clients["AI Clients / Agents"]
+        Claude["Claude Code"]
+        Cursor["Cursor"]
+        Agent["SensOS Agent"]
+    end
 
-python3 -m venv .venv  
-source .venv/bin/activate  
-  
+    subgraph Core["SensOS Runtime Core"]
+        Orchestrator["Task Orchestrator"]
+        Abstraction["Model Abstraction Layer"]
+        MCPClient["MCP Client / Hub"]
+        Optimizer["Context Optimization"]
+    end
 
-### 4. Install Dependencies
+    subgraph Infrastructure["Backend Resources"]
+        Inference["Inference Engine (MLX / vLLM / PyTorch)"]
+        Knowledge["HEKBv2 Knowledge (Normalized RFCs / Math Cores)"]
+    end
 
-pip install --upgrade pip setuptools wheel  
-pip install -r requirements.txt  
-  
+    Clients <-->|MCP Protocol / stdio / SSE| Core
+    Core <--> Inference
+    Core <--> Knowledge
+```
 
-(Optional: Install in editable mode)
+## MLX
 
-pip install -e .  
-  
+MLX support / runtime integration is not included in the current
+repository state. No MLX installation steps, provider code, model
+loading, or inference examples exist here. MLX-related verification for
+Apple Silicon hardware, where it exists, is tracked in a separate,
+independent repository and is out of scope for this document.
 
-### 5. Verification & Diagnostics
+## License
 
-Verify the installation using the SensOS CLI diagnostic command:
-
-# Check version  
-sensos --version  
-  
-# Run system diagnostics (verifies Python environment, dependencies, and MCP interface)  
-sensos doctor  
-  
-
-## ⚙️ Knowledge Base (HEKBv2) & MCP Integration
-
-### 1. Configure MCP File
-
-Create an mcp_config.json file in the root directory to define target knowledge bases and tools:
-
-{  
-  "mcpServers": {  
-    "hekb-core": {  
-      "command": "python3",  
-      "args": [  
-        "-m", "sensos.mcp.hekb_server",  
-        "--kb-path", "/path/to/HEKBv2/knowledge_base"  
-      ]  
-    }  
-  }  
-}  
-  
-
-### 2. Run Connectivity Test
-
-sensos mcp test --config mcp_config.json  
-  
-
-## 🤝 AI Agent Integration (Claude Code / Cursor)
-
-To connect SensOS to your development agents, point the agent's MCP settings to mcp_config.json:
-
-- For Claude Code:  
-    claude --mcp-config mcp_config.json  
-      
-    
-- For Cursor: Navigate to Settings > Features > MCP and register the server definition from mcp_config.json.
-    
-
-## 📄 License
-
-[MIT License](http://docs.google.com/LICENSE)
-
-**
+No `LICENSE` file is currently present in this repository. License terms
+are therefore undetermined until one is added.
