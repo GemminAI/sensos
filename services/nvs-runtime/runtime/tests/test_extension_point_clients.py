@@ -107,8 +107,9 @@ async def test_hekb_health_check_unreachable(monkeypatch):
 
 
 async def test_hekb_store_posts_object_to_v1_objects(monkeypatch):
-    """EXP-Ubuntu012B: store() posts to the real POST /v1/objects and
-    returns the {object_id, hash, timestamp} response verbatim."""
+    """EXP-Ubuntu012B + ADR-0013: store() posts to the real POST
+    /v1/objects and normalizes hekbd's real `{"id"}` response into
+    `{"object_id": id, "hash": id}` for existing callers."""
     captured = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -116,12 +117,10 @@ async def test_hekb_store_posts_object_to_v1_objects(monkeypatch):
 
         captured["path"] = request.url.path
         captured["json"] = json.loads(request.content)
-        return httpx.Response(
-            201, json={"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
-        )
+        return httpx.Response(201, json={"id": "a" * 64})
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_url="http://hekb-test:8080"))
+    client = HekbClient(Settings(hekb_url="http://hekb-test:8100"))
 
     knowledge_object = build_hekb_object(
         {"concept_id": "c1", "normalized_hash": "h1", "invariants": {}, "proof": {}},
@@ -140,10 +139,9 @@ async def test_hekb_store_posts_object_to_v1_objects(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# HEKB Read MCP client methods — target `hekb_query_url` (hekbd), not
-# `hekb_url` (hekb-api). Route shapes match GemminAI/hekb's cpp/server/
-# http_api.cpp exactly (see hekb_client.py's own docstrings for the audit
-# trail).
+# HEKB Read MCP client methods — target `hekb_url` (hekbd, ADR-0013). Route
+# shapes match GemminAI/hekb's cpp/server/http_api.cpp exactly (see
+# hekb_client.py's own docstrings for the audit trail).
 # ---------------------------------------------------------------------------
 
 
@@ -163,7 +161,7 @@ async def test_hekb_get_object_found(monkeypatch):
         )
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     result = await client.get_object("a" * 64)
     assert result["kind"] == "OBSERVATION"
 
@@ -173,7 +171,7 @@ async def test_hekb_get_object_not_found_returns_none_not_error(monkeypatch):
         return httpx.Response(404, json={"error": "not_found", "message": "no such object"})
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     assert await client.get_object("b" * 64) is None
 
 
@@ -186,7 +184,7 @@ async def test_hekb_nearest_posts_vector_and_returns_matches(monkeypatch):
         return httpx.Response(200, json={"matches": [{"id": "a" * 64, "distance": 0.1}]})
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     matches = await client.nearest([1.0, 0.0], limit=5, metric="cosine")
 
     assert captured["path"] == "/v1/query/nearest"
@@ -204,7 +202,7 @@ async def test_hekb_neighbours_encodes_id_and_depth_as_query_params(monkeypatch)
         )
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     neighbours = await client.neighbours("a" * 64, depth=2)
     assert neighbours == [{"id": "b" * 64, "via": "c" * 64, "hops": 1}]
 
@@ -219,7 +217,7 @@ async def test_hekb_geodesic_encodes_from_to_as_query_params(monkeypatch):
         )
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     result = await client.geodesic("a" * 64, "b" * 64)
     assert result["found"] is True
     assert result["cost"] == 1.5
@@ -230,7 +228,7 @@ async def test_hekb_geodesic_no_path_is_data_not_exception(monkeypatch):
         return httpx.Response(200, json={"found": False, "cost": 0.0, "objects": [], "morphisms": []})
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     result = await client.geodesic("a" * 64, "b" * 64)
     assert result["found"] is False
 
@@ -249,7 +247,7 @@ async def test_hekb_stats_parses_prometheus_metrics(monkeypatch):
         return httpx.Response(200, text=body)
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     stats = await client.stats()
     assert stats == {"objects": 3, "morphisms": 2}
 
@@ -263,7 +261,7 @@ async def test_hekb_relate_posts_morphism_and_returns_id(monkeypatch):
         return httpx.Response(201, json={"id": "d" * 64})
 
     _mock_pooled_client(monkeypatch, handler)
-    client = HekbClient(Settings(hekb_query_url="http://hekbd-test:8100"))
+    client = HekbClient(Settings(hekb_url="http://hekbd-test:8100"))
     morphism_id = await client.relate("a" * 64, "b" * 64, "SUPPORTS", weight=0.5)
 
     assert captured["path"] == "/v1/morphisms"

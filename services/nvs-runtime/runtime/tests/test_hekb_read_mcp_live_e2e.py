@@ -1,16 +1,7 @@
 """End-to-end verification of the HEKB Read MCP tools against a real, live
-`hekbd` process (GemminAI/hekb's C++ server) — no mocks. Skips automatically
-if no live hekbd is reachable at HEKB_QUERY_URL_LIVE, so it never blocks the
-regular unit test run.
-
-Discovered live against a real hekbd while writing this test (not assumed):
-hekbd's `POST /v1/objects` returns `{"id": "..."}`, NOT the
-`{"object_id","hash","timestamp"}` shape `HekbClient.store()` expects —
-that shape belongs to the *Python* hekb-api (`hekb_url`), a different
-server with an overlapping but non-identical contract (see
-runtime/core/config.py's `hekb_query_url` docstring). So this test writes
-seed objects via `call_query()` directly, reading hekbd's real `id` key,
-rather than through `store()`.
+`hekbd` process (GemminAI/hekb's C++ server, ADR-0013's canonical HEKB
+backend) — no mocks. Skips automatically if no live hekbd is reachable at
+HEKB_URL_LIVE, so it never blocks the regular unit test run.
 """
 
 import os
@@ -20,11 +11,11 @@ import pytest
 from runtime.core.config import Settings
 from runtime.gateway.hekb_client import HekbClient
 
-LIVE_HEKBD_URL = os.environ.get("HEKB_QUERY_URL_LIVE", "http://127.0.0.1:8100")
+LIVE_HEKBD_URL = os.environ.get("HEKB_URL_LIVE", "http://127.0.0.1:8100")
 
 
 async def _live_client() -> HekbClient | None:
-    client = HekbClient(Settings(hekb_url=LIVE_HEKBD_URL, hekb_query_url=LIVE_HEKBD_URL))
+    client = HekbClient(Settings(hekb_url=LIVE_HEKBD_URL))
     if not await client.health_check():
         return None
     return client
@@ -37,23 +28,18 @@ async def test_hekb_read_mcp_tools_against_live_hekbd():
 
     stats_before = await client.stats()
 
-    # HEKB is content-addressed (put is idempotent — identical content always
-    # yields the same id and does not grow the store), so a unique label per
+    # HEKB is content-addressed (put is idempotent), so a unique label per
     # test run is required for the count-delta assertions below to mean
-    # anything; a fixed label across repeated runs would legitimately produce
-    # zero growth, which is correct HEKB behavior, not something to defeat.
+    # anything; a fixed label across repeated runs would legitimately
+    # produce zero growth, which is correct HEKB behavior.
     run_id = uuid4().hex
-    obj_a = await client.call_query(
-        "POST",
-        "/v1/objects",
-        json={"kind": "OBSERVATION", "vector": [1.0, 0.0, 0.0], "attributes": {}, "labels": {"run": run_id, "test": "live-e2e-a"}},
+    obj_a = await client.store(
+        {"kind": "OBSERVATION", "vector": [1.0, 0.0, 0.0], "attributes": {}, "labels": {"run": run_id, "test": "live-e2e-a"}}
     )
-    obj_b = await client.call_query(
-        "POST",
-        "/v1/objects",
-        json={"kind": "OBSERVATION", "vector": [0.0, 1.0, 0.0], "attributes": {}, "labels": {"run": run_id, "test": "live-e2e-b"}},
+    obj_b = await client.store(
+        {"kind": "OBSERVATION", "vector": [0.0, 1.0, 0.0], "attributes": {}, "labels": {"run": run_id, "test": "live-e2e-b"}}
     )
-    id_a, id_b = obj_a["id"], obj_b["id"]
+    id_a, id_b = obj_a["object_id"], obj_b["object_id"]
     assert len(id_a) == 64 and len(id_b) == 64  # real content addresses, not fabricated ids
 
     # get_object — real read of what was just written

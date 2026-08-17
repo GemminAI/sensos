@@ -10,6 +10,7 @@ core_c04_hext_closure_verifier), not invented.
 from __future__ import annotations
 
 import inspect
+import json
 
 from runtime.gateway.http_pool import RetryExhaustedError
 from runtime.models.enums import AgentProvider, RuntimeEventType
@@ -22,6 +23,7 @@ from runtime.services.capability_decision import (
     request_capability,
     request_meaning_trajectory,
     request_meaning_triangulation,
+    request_semantic_anchor_triangulation,
 )
 from runtime.services.event_service import EventService
 from runtime.services.meaning_trajectory import build_hext_observation
@@ -90,24 +92,16 @@ class _FakeHekb:
             raise RetryExhaustedError("simulated HEKB failure")
 
     async def store(self, knowledge_object: dict) -> dict:
+        # First call always returns "a"*64 (every pre-existing single-call
+        # test asserts this exact value); later calls in the same test get
+        # distinct letters ("b"*64, "c"*64, ...) -- ADR-0013's triangulation
+        # tests make multiple store() calls per run and want distinct
+        # trajectory/summary ids to prove real relate() linkage, not a
+        # trivially-equal coincidence.
         self._maybe_fail()
         self.calls.append(knowledge_object)
-        return {"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
-
-    async def call_query(self, method: str, path: str, *, json: dict | None = None) -> dict:
-        # request_meaning_triangulation() writes trajectory/summary objects
-        # via call_query() (hekbd shape: {"id"}), not store() (hekb-api
-        # shape: {"object_id",...}) -- see capability_decision.py's own
-        # comment on why. Tracked in the same `calls` list as store() so
-        # existing assertions (`len(hekb.calls)`, `hekb.calls[i]["kind"]`)
-        # keep working regardless of which method wrote a given object.
-        # Ids are unique per call (unlike store()'s fixed "a"*64 -- no
-        # pre-existing test depends on call_query() returning a fixed id,
-        # and the triangulation tests want distinct trajectory/summary ids).
-        self._maybe_fail()
-        self.calls.append(json)
-        object_id = f"{len(self.calls):01x}" * 64
-        return {"id": object_id[:64]}
+        letter = chr(ord("a") + len(self.calls) - 1)
+        return {"object_id": letter * 64, "hash": letter * 64, "timestamp": "2026-08-06T00:00:00Z"}
 
     async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
         self._maybe_fail()
@@ -683,3 +677,129 @@ async def test_request_meaning_triangulation_lineage_linked(db_session, fake_red
     assert request_event.event_id == result.runtime_cycle_id
     assert result_event.parent_event_id == request_event.event_id
     assert request_event.payload["capability_id"] == "meaning_mapper.triangulation"
+
+
+# ---------------------------------------------------------------------------
+# request_semantic_anchor_triangulation() — fake OllamaClient (generation),
+# fake HekbClient (store + relate, same as request_meaning_triangulation's
+# own tests), real MeaningMapper/MSR underneath.
+# ---------------------------------------------------------------------------
+
+
+class _FakeOllama:
+    def __init__(self, response_text: str = "a fixed real-shaped summary", fail: bool = False):
+        self.response_text = response_text
+        self._fail = fail
+        self.generate_calls: list[tuple] = []
+
+    async def generate(self, model, prompt, *, temperature, seed):
+        if self._fail:
+            raise RetryExhaustedError("simulated Ollama failure")
+        self.generate_calls.append((model, prompt, temperature, seed))
+        return {"response": self.response_text, "done": True, "done_reason": "stop", "eval_count": 5, "total_duration": 1}
+
+    async def digest_of(self, model):
+        return "digest-" + model
+
+
+async def test_semantic_anchor_triangulation_success_persists_everything(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    ollama = _FakeOllama(response_text="the system is stable and observing correctly")
+    hekb = _FakeHekb()
+
+    result = await request_semantic_anchor_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        "the system is stable and observing correctly",
+        observation_id="obs-anchor-1",
+        model_id="gpt-oss:20b",
+        divergence_epsilon=1000.0,  # generous: this test checks persistence structure, not divergence classification
+        ollama=ollama,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS
+    assert result.evidence_status == EvidenceStatus.PERSISTED
+    assert result.evidence_object_id is not None  # the triangulation summary id
+    assert result.invocation_result["model_id"] == "gpt-oss:20b"
+    assert result.invocation_result["anchor_object_id"] is not None
+    # 2 trajectories (direct + anchor) + 1 triangulation summary + 1 anchor object = 4 store() calls
+    assert len(hekb.calls) == 4
+    # DERIVES: direct-trajectory->summary, anchor-trajectory->summary, anchor-object->anchor-trajectory
+    assert len(hekb.relate_calls) == 3
+    for _source, _target, kind in hekb.relate_calls:
+        assert kind == "DERIVES"
+    # the anchor object itself was stored with the real generated text
+    anchor_calls = [c for c in hekb.calls if c.get("labels", {}).get("model_id") == "gpt-oss:20b"]
+    assert len(anchor_calls) == 1
+    assert json.loads(anchor_calls[0]["labels"]["structured_result"]) == {
+        "summary": "the system is stable and observing correctly"
+    }
+
+
+async def test_semantic_anchor_triangulation_generation_failure_is_invocation_failed(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    ollama = _FakeOllama(fail=True)
+    hekb = _FakeHekb()
+
+    result = await request_semantic_anchor_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        "text",
+        observation_id="obs-1",
+        ollama=ollama,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.INVOCATION_FAILED
+    assert result.evidence_status == EvidenceStatus.NOT_ATTEMPTED
+    assert hekb.calls == []
+
+
+async def test_semantic_anchor_triangulation_evidence_blocked_does_not_downgrade_success(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    ollama = _FakeOllama(response_text="the system is stable and observing correctly")
+    hekb = _FakeHekb(fail=True)  # generation succeeds, every HEKB write fails
+
+    result = await request_semantic_anchor_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        "the system is stable and observing correctly",
+        observation_id="obs-1",
+        divergence_epsilon=1000.0,
+        ollama=ollama,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS  # the measurement itself ran
+    assert result.evidence_status == EvidenceStatus.BLOCKED
+    assert result.evidence_object_id is None
+
+
+async def test_semantic_anchor_triangulation_lineage_linked(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    ollama = _FakeOllama(response_text="the system is stable and observing correctly")
+    hekb = _FakeHekb()
+
+    result = await request_semantic_anchor_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        "the system is stable and observing correctly",
+        observation_id="obs-1",
+        divergence_epsilon=1000.0,
+        ollama=ollama,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    events = EventService().list_events(db_session, session.session_id)
+    request_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_REQUESTED.value)
+    assert request_event.event_id == result.runtime_cycle_id
+    assert request_event.payload["capability_id"] == "semantic_anchor.triangulation"

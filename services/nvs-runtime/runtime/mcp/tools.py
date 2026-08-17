@@ -8,10 +8,14 @@ from uuid import UUID
 from runtime.api.deps import db_session
 from runtime.gateway.hekb_client import HekbClient, build_hekb_object_from_port_result
 from runtime.gateway.kernel_gateway import KernelGateway
+from runtime.gateway.ollama_client import OllamaClient
 from runtime.models.enums import AgentProvider, RuntimeEventType
 from runtime.models.schemas import AgentCreate, EventIngestRequest, ExperimentType, SessionCreate
 from runtime.services.agent_service import AgentService
-from runtime.services.capability_decision import request_meaning_triangulation
+from runtime.services.capability_decision import (
+    request_meaning_triangulation,
+    request_semantic_anchor_triangulation,
+)
 from runtime.services.event_service import EventService
 from runtime.services.meaning_trajectory import build_hext_observation, run_meaning_trajectory
 from runtime.services.meaning_triangulation import TriangulationInput
@@ -30,6 +34,7 @@ _session_service = SessionService()
 _event_service = EventService()
 _kernel_gateway = KernelGateway()
 _hekb_client = HekbClient()
+_ollama_client = OllamaClient()
 
 
 def stub_response(tool_name: str) -> dict[str, Any]:
@@ -343,3 +348,48 @@ async def nvs_get_triangulation_context(arguments: dict[str, Any]) -> dict[str, 
     return await get_triangulation_context(
         str(arguments["triangulation_object_id"]), hekb=_hekb_client
     )
+
+
+# ---------------------------------------------------------------------------
+# GPT-OSS Semantic Anchor capability tool — thin wrapper over
+# request_semantic_anchor_triangulation(). This tool does not decide
+# anything: it is the interoperability layer over a real Runtime Decision
+# Boundary function that already does discover/decide/invoke. GPT-OSS
+# itself is never treated as ground truth by that function or this tool.
+# ---------------------------------------------------------------------------
+
+
+async def nvs_request_semantic_anchor_triangulation(arguments: dict[str, Any]) -> dict[str, Any]:
+    """invoke_capability() for the Semantic Anchor capability: generate a
+    real completion from a local inference runtime (default model_id
+    "gpt-oss:20b" via Ollama — see runtime.gateway.ollama_client), triangulate
+    it against a direct-observation path through the existing MeaningMapper
+    -> MSR chain, and persist both to HEKB with real DERIVES lineage.
+
+    Requires an already-registered session_id/agent_id, same requirement
+    every other capability tool in this module already has.
+    """
+    session_id = UUID(arguments["session_id"])
+    agent_id = UUID(arguments["agent_id"])
+
+    with db_session() as db:
+        result = await request_semantic_anchor_triangulation(
+            db,
+            session_id,
+            agent_id,
+            str(arguments["observation_text"]),
+            observation_id=str(arguments["observation_id"]),
+            model_id=str(arguments.get("model_id", "gpt-oss:20b")),
+            prompt_version=str(arguments.get("prompt_version", "v1")),
+            divergence_epsilon=arguments.get("divergence_epsilon"),
+            ollama=_ollama_client,
+            hekb=_hekb_client,
+        )
+
+    return {
+        "runtime_cycle_id": str(result.runtime_cycle_id),
+        "outcome": result.outcome.value,
+        "invocation_result": result.invocation_result,
+        "evidence_status": result.evidence_status.value,
+        "evidence_object_id": result.evidence_object_id,
+    }

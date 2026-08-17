@@ -6,15 +6,12 @@ I/O):
     Observation -> MeaningMapper -> Trajectory -> Triangulation
     -> HEKB Evidence -> HEKB Read MCP -> Runtime Context
 
-Skips automatically if no live hekbd is reachable at HEKB_QUERY_URL_LIVE,
-mirroring test_hekb_read_mcp_live_e2e.py's convention. `hekb_url` is
-pointed at the same live hekbd as `hekb_query_url` so `store()` (used
-internally by `request_meaning_triangulation()`) and the read/relate
-methods hit the same real server and the same real data — see
-test_hekb_read_mcp_live_e2e.py's docstring for why hekbd's own
-`POST /v1/objects` response shape (`{"id"}`) differs from hekb-api's
-(`{"object_id","hash","timestamp"}`), and why this test does not mix the
-two backends.
+Skips automatically if no live hekbd is reachable at HEKB_URL_LIVE,
+mirroring test_hekb_read_mcp_live_e2e.py's convention. Per ADR-0013,
+`store()` (used internally by `request_meaning_triangulation()`) and the
+read/relate methods now target the same single `hekb_url` by default, so
+writes and reads in this test hit the same real server and the same real
+data.
 """
 
 import os
@@ -31,7 +28,7 @@ from runtime.services.meaning_triangulation import TriangulationInput
 from runtime.services.runtime_context import get_triangulation_context
 from runtime.services.session_service import SessionService
 
-LIVE_HEKBD_URL = os.environ.get("HEKB_QUERY_URL_LIVE", "http://127.0.0.1:8100")
+LIVE_HEKBD_URL = os.environ.get("HEKB_URL_LIVE", "http://127.0.0.1:8100")
 
 
 def _observations(text: str, prefix: str) -> list[dict]:
@@ -47,7 +44,7 @@ def _observations(text: str, prefix: str) -> list[dict]:
 
 
 async def _live_hekb() -> HekbClient | None:
-    client = HekbClient(Settings(hekb_url=LIVE_HEKBD_URL, hekb_query_url=LIVE_HEKBD_URL))
+    client = HekbClient(Settings(hekb_url=LIVE_HEKBD_URL))
     if not await client.health_check():
         return None
     return client
