@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import urlencode
 
 from runtime.core.config import Settings, get_settings
 from runtime.gateway.http_pool import RetryExhaustedError, request_with_retry
@@ -192,6 +193,96 @@ def build_hekb_object_from_trajectory(
     }
 
 
+def build_hekb_object_from_triangulation(
+    triangulation: Any,
+    *,
+    session_id: str | None = None,
+    runtime_cycle_id: str | None = None,
+) -> dict[str, Any]:
+    """One real `runtime.services.meaning_triangulation.TriangulationResult`
+    -> the existing HEKB `POST /v1/objects` request shape.
+
+    `triangulation` is duck-typed (not imported from
+    `runtime.services.meaning_triangulation`, for the same reason
+    `build_hekb_object_from_trajectory()` duck-types its own argument: this
+    gateway module does not depend on the service layer that calls it) --
+    it must have `.triangulation_id`, `.state`, `.divergence_epsilon`,
+    `.note`, `.measurements` (each with `.path_id`, `.method`,
+    `.observation_ids`, `.stabilized`, and — when stabilized — a
+    `.run_result.trajectory` with `.trajectory_id`), and `.pairwise` (each
+    with `.path_a`, `.path_b`, `.both_stabilized`, `.centroid_distance`,
+    `.same_basin`, `.basin_signal_meaningful`).
+
+    This object is the triangulation SUMMARY, not a substitute for the
+    underlying per-path evidence: it carries no `vector` of its own (a
+    triangulation result has no single geometric position — the geometry
+    lives on each path's own `StabilizedTrajectory`, which
+    `request_meaning_triangulation()` persists separately via the existing
+    `build_hekb_object_from_trajectory()`, one real HEKB write per
+    stabilized path). `value_kind: "derived"` marks this object as an
+    aggregate over those measurements, distinct from
+    `build_hekb_object_from_trajectory()`'s `value_kind: "measured"` for
+    the measurements themselves -- the same label, a different value, so a
+    reader never has to guess which kind of evidence they are looking at.
+    Every path's raw observation ids, method label, and (for stabilized
+    paths) trajectory id are preserved verbatim in `labels`, JSON-encoded
+    the same lossless way the rest of this module already does for
+    non-scalar data -- `request_meaning_triangulation()` additionally
+    creates a real HEKB morphism (`DERIVES`) from each per-path trajectory
+    object to this summary object, so the lineage is a real graph edge, not
+    only a label.
+    """
+    path_summaries = [
+        {
+            "path_id": measurement.path_id,
+            "method": measurement.method,
+            "observation_ids": list(measurement.observation_ids),
+            "stabilized": measurement.stabilized,
+            "trajectory_id": (
+                measurement.run_result.trajectory.trajectory_id if measurement.stabilized else None
+            ),
+        }
+        for measurement in triangulation.measurements
+    ]
+    pairwise_summaries = [
+        {
+            "path_a": pair.path_a,
+            "path_b": pair.path_b,
+            "both_stabilized": pair.both_stabilized,
+            "centroid_distance": pair.centroid_distance,
+            "same_basin": pair.same_basin,
+            "basin_signal_meaningful": pair.basin_signal_meaningful,
+        }
+        for pair in triangulation.pairwise
+    ]
+    centroid_distances = [p.centroid_distance for p in triangulation.pairwise if p.centroid_distance is not None]
+
+    attributes: dict[str, float] = {
+        "path_count": float(len(triangulation.measurements)),
+        "stabilized_count": float(sum(1 for m in triangulation.measurements if m.stabilized)),
+    }
+    if triangulation.divergence_epsilon is not None:
+        attributes["divergence_epsilon"] = float(triangulation.divergence_epsilon)
+    if centroid_distances:
+        attributes["max_centroid_distance"] = float(max(centroid_distances))
+        attributes["min_centroid_distance"] = float(min(centroid_distances))
+
+    labels: dict[str, str] = {
+        "triangulation_id": triangulation.triangulation_id,
+        "state": triangulation.state.value,
+        "note": triangulation.note,
+        "value_kind": "derived",
+        "paths": json.dumps(path_summaries),
+        "pairwise": json.dumps(pairwise_summaries),
+    }
+    if session_id is not None:
+        labels["session_id"] = session_id
+    if runtime_cycle_id is not None:
+        labels["runtime_cycle_id"] = runtime_cycle_id
+
+    return {"kind": "EVIDENCE", "vector": [], "attributes": attributes, "labels": labels}
+
+
 class HekbClient:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
@@ -199,6 +290,12 @@ class HekbClient:
     @property
     def base_url(self) -> str:
         return self.settings.hekb_url
+
+    @property
+    def query_base_url(self) -> str:
+        """Base URL of the C++ `hekbd` — see `Settings.hekb_query_url`
+        docstring for why this differs from `base_url`."""
+        return self.settings.hekb_query_url
 
     async def health_check(self) -> bool:
         try:
@@ -223,3 +320,86 @@ class HekbClient:
         `{object_id, hash, timestamp}` response verbatim.
         """
         return await self.call("POST", "/v1/objects", json=knowledge_object)
+
+    # -- Read MCP: wraps hekbd's existing object/morphism/query routes ----
+    # (`GemminAI/hekb` docs/API.md / cpp/server/http_api.cpp), the same
+    # contract `hekb/python/hekb/client.py`'s HekbClient wraps. No new HEKB
+    # route or payload shape is invented here — every path/body/response
+    # key below matches that server's own routes exactly, confirmed by
+    # reading its route table before writing this.
+
+    async def get_object(self, object_id: str) -> dict[str, Any] | None:
+        """GET /v1/objects/{id}. Read-only. Returns None on 404 (an object
+        genuinely not existing is a normal outcome, not a failure) —
+        mirrors `hekb.client.HekbClient.get()`'s own None-on-404 contract."""
+        response = await request_with_retry("GET", self.query_base_url, f"/v1/objects/{object_id}")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return response.json()
+
+    async def nearest(
+        self, vector: list[float], limit: int = 10, metric: str = "cosine"
+    ) -> list[dict[str, Any]]:
+        """POST /v1/query/nearest. Read-only (query.py's `nearest()` on the
+        server does not mutate the store — see GemminAI/hekb's own
+        docstring: "Exact k-nearest search"). Returns the `matches` list
+        verbatim (`[{"id", "distance"}, ...]`)."""
+        result = await self.call_query(
+            "POST", "/v1/query/nearest", json={"vector": vector, "limit": limit, "metric": metric}
+        )
+        return list(result.get("matches", []))
+
+    async def neighbours(self, object_id: str, depth: int = 1) -> list[dict[str, Any]]:
+        """GET /v1/query/neighbours?id=&depth=. Read-only BFS expansion.
+        Returns the `neighbours` list verbatim (`[{"id","via","hops"}, ...]`)."""
+        query = urlencode({"id": object_id, "depth": depth})
+        result = await self.call_query("GET", f"/v1/query/neighbours?{query}")
+        return list(result.get("neighbours", []))
+
+    async def geodesic(self, source: str, target: str) -> dict[str, Any]:
+        """GET /v1/query/geodesic?from=&to=. Read-only shortest path.
+        Returns `{"found","cost","objects","morphisms"}` verbatim —
+        `found: false` (no path) is a real, non-error outcome, not raised."""
+        query = urlencode({"from": source, "to": target})
+        return await self.call_query("GET", f"/v1/query/geodesic?{query}")
+
+    async def stats(self) -> dict[str, int]:
+        """GET /metrics (Prometheus text) on hekbd, parsed the same way
+        `hekb.client.HekbClient.stats()` parses it — no new parsing rule
+        invented, same two counter lines (`hekb_objects`, `hekb_morphisms`)."""
+        response = await request_with_retry("GET", self.query_base_url, "/metrics")
+        response.raise_for_status()
+        counts: dict[str, int] = {}
+        for line in response.text.splitlines():
+            if line.startswith("hekb_objects "):
+                counts["objects"] = int(float(line.split()[1]))
+            elif line.startswith("hekb_morphisms "):
+                counts["morphisms"] = int(float(line.split()[1]))
+        return counts
+
+    async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
+        """POST /v1/morphisms. NOT a read — this WRITES a morphism (edge)
+        into HEKB's graph. Included because it was explicitly requested
+        alongside the read tools; kept as its own method (not folded into
+        `store()`) because it targets `query_base_url` (hekbd), not
+        `base_url` (hekb-api), and has its own response shape (`{"id"}`,
+        not `{"object_id","hash","timestamp"}`)."""
+        result = await self.call_query(
+            "POST",
+            "/v1/morphisms",
+            json={"source": source, "target": target, "kind": kind, "weight": weight},
+        )
+        return str(result["id"])
+
+    async def call_query(
+        self, method: str, path: str, *, json: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """As `call()`, but against `query_base_url` (hekbd) instead of
+        `base_url` (hekb-api). Separate method, not a `call()` parameter,
+        so every existing `call()` caller (`store()` and any future one)
+        keeps writing to hekb-api without having to think about which URL
+        applies."""
+        response = await request_with_retry(method, self.query_base_url, path, json=json)
+        response.raise_for_status()
+        return response.json()

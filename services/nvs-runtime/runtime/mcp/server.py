@@ -15,12 +15,20 @@ from runtime.mcp.tools import (
     nvs_create_session,
     nvs_emit_sep_event,
     nvs_get_port_capability,
+    nvs_get_triangulation_context,
+    nvs_hekb_geodesic,
+    nvs_hekb_get,
+    nvs_hekb_nearest,
+    nvs_hekb_neighbours,
+    nvs_hekb_relate,
+    nvs_hekb_stats,
     nvs_invoke_port,
     nvs_meaning_mapper_capability,
     nvs_persist_port_evidence,
     nvs_query_events,
     nvs_register_agent,
     nvs_run_meaning_trajectory,
+    nvs_run_meaning_triangulation,
     stub_response,
 )
 
@@ -42,6 +50,14 @@ ASYNC_TOOLS = {
     "nvs_get_port_capability": nvs_get_port_capability,
     "nvs_invoke_port": nvs_invoke_port,
     "nvs_persist_port_evidence": nvs_persist_port_evidence,
+    "nvs_hekb_get": nvs_hekb_get,
+    "nvs_hekb_nearest": nvs_hekb_nearest,
+    "nvs_hekb_neighbours": nvs_hekb_neighbours,
+    "nvs_hekb_geodesic": nvs_hekb_geodesic,
+    "nvs_hekb_stats": nvs_hekb_stats,
+    "nvs_hekb_relate": nvs_hekb_relate,
+    "nvs_run_meaning_triangulation": nvs_run_meaning_triangulation,
+    "nvs_get_triangulation_context": nvs_get_triangulation_context,
 }
 
 
@@ -139,6 +155,118 @@ async def list_tools() -> list[Tool]:
                     "cycle": {"type": "integer"},
                 },
                 "required": ["port_id", "body"],
+            },
+        ),
+        Tool(
+            name="nvs_hekb_get",
+            description="Read-only: fetch a HEKB object by content-address id (GET /v1/objects/{id} on hekbd)",
+            inputSchema={
+                "type": "object",
+                "properties": {"object_id": {"type": "string"}},
+                "required": ["object_id"],
+            },
+        ),
+        Tool(
+            name="nvs_hekb_nearest",
+            description="Read-only: k-nearest HEKB objects to a probe vector (POST /v1/query/nearest on hekbd)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "vector": {"type": "array", "items": {"type": "number"}},
+                    "limit": {"type": "integer"},
+                    "metric": {"type": "string", "enum": ["cosine", "euclidean"]},
+                },
+                "required": ["vector"],
+            },
+        ),
+        Tool(
+            name="nvs_hekb_neighbours",
+            description="Read-only: bounded-hop morphism-graph neighbourhood of a HEKB object (GET /v1/query/neighbours on hekbd)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "object_id": {"type": "string"},
+                    "depth": {"type": "integer"},
+                },
+                "required": ["object_id"],
+            },
+        ),
+        Tool(
+            name="nvs_hekb_geodesic",
+            description="Read-only: cheapest morphism path between two HEKB objects (GET /v1/query/geodesic on hekbd)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "from_object_id": {"type": "string"},
+                    "to_object_id": {"type": "string"},
+                },
+                "required": ["from_object_id", "to_object_id"],
+            },
+        ),
+        Tool(
+            name="nvs_hekb_stats",
+            description="Read-only: HEKB object/morphism counts (GET /metrics on hekbd)",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="nvs_hekb_relate",
+            description=(
+                "WRITE (not read): create or update a typed, weighted morphism "
+                "between two existing HEKB objects (POST /v1/morphisms on hekbd)"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"},
+                    "target": {"type": "string"},
+                    "kind": {
+                        "type": "string",
+                        "enum": ["SUCCEEDS", "DERIVES", "CONTRADICTS", "SUPPORTS", "NEIGHBOURS"],
+                    },
+                    "weight": {"type": "number"},
+                },
+                "required": ["source", "target", "kind"],
+            },
+        ),
+        Tool(
+            name="nvs_run_meaning_triangulation",
+            description=(
+                "Run N independent observation paths through MeaningMapper -> MSR, compare "
+                "their stabilized trajectories, and persist trajectories + summary + DERIVES "
+                "lineage to HEKB. Requires an already-registered session_id/agent_id."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "paths": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path_id": {"type": "string"},
+                                "observations": {"type": "array", "items": {"type": "object"}},
+                                "method": {"type": "string"},
+                            },
+                            "required": ["path_id", "observations"],
+                        },
+                    },
+                    "divergence_epsilon": {"type": "number"},
+                },
+                "required": ["session_id", "agent_id", "paths"],
+            },
+        ),
+        Tool(
+            name="nvs_get_triangulation_context",
+            description=(
+                "Read-only: fetch a persisted triangulation summary and its DERIVES-linked "
+                "per-path trajectory evidence back out of HEKB (Runtime Context leg)"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {"triangulation_object_id": {"type": "string"}},
+                "required": ["triangulation_object_id"],
             },
         ),
         Tool(

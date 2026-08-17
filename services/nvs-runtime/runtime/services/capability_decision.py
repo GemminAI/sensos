@@ -61,6 +61,7 @@ from runtime.gateway.hekb_client import (
     HekbClient,
     build_hekb_object_from_port_result,
     build_hekb_object_from_trajectory,
+    build_hekb_object_from_triangulation,
 )
 from runtime.gateway.http_pool import RetryExhaustedError
 from runtime.gateway.kernel_gateway import KernelGateway
@@ -68,6 +69,7 @@ from runtime.models.enums import RuntimeEventType
 from runtime.models.schemas import EventIngestRequest
 from runtime.services.event_service import EventService
 from runtime.services.meaning_trajectory import run_meaning_trajectory
+from runtime.services.meaning_triangulation import TriangulationInput, run_meaning_triangulation
 
 _TRANSPORT_ERRORS = (httpx.HTTPError, RetryExhaustedError)
 
@@ -305,6 +307,164 @@ async def request_meaning_trajectory(
                     evidence_object_id = stored.get("object_id")
                 except _TRANSPORT_ERRORS:
                     evidence_status = EvidenceStatus.BLOCKED
+
+    result_ingest = event_service.ingest(
+        db,
+        session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.CAPABILITY_RESULT,
+            agent_id=agent_id,
+            parent_event_id=runtime_cycle_id,
+            payload={
+                "outcome": outcome.value,
+                "capability_descriptor": capability_descriptor,
+                "invocation_result": invocation_result,
+                "evidence_status": evidence_status.value,
+                "evidence_object_id": evidence_object_id,
+            },
+        ),
+    )
+
+    return CapabilityResult(
+        runtime_cycle_id=runtime_cycle_id,
+        outcome=outcome,
+        capability_descriptor=capability_descriptor,
+        invocation_result=invocation_result,
+        evidence_status=evidence_status,
+        evidence_object_id=evidence_object_id,
+        result_event_id=result_ingest.event_ids[0],
+    )
+
+
+async def request_meaning_triangulation(
+    db: Session,
+    session_id: UUID,
+    agent_id: UUID,
+    inputs: list[TriangulationInput],
+    *,
+    divergence_epsilon: float | None = None,
+    capability_id: str = "meaning_mapper.triangulation",
+    hekb: HekbClient | None = None,
+    event_service: EventService | None = None,
+) -> CapabilityResult:
+    """The Runtime Decision Boundary for Meaning Triangulation: runs
+    `runtime.services.meaning_triangulation.run_meaning_triangulation()`
+    (itself built on the real MeaningMapper -> MSR chain), then persists
+    the result to HEKB as real, linked evidence — never as a substitute
+    for the underlying observations.
+
+    Structurally parallel to `request_meaning_trajectory()` (same
+    RuntimeOutcome/EvidenceStatus vocabulary, same Event/HEKB lineage
+    mechanism, same in-process/no-live-descriptor character), extended one
+    step further because triangulation evidence is not one HEKB object but
+    a small, real graph: one EVIDENCE object per stabilized path's
+    `StabilizedTrajectory` (via the existing `build_hekb_object_from_
+    trajectory()`), one EVIDENCE object for the triangulation summary
+    itself (via the new `build_hekb_object_from_triangulation()`), and a
+    real `DERIVES` morphism from each path's trajectory object to the
+    summary object (via `HekbClient.relate()` — the Phase 1 HEKB Read/Write
+    MCP client method) so the summary's lineage back to its raw evidence is
+    a graph edge, not only a JSON blob inside the summary's own labels.
+
+    `evidence_status` is `PERSISTED` only if every one of those writes
+    (trajectories, summary, and every `relate()` edge) succeeds; any
+    transport failure at any step reports `BLOCKED` — a partially-written
+    graph (e.g. the summary object exists but a DERIVES edge does not) is
+    never reported as success.
+    """
+    hekb = hekb or HekbClient()
+    event_service = event_service or EventService()
+
+    request_ingest = event_service.ingest(
+        db,
+        session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.CAPABILITY_REQUESTED,
+            agent_id=agent_id,
+            payload={
+                "capability_id": capability_id,
+                "input": {"path_count": len(inputs), "divergence_epsilon": divergence_epsilon},
+                "reason": None,
+            },
+        ),
+    )
+    runtime_cycle_id = request_ingest.event_ids[0]
+
+    capability_descriptor: dict[str, Any] = {
+        "capability_id": capability_id,
+        "status": "IMPLEMENTED",
+        "transport": "in-process",
+    }
+    invocation_result: dict[str, Any] | None = None
+    evidence_status = EvidenceStatus.NOT_ATTEMPTED
+    evidence_object_id: str | None = None
+
+    if not inputs:
+        outcome = RuntimeOutcome.INVALID
+    else:
+        triangulation = run_meaning_triangulation(
+            inputs, triangulation_id=str(runtime_cycle_id), divergence_epsilon=divergence_epsilon
+        )
+        outcome = RuntimeOutcome.SUCCESS
+        invocation_result = {
+            "triangulation_id": triangulation.triangulation_id,
+            "state": triangulation.state.value,
+            "note": triangulation.note,
+            "path_count": len(triangulation.measurements),
+            "stabilized_count": sum(1 for m in triangulation.measurements if m.stabilized),
+            "pairwise": [
+                {
+                    "path_a": p.path_a,
+                    "path_b": p.path_b,
+                    "both_stabilized": p.both_stabilized,
+                    "centroid_distance": p.centroid_distance,
+                    "same_basin": p.same_basin,
+                    "basin_signal_meaningful": p.basin_signal_meaningful,
+                }
+                for p in triangulation.pairwise
+            ],
+        }
+
+        try:
+            # Writes go through `call_query()` (hekbd, `hekb_query_url`),
+            # not `store()` (hekb-api, `hekb_url`) — discovered live (not
+            # assumed) while wiring this end to end: `relate()`/
+            # `neighbours()`/`get_object()` only exist on hekbd, and hekbd
+            # is its own separate datastore from hekb-api (confirmed by
+            # reading both servers — see docs/audit/HEKB_HEXT_
+            # INVESTIGATION_20260817.md). An id hekb-api issued would not
+            # exist in hekbd's graph, so `relate()` on it would fail every
+            # time, not just under test. `request_capability()` and
+            # `request_meaning_trajectory()` above are unchanged and still
+            # use `store()` — this is a deliberate, scoped choice for
+            # triangulation evidence specifically, not a global HEKB
+            # backend switch.
+            trajectory_object_ids: dict[str, str] = {}
+            for measurement in triangulation.measurements:
+                if not measurement.stabilized:
+                    continue
+                trajectory_object = build_hekb_object_from_trajectory(
+                    measurement.run_result.trajectory,
+                    session_id=str(session_id),
+                    runtime_cycle_id=str(runtime_cycle_id),
+                )
+                stored_trajectory = await hekb.call_query("POST", "/v1/objects", json=trajectory_object)
+                trajectory_object_ids[measurement.path_id] = stored_trajectory["id"]
+
+            summary_object = build_hekb_object_from_triangulation(
+                triangulation, session_id=str(session_id), runtime_cycle_id=str(runtime_cycle_id)
+            )
+            stored_summary = await hekb.call_query("POST", "/v1/objects", json=summary_object)
+            summary_object_id = stored_summary["id"]
+
+            for path_id, trajectory_object_id in trajectory_object_ids.items():
+                await hekb.relate(trajectory_object_id, summary_object_id, "DERIVES")
+
+            evidence_status = EvidenceStatus.PERSISTED
+            evidence_object_id = summary_object_id
+            invocation_result["trajectory_object_ids"] = trajectory_object_ids
+        except _TRANSPORT_ERRORS:
+            evidence_status = EvidenceStatus.BLOCKED
 
     result_ingest = event_service.ingest(
         db,

@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     # the only confirmed HEKB REST port in this repo today. Override via env
     # for the actual local HEKB API host in a given deployment.
     hekb_url: str = "http://localhost:8080"
+    # GemminAI/hekb ships two REST surfaces (docs/API.md, docs/hekb-api.md):
+    # the C++ `hekbd` (default port 8100, `hekb/python/hekb/client.py`'s own
+    # DEFAULT_BASE_URL) implements the full object+morphism+query contract
+    # (nearest/neighbours/geodesic/relate/stats via /metrics); the Python
+    # `hekb-api` at `hekb_url` above implements only object create/read/
+    # search. Read MCP tools that need query/graph operations target this
+    # URL, not `hekb_url` — confirmed by reading both servers' route tables.
+    hekb_query_url: str = "http://127.0.0.1:8100"
 
     # EXP-Ubuntu011: WAN-aware network profile (LOCAL/GCP_INTERNAL/WAN).
     sensos_env: str = "local"
