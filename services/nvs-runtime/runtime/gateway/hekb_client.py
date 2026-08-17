@@ -138,6 +138,60 @@ def build_hekb_object_from_port_result(
     }
 
 
+def build_hekb_object_from_trajectory(
+    trajectory: Any,
+    *,
+    session_id: str | None = None,
+    runtime_cycle_id: str | None = None,
+) -> dict[str, Any]:
+    """One real `msr.abi.StabilizedTrajectory` (meaning-space-runtime) -> the
+    existing HEKB `POST /v1/objects` request shape.
+
+    Unlike `build_hekb_object_from_port_result()`, a StabilizedTrajectory's
+    numeric fields ARE a known, consistent shape (a single geometric
+    position with a covariance) -- the same character as
+    `build_hekb_object()`'s own CLE-lift `position`, not the
+    heterogeneous-per-port character `build_hekb_object_from_port_result()`
+    guards against. So `centroid` goes into the real `vector` field and the
+    scalar dwell fields go into real `attributes`, matching the existing
+    `build_hekb_object()` precedent for genuine geometric measurements.
+    `covariance` (a matrix) and `provenance` (a tuple of strings) have no
+    home in HEKB's flat float/string schema, so they are JSON-encoded into
+    `labels`, the same lossless-encoding technique already used elsewhere
+    in this module.
+
+    `trajectory` is duck-typed (not imported as `msr.abi.StabilizedTrajectory`
+    to avoid this gateway module depending on the `msr` package) -- it must
+    have `.trajectory_id`, `.frame_id`, `.basin_id`, `.centroid`,
+    `.covariance`, `.dwell_steps`, `.dwell_seconds`, `.is_novel`,
+    `.provenance`, `.dimension`.
+    """
+    labels: dict[str, str] = {
+        "trajectory_id": trajectory.trajectory_id,
+        "frame_id": trajectory.frame_id,
+        "basin_id": trajectory.basin_id if trajectory.basin_id is not None else "",
+        "is_novel": str(trajectory.is_novel),
+        "value_kind": "measured",
+        "covariance": json.dumps([list(row) for row in trajectory.covariance]),
+        "provenance": json.dumps(list(trajectory.provenance)),
+    }
+    if session_id is not None:
+        labels["session_id"] = session_id
+    if runtime_cycle_id is not None:
+        labels["runtime_cycle_id"] = runtime_cycle_id
+
+    return {
+        "kind": "EVIDENCE",
+        "vector": list(trajectory.centroid),
+        "attributes": {
+            "dwell_steps": float(trajectory.dwell_steps),
+            "dwell_seconds": float(trajectory.dwell_seconds),
+            "dimension": float(trajectory.dimension),
+        },
+        "labels": labels,
+    }
+
+
 class HekbClient:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()

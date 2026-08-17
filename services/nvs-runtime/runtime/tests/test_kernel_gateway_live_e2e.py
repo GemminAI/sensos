@@ -20,7 +20,6 @@ from contextlib import nullcontext
 from uuid import uuid4
 
 import pytest
-
 from runtime.core.config import Settings
 from runtime.gateway.kernel_gateway import KernelGateway
 from runtime.models.enums import ForwardStatus, RuntimeEventType
@@ -192,3 +191,73 @@ async def test_request_capability_against_live_canonical_kernel(db_session, fake
     request_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_REQUESTED.value)
     result_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_RESULT.value)
     assert result_event.parent_event_id == request_event.event_id
+
+
+async def test_request_meaning_trajectory_live_e2e(db_session, fake_redis):
+    """MeaningMapper -> meaning-space-runtime -> Trajectory -> Evidence,
+    real libraries throughout — no mocks anywhere. Not gated by
+    NVS_KERNEL_URL_LIVE (this capability does not call NVS-Kernel at all,
+    confirmed by the Reality Audit), so this test always runs. HekbClient
+    is real, default settings (genuinely unreachable) — evidence must be
+    honestly reported BLOCKED, matching test_request_capability_against_
+    live_canonical_kernel's own HEKB-unavailable finding.
+    """
+    from runtime.gateway.hekb_client import HekbClient
+    from runtime.models.enums import AgentProvider
+    from runtime.services.capability_decision import (
+        EvidenceStatus,
+        RuntimeOutcome,
+        request_meaning_trajectory,
+    )
+    from runtime.services.meaning_trajectory import build_hext_observation
+
+    agent_svc = AgentService()
+    session_svc = SessionService()
+
+    agent = agent_svc.create(db_session, AgentCreate(provider=AgentProvider.CUSTOM, model="e2e-verify"))
+    db_session.flush()
+    session = session_svc.create(db_session, SessionCreate(participants=[agent.agent_id]))
+    db_session.flush()
+
+    observations = [
+        build_hext_observation(
+            observation_id=f"live-e2e-{i:03d}",
+            text="the system is stable and observing correctly",
+            state_hash="e" * 64,
+            sealed_at=f"2026-08-17T04:00:{i:02d}Z",
+        )
+        for i in range(8)
+    ]
+
+    result = await request_meaning_trajectory(
+        db_session, session.session_id, agent.agent_id, observations, hekb=HekbClient()
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS  # real MeaningMapper + MSR ran correctly
+    assert result.invocation_result["stabilized"] is True
+    assert result.evidence_status == EvidenceStatus.BLOCKED  # HEKB genuinely unreachable
+    assert result.evidence_object_id is None
+
+
+async def test_cle_ground_endpoint_confirmed_absent_live():
+    """Phase 1 finding, re-verified live this cycle: CLE itself is
+    reachable, but its /ground route (which meaning_mapper.cle.grounding
+    would call) is not registered on the live deployment. This is the
+    honest reason "CLE -> MeaningMapper grounding" is BLOCKED, not
+    "CLE is down" — a real, more precise distinction than a bare skip.
+    Does not skip: this asserts the specific, currently-true blocked state.
+    """
+    import httpx
+    from meaning_mapper.cle.client import CLEClient
+    from meaning_mapper.cle.errors import CLEHTTPError
+
+    cle_url = "http://34.61.86.172:8000"
+    async with httpx.AsyncClient(base_url=cle_url, timeout=5.0) as http_client:
+        health = await http_client.get("/health")
+        if health.status_code != 200:
+            pytest.skip(f"CLE itself unreachable at {cle_url}")
+
+    client = CLEClient(base_url=cle_url)
+    with pytest.raises(CLEHTTPError) as exc_info:
+        await client.ground("test text", "test goal")
+    assert exc_info.value.status_code == 404

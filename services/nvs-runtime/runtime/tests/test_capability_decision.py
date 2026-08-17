@@ -20,8 +20,10 @@ from runtime.services.capability_decision import (
     EvidenceStatus,
     RuntimeOutcome,
     request_capability,
+    request_meaning_trajectory,
 )
 from runtime.services.event_service import EventService
+from runtime.services.meaning_trajectory import build_hext_observation
 from runtime.services.session_service import SessionService
 
 _REAL_P04_CAPABILITY = {
@@ -345,3 +347,156 @@ def test_module_contains_no_hard_coded_port_branching():
 def test_capability_id_is_opaque_caller_supplied_value():
     req = CapabilityRequest(capability_id="anything-the-caller-passes", input={})
     assert req.capability_id == "anything-the-caller-passes"
+
+
+# ---------------------------------------------------------------------------
+# request_meaning_trajectory — the second, structurally-parallel Decision
+# Boundary function, for the MeaningMapper -> Trajectory capability.
+# Uses the REAL meaning_mapper/msr libraries (no mocking possible or
+# needed — neither does I/O); only HekbClient is faked, same convention
+# as request_capability()'s own tests.
+# ---------------------------------------------------------------------------
+
+
+def _stable_observations(n: int, start: int = 0):
+    return [
+        build_hext_observation(
+            observation_id=f"rmt-{i:04d}",
+            text="the system is stable and observing correctly",
+            state_hash="c" * 64,
+            sealed_at=f"2026-08-17T02:00:{i:02d}Z",
+        )
+        for i in range(start, start + n)
+    ]
+
+
+async def test_request_meaning_trajectory_success_and_evidence_persisted(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_trajectory(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _stable_observations(8),
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS
+    assert result.invocation_result["stabilized"] is True
+    assert result.evidence_status == EvidenceStatus.PERSISTED
+    assert result.evidence_object_id == "a" * 64
+    assert len(hekb.calls) == 1
+    assert hekb.calls[0]["kind"] == "EVIDENCE"
+    assert hekb.calls[0]["labels"]["runtime_cycle_id"] == str(result.runtime_cycle_id)
+
+
+async def test_request_meaning_trajectory_success_without_stabilization(db_session, fake_redis):
+    """Fewer observations than dwell_steps -> real SUCCESS (the capability
+    ran correctly), but no trajectory yet -> evidence NOT_ATTEMPTED, not a
+    fabricated persistence."""
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_trajectory(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _stable_observations(2),
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS
+    assert result.invocation_result["stabilized"] is False
+    assert result.evidence_status == EvidenceStatus.NOT_ATTEMPTED
+    assert result.evidence_object_id is None
+    assert hekb.calls == []
+
+
+async def test_request_meaning_trajectory_empty_observations_is_invalid(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_trajectory(
+        db_session, session.session_id, agent.agent_id, [], hekb=hekb, event_service=EventService()
+    )
+
+    assert result.outcome == RuntimeOutcome.INVALID
+    assert hekb.calls == []
+
+
+async def test_request_meaning_trajectory_evidence_blocked_does_not_downgrade_success(
+    db_session, fake_redis
+):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb(fail=True)
+
+    result = await request_meaning_trajectory(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _stable_observations(8),
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS
+    assert result.evidence_status == EvidenceStatus.BLOCKED
+    assert result.evidence_object_id is None
+
+
+async def test_request_meaning_trajectory_lineage_linked(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_trajectory(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _stable_observations(8),
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    events = EventService().list_events(db_session, session.session_id)
+    assert len(events) == 2
+    request_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_REQUESTED.value)
+    result_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_RESULT.value)
+    assert request_event.event_id == result.runtime_cycle_id
+    assert result_event.parent_event_id == request_event.event_id
+    assert request_event.payload["capability_id"] == "meaning_mapper.trajectory"
+
+
+async def test_request_meaning_trajectory_capability_descriptor_is_static_not_live(
+    db_session, fake_redis
+):
+    """Honest distinction from Port capability discovery: no live network
+    call happens for this capability's availability check."""
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_trajectory(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _stable_observations(2),
+        hekb=hekb,
+        event_service=EventService(),
+    )
+    assert result.capability_descriptor == {
+        "capability_id": "meaning_mapper.trajectory",
+        "status": "IMPLEMENTED",
+        "transport": "in-process",
+    }
+
+
+def test_request_meaning_trajectory_no_hard_coded_capability_selection():
+    source = inspect.getsource(request_meaning_trajectory)
+    # The default capability_id string itself is allowed (it names THIS
+    # capability); what must never appear is a Port SSOT id, which would
+    # indicate this function is secretly routing to a specific Port.
+    for port_id in ["P01", "P04", "P17", "P38"]:
+        assert f'"{port_id}"' not in source
+        assert f"'{port_id}'" not in source

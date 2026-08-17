@@ -5,11 +5,15 @@ Semantic Mapping payload methods `lift()`/`store()` (EXP-Ubuntu012B).
 import json
 
 import httpx
-
 from runtime.core.config import Settings
 from runtime.gateway import http_pool
 from runtime.gateway.cle_client import CLEClient
-from runtime.gateway.hekb_client import HekbClient, build_hekb_object, build_hekb_object_from_port_result
+from runtime.gateway.hekb_client import (
+    HekbClient,
+    build_hekb_object,
+    build_hekb_object_from_port_result,
+    build_hekb_object_from_trajectory,
+)
 
 
 def _mock_pooled_client(monkeypatch, handler):
@@ -257,3 +261,76 @@ def test_build_hekb_object_from_port_result_handles_non_json_native_values():
     weird_result = {"a": {1, 2, 3}, "b": object()}
     obj = build_hekb_object_from_port_result("P04", weird_result)
     assert isinstance(obj["labels"]["raw_result"], str)
+
+
+# ---------------------------------------------------------------------------
+# build_hekb_object_from_trajectory — real StabilizedTrajectory fixture,
+# produced by the actual meaning_mapper -> msr chain, not hand-built.
+# ---------------------------------------------------------------------------
+
+
+def _real_trajectory():
+    from runtime.services.meaning_trajectory import (
+        build_hext_observation,
+        run_meaning_trajectory,
+    )
+
+    observations = [
+        build_hext_observation(
+            observation_id=f"fixture-{i:03d}",
+            text="a fixed real observation for hekb builder tests",
+            state_hash="b" * 64,
+            sealed_at=f"2026-08-17T01:00:{i:02d}Z",
+        )
+        for i in range(8)
+    ]
+    result = run_meaning_trajectory(observations)
+    assert result.trajectory is not None, "fixture setup must actually stabilize"
+    return result.trajectory
+
+
+def test_build_hekb_object_from_trajectory_uses_evidence_kind():
+    obj = build_hekb_object_from_trajectory(_real_trajectory())
+    assert obj["kind"] == "EVIDENCE"
+
+
+def test_build_hekb_object_from_trajectory_puts_centroid_in_vector():
+    trajectory = _real_trajectory()
+    obj = build_hekb_object_from_trajectory(trajectory)
+    assert obj["vector"] == list(trajectory.centroid)
+    assert len(obj["vector"]) == 8
+
+
+def test_build_hekb_object_from_trajectory_attributes_are_real_floats():
+    trajectory = _real_trajectory()
+    obj = build_hekb_object_from_trajectory(trajectory)
+    assert obj["attributes"]["dwell_steps"] == float(trajectory.dwell_steps)
+    assert obj["attributes"]["dwell_seconds"] == float(trajectory.dwell_seconds)
+    assert obj["attributes"]["dimension"] == 8.0
+
+
+def test_build_hekb_object_from_trajectory_preserves_covariance_and_provenance():
+    trajectory = _real_trajectory()
+    obj = build_hekb_object_from_trajectory(trajectory)
+    assert json.loads(obj["labels"]["covariance"]) == [list(row) for row in trajectory.covariance]
+    assert json.loads(obj["labels"]["provenance"]) == list(trajectory.provenance)
+
+
+def test_build_hekb_object_from_trajectory_preserves_session_and_runtime_cycle_id():
+    obj = build_hekb_object_from_trajectory(
+        _real_trajectory(), session_id="sess-1", runtime_cycle_id="cycle-1"
+    )
+    assert obj["labels"]["session_id"] == "sess-1"
+    assert obj["labels"]["runtime_cycle_id"] == "cycle-1"
+
+
+def test_build_hekb_object_from_trajectory_marks_value_kind_measured():
+    obj = build_hekb_object_from_trajectory(_real_trajectory())
+    assert obj["labels"]["value_kind"] == "measured"
+
+
+def test_build_hekb_object_from_trajectory_does_not_fabricate_v14_fields():
+    obj = build_hekb_object_from_trajectory(_real_trajectory())
+    haystack = json.dumps(obj).lower()
+    for term in ("var_s", "h_comp", "state_hash", "eou-128", "canonical observation"):
+        assert term not in haystack

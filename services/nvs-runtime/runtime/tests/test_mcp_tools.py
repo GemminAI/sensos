@@ -168,3 +168,60 @@ async def test_persist_port_evidence_tool_hekb_unavailable_propagates(monkeypatc
 
     with pytest.raises(RetryExhaustedError):
         await mcp_tools.nvs_persist_port_evidence({"port_id": "P04", "body": {}})
+
+
+# ---------------------------------------------------------------------------
+# MeaningMapper capability tools — real meaning_mapper/msr, no mocking
+# possible or needed (neither does I/O).
+# ---------------------------------------------------------------------------
+
+
+def test_meaning_mapper_capability_tool_is_static_descriptor():
+    result = mcp_tools.nvs_meaning_mapper_capability({})
+    assert result == {
+        "capability_id": "meaning_mapper.trajectory",
+        "status": "IMPLEMENTED",
+        "transport": "in-process",
+    }
+
+
+def test_run_meaning_trajectory_tool_with_prebuilt_observations():
+    from runtime.services.meaning_trajectory import build_hext_observation
+
+    observations = [
+        build_hext_observation(
+            observation_id=f"tool-{i:03d}",
+            text="the system is stable and observing correctly",
+            state_hash="d" * 64,
+            sealed_at=f"2026-08-17T03:00:{i:02d}Z",
+        )
+        for i in range(8)
+    ]
+    result = mcp_tools.nvs_run_meaning_trajectory({"observations": observations})
+
+    assert result["stabilized"] is True
+    assert result["trajectory"] is not None
+    assert result["trajectory"]["dwell_steps"] == 5
+    assert len(result["trajectory"]["centroid"]) == 8
+    assert result["quarantined_count"] == 0
+
+
+def test_run_meaning_trajectory_tool_with_texts_convenience_path():
+    texts = ["a repeated stable text input"] * 8
+    result = mcp_tools.nvs_run_meaning_trajectory({"texts": texts})
+    assert result["stabilized"] is True
+    assert result["trajectory"] is not None
+
+
+def test_run_meaning_trajectory_tool_insufficient_input_no_trajectory():
+    texts = ["only two observations"] * 2
+    result = mcp_tools.nvs_run_meaning_trajectory({"texts": texts})
+    assert result["stabilized"] is False
+    assert result["trajectory"] is None
+    assert result["steps_processed"] == 2
+
+
+def test_run_meaning_trajectory_tool_empty_input():
+    result = mcp_tools.nvs_run_meaning_trajectory({})
+    assert result["steps_processed"] == 0
+    assert result["stabilized"] is False

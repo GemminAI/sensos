@@ -8,3 +8,6 @@ redis==5.2.1
 httpx==0.28.1
 mcp==1.9.0
 PyYAML==6.0.3
+numpy>=1.26
+-e /Users/tomonam3/GemminAI/meaning-mapper
+-e /Users/tomonam3/GemminAI/meaning-space-runtime

@@ -16,9 +16,11 @@ from runtime.mcp.tools import (
     nvs_emit_sep_event,
     nvs_get_port_capability,
     nvs_invoke_port,
+    nvs_meaning_mapper_capability,
     nvs_persist_port_evidence,
     nvs_query_events,
     nvs_register_agent,
+    nvs_run_meaning_trajectory,
     stub_response,
 )
 
@@ -29,6 +31,8 @@ FULL_TOOLS = {
     "nvs_create_session": nvs_create_session,
     "nvs_emit_sep_event": nvs_emit_sep_event,
     "nvs_query_events": nvs_query_events,
+    "nvs_meaning_mapper_capability": nvs_meaning_mapper_capability,
+    "nvs_run_meaning_trajectory": nvs_run_meaning_trajectory,
 }
 
 #: 38-Port capability tools are async (KernelGateway/HekbClient are
@@ -135,6 +139,25 @@ async def list_tools() -> list[Tool]:
                     "cycle": {"type": "integer"},
                 },
                 "required": ["port_id", "body"],
+            },
+        ),
+        Tool(
+            name="nvs_meaning_mapper_capability",
+            description="Get capability metadata for the MeaningMapper -> Trajectory capability",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="nvs_run_meaning_trajectory",
+            description=(
+                "Feed HEXT Observations through MeaningMapper -> meaning-space-runtime, "
+                "returning a real StabilizedTrajectory if dwell criteria were met"
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "observations": {"type": "array", "items": {"type": "object"}},
+                    "texts": {"type": "array", "items": {"type": "string"}},
+                },
             },
         ),
     ]

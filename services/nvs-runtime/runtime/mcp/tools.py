@@ -12,6 +12,7 @@ from runtime.models.enums import AgentProvider, RuntimeEventType
 from runtime.models.schemas import AgentCreate, EventIngestRequest, ExperimentType, SessionCreate
 from runtime.services.agent_service import AgentService
 from runtime.services.event_service import EventService
+from runtime.services.meaning_trajectory import build_hext_observation, run_meaning_trajectory
 from runtime.services.session_service import SessionService
 
 LAYER3_STUBS = {
@@ -130,3 +131,77 @@ async def nvs_persist_port_evidence(arguments: dict[str, Any]) -> dict[str, Any]
         cycle=arguments.get("cycle"),
     )
     return await _hekb_client.store(hekb_object)
+
+
+# ---------------------------------------------------------------------------
+# MeaningMapper capability tools — the MCP Capability Bus surface for
+# runtime.services.meaning_trajectory (MeaningMapper -> meaning-space-runtime
+# -> Trajectory). Sync, unlike the Port tools above: neither meaning_mapper
+# nor msr does any I/O (confirmed in the Reality Audit), so there is nothing
+# to await here — this tool is added to FULL_TOOLS (sync dispatch), not
+# ASYNC_TOOLS, honestly reflecting the underlying libraries' actual nature.
+# ---------------------------------------------------------------------------
+
+
+def nvs_meaning_mapper_capability(arguments: dict[str, Any]) -> dict[str, Any]:
+    """capability_available? for the MeaningMapper capability. Always a
+    static descriptor — this is a local library import, not a live
+    external service reachability question (an honest distinction from
+    nvs_get_port_capability's real live check, not glossed over)."""
+    return {
+        "capability_id": "meaning_mapper.trajectory",
+        "status": "IMPLEMENTED",
+        "transport": "in-process",
+    }
+
+
+def nvs_run_meaning_trajectory(arguments: dict[str, Any]) -> dict[str, Any]:
+    """invoke_capability() for the MeaningMapper capability: feed a
+    sequence of real HEXT Observations through
+    MeaningMapper -> meaning-space-runtime, returning whichever real
+    StabilizedTrajectory resulted (or none, if dwell criteria were not
+    met yet — a real, honest outcome, not an error).
+
+    `arguments["observations"]` may be pre-built HEXT Observation dicts, or
+    `arguments["texts"]` a list of plain strings this tool turns into real
+    HEXT Observations via `build_hext_observation()` (deterministic
+    observation_id/state_hash/sealed_at derived from each string's own
+    index and content — not fabricated data, just a convenience
+    constructor matching the documented real wire schema).
+    """
+    import hashlib
+    from datetime import datetime, timedelta, timezone
+
+    observations = arguments.get("observations")
+    if observations is None:
+        texts = arguments.get("texts", [])
+        base_time = datetime.now(timezone.utc)
+        observations = [
+            build_hext_observation(
+                observation_id=f"mcp-{i:04d}",
+                text=text,
+                state_hash=hashlib.sha256(f"{i}:{text}".encode()).hexdigest(),
+                sealed_at=(base_time + timedelta(seconds=i)).isoformat(),
+            )
+            for i, text in enumerate(texts)
+        ]
+
+    result = run_meaning_trajectory(observations)
+    return {
+        "steps_processed": len(result.steps),
+        "quarantined_count": sum(1 for s in result.steps if s.quarantined),
+        "stabilized": result.stabilized,
+        "trajectory": (
+            {
+                "trajectory_id": result.trajectory.trajectory_id,
+                "frame_id": result.trajectory.frame_id,
+                "basin_id": result.trajectory.basin_id,
+                "is_novel": result.trajectory.is_novel,
+                "centroid": list(result.trajectory.centroid),
+                "dwell_steps": result.trajectory.dwell_steps,
+                "dwell_seconds": result.trajectory.dwell_seconds,
+            }
+            if result.trajectory is not None
+            else None
+        ),
+    }
