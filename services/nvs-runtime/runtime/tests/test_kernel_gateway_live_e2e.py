@@ -106,3 +106,23 @@ async def test_full_chain_against_live_canonical_kernel(db_session, fake_redis):
     events = service.list_events(db_session, session.session_id)
     assert events[1].forward_status == ForwardStatus.FORWARDED.value
     assert int(events[1].kernel_run_id) > int(events[0].kernel_run_id)
+
+
+async def test_invoke_port_against_live_canonical_kernel():
+    """KernelGateway.invoke_port() against a real, live nvs-kernel's
+    POST /ports/{port_id}_Port/invoke — no mocks. Skips automatically if no
+    live kernel is reachable at NVS_KERNEL_URL_LIVE, same as the rest of
+    this file.
+
+    Uses P04, a real stateless Port (no session_id required) with the exact
+    field shape previously captured working against the shared GCP
+    deployment (Projects/sensos/experiments/
+    EXP-TRJ-38PORT-SEMANTIC-PERTURBATION-001/code/collector.py's
+    STATELESS["P04"]) — not a guessed request shape.
+    """
+    gateway = await _live_gateway()
+    if gateway is None:
+        pytest.skip(f"no live nvs-kernel reachable at {LIVE_KERNEL_URL}")
+
+    result = await gateway.invoke_port("P04", {"vector": [1.0, 2.0, 3.0]})
+    assert isinstance(result, dict)

@@ -132,6 +132,37 @@ class KernelGateway:
             ObserveRequest(session_id=session_id, events=events, include_vectors=True)
         )
 
+    async def invoke_port(self, port_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Invoke one of the 38 Core-wrapped Ports via nvs-kernel's real
+        POST /ports/{port_id}_Port/invoke route.
+
+        `port_id` is bare (e.g. "P04", "P17") — this method appends the
+        `_Port` suffix, matching the addressing scheme already exercised
+        against this live service (Projects/sensos/experiments/
+        EXP-TRJ-38PORT-SEMANTIC-PERTURBATION-001/code/collector.py:
+        `invoke_port(port_id, body) -> http("POST", f"/ports/{port_id}_Port/invoke", body)`,
+        with previously captured evidence that all 38 Ports return 200
+        under this exact URL shape).
+
+        `body` is caller-assembled, not decided here: stateless Ports take
+        their raw feature fields directly (e.g. P04: `{"vector": [...]}`);
+        session-scoped Ports take `{"session_id": ..., **extra}`. This
+        mirrors CLEClient.call()'s existing "no route-specific method
+        commits to a payload shape" pattern, for the same reason — the 38
+        Ports' request/response schemas vary per port and no single ABI
+        type covers them.
+
+        Pure transport, read-only: the 38 Ports are confirmed
+        observation-only (no intervention fields found in any real
+        captured response body across a prior live pilot run), so this
+        method performs no local mutation and expects none server-side.
+        """
+        response = await request_with_retry(
+            "POST", self.base_url, f"/ports/{port_id}_Port/invoke", json=body
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def forward_runtime_event(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
         """Forward a single runtime envelope to the kernel via the real
         /observe contract. Batch-of-one convenience wrapper around

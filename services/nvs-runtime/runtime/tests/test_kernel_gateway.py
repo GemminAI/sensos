@@ -232,3 +232,73 @@ async def test_observe_batch_sends_multiple_events_in_one_request(monkeypatch):
 
     assert len(captured["json"]["events"]) == 2
     assert response.cycle == 7
+
+
+async def test_invoke_port_stateless_posts_raw_fields_to_port_url(monkeypatch):
+    """Stateless Port shape, verbatim from the real captured evidence
+    (EXP-TRJ-38PORT-SEMANTIC-PERTURBATION-001/code/collector.py's
+    STATELESS["P04"]): body is the raw feature fields, no session_id."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"port_id": "P04", "result": {"c04": 0.42}})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    result = await gateway.invoke_port("P04", {"vector": [1.0, 2.0, 3.0]})
+
+    assert captured["path"] == "/ports/P04_Port/invoke"
+    assert captured["json"] == {"vector": [1.0, 2.0, 3.0]}
+    assert result == {"port_id": "P04", "result": {"c04": 0.42}}
+
+
+async def test_invoke_port_session_scoped_includes_session_id(monkeypatch):
+    """Session-scoped Port shape, verbatim from the real captured evidence
+    (same source, SESSION_SCOPED["P02"]): body is {"session_id", **extra}."""
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        captured["path"] = request.url.path
+        captured["json"] = json.loads(request.content)
+        return httpx.Response(200, json={"port_id": "P02", "result": {"c02": 0.1}})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    result = await gateway.invoke_port("P02", {"session_id": "demo", "epsilon": 0.5})
+
+    assert captured["path"] == "/ports/P02_Port/invoke"
+    assert captured["json"] == {"session_id": "demo", "epsilon": 0.5}
+    assert result == {"port_id": "P02", "result": {"c02": 0.1}}
+
+
+async def test_invoke_port_appends_port_suffix_for_any_port_id(monkeypatch):
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        return httpx.Response(200, json={})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    await gateway.invoke_port("P38", {})
+    assert captured["path"] == "/ports/P38_Port/invoke"
+
+
+async def test_invoke_port_propagates_kernel_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"error": "InvalidPortRequest"})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await gateway.invoke_port("P04", {"vector": [1.0]})
