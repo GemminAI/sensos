@@ -90,24 +90,16 @@ class _FakeHekb:
             raise RetryExhaustedError("simulated HEKB failure")
 
     async def store(self, knowledge_object: dict) -> dict:
+        # First call always returns "a"*64 (every pre-existing single-call
+        # test asserts this exact value); later calls in the same test get
+        # distinct letters ("b"*64, "c"*64, ...) -- ADR-0013's triangulation
+        # tests make multiple store() calls per run and want distinct
+        # trajectory/summary ids to prove real relate() linkage, not a
+        # trivially-equal coincidence.
         self._maybe_fail()
         self.calls.append(knowledge_object)
-        return {"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
-
-    async def call_query(self, method: str, path: str, *, json: dict | None = None) -> dict:
-        # request_meaning_triangulation() writes trajectory/summary objects
-        # via call_query() (hekbd shape: {"id"}), not store() (hekb-api
-        # shape: {"object_id",...}) -- see capability_decision.py's own
-        # comment on why. Tracked in the same `calls` list as store() so
-        # existing assertions (`len(hekb.calls)`, `hekb.calls[i]["kind"]`)
-        # keep working regardless of which method wrote a given object.
-        # Ids are unique per call (unlike store()'s fixed "a"*64 -- no
-        # pre-existing test depends on call_query() returning a fixed id,
-        # and the triangulation tests want distinct trajectory/summary ids).
-        self._maybe_fail()
-        self.calls.append(json)
-        object_id = f"{len(self.calls):01x}" * 64
-        return {"id": object_id[:64]}
+        letter = chr(ord("a") + len(self.calls) - 1)
+        return {"object_id": letter * 64, "hash": letter * 64, "timestamp": "2026-08-06T00:00:00Z"}
 
     async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
         self._maybe_fail()

@@ -426,19 +426,10 @@ async def request_meaning_triangulation(
         }
 
         try:
-            # Writes go through `call_query()` (hekbd, `hekb_query_url`),
-            # not `store()` (hekb-api, `hekb_url`) — discovered live (not
-            # assumed) while wiring this end to end: `relate()`/
-            # `neighbours()`/`get_object()` only exist on hekbd, and hekbd
-            # is its own separate datastore from hekb-api (confirmed by
-            # reading both servers — see docs/audit/HEKB_HEXT_
-            # INVESTIGATION_20260817.md). An id hekb-api issued would not
-            # exist in hekbd's graph, so `relate()` on it would fail every
-            # time, not just under test. `request_capability()` and
-            # `request_meaning_trajectory()` above are unchanged and still
-            # use `store()` — this is a deliberate, scoped choice for
-            # triangulation evidence specifically, not a global HEKB
-            # backend switch.
+            # ADR-0013: hekb.store() and hekb.relate() now target the same
+            # backend (hekbd) by default, so a trajectory object's id is
+            # always relatable — no cross-backend id mismatch to work
+            # around here anymore.
             trajectory_object_ids: dict[str, str] = {}
             for measurement in triangulation.measurements:
                 if not measurement.stabilized:
@@ -448,14 +439,14 @@ async def request_meaning_triangulation(
                     session_id=str(session_id),
                     runtime_cycle_id=str(runtime_cycle_id),
                 )
-                stored_trajectory = await hekb.call_query("POST", "/v1/objects", json=trajectory_object)
-                trajectory_object_ids[measurement.path_id] = stored_trajectory["id"]
+                stored_trajectory = await hekb.store(trajectory_object)
+                trajectory_object_ids[measurement.path_id] = stored_trajectory["object_id"]
 
             summary_object = build_hekb_object_from_triangulation(
                 triangulation, session_id=str(session_id), runtime_cycle_id=str(runtime_cycle_id)
             )
-            stored_summary = await hekb.call_query("POST", "/v1/objects", json=summary_object)
-            summary_object_id = stored_summary["id"]
+            stored_summary = await hekb.store(summary_object)
+            summary_object_id = stored_summary["object_id"]
 
             for path_id, trajectory_object_id in trajectory_object_ids.items():
                 await hekb.relate(trajectory_object_id, summary_object_id, "DERIVES")

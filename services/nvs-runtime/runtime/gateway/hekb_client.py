@@ -284,18 +284,15 @@ def build_hekb_object_from_triangulation(
 
 
 class HekbClient:
+    """One client, one backend: hekbd (ADR-0013). Every method below talks
+    to `self.base_url`; there is no second URL to route around."""
+
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
 
     @property
     def base_url(self) -> str:
         return self.settings.hekb_url
-
-    @property
-    def query_base_url(self) -> str:
-        """Base URL of the C++ `hekbd` — see `Settings.hekb_query_url`
-        docstring for why this differs from `base_url`."""
-        return self.settings.hekb_query_url
 
     async def health_check(self) -> bool:
         try:
@@ -304,22 +301,27 @@ class HekbClient:
         except _TRANSPORT_ERRORS:
             return False
 
-    async def call(self, method: str, path: str, *, json: dict[str, Any] | None = None):
-        """Generic pooled/retried call against any HEKB route. Returns the
-        parsed JSON body. This is the only way this client talks to HEKB
-        today — no route-specific method commits to a payload shape."""
+    async def call(self, method: str, path: str, *, json: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Generic pooled/retried call against any hekbd route. Returns the
+        parsed JSON body."""
         response = await request_with_retry(method, self.base_url, path, json=json)
         response.raise_for_status()
         return response.json()
 
     async def store(self, knowledge_object: dict[str, Any]) -> dict[str, Any]:
-        """Persist one object via HEKB's existing POST /v1/objects.
+        """Persist one object via hekbd's `POST /v1/objects`.
 
         `knowledge_object` is expected to already be shaped like
-        `build_hekb_object()`'s output. Returns HEKB's existing
-        `{object_id, hash, timestamp}` response verbatim.
+        `build_hekb_object()`'s output. hekbd's own response is `{"id"}`;
+        normalized here to `{"object_id": id, "hash": id}` (content
+        addressing means the id *is* the hash — the same convention
+        `hekb-api`'s own `ObjectCreateResponse` already used,
+        `hash == object_id` in every example observed) so every existing
+        caller (`stored.get("object_id")`) is unaffected by ADR-0013's
+        backend switch.
         """
-        return await self.call("POST", "/v1/objects", json=knowledge_object)
+        result = await self.call("POST", "/v1/objects", json=knowledge_object)
+        return {"object_id": result["id"], "hash": result["id"]}
 
     # -- Read MCP: wraps hekbd's existing object/morphism/query routes ----
     # (`GemminAI/hekb` docs/API.md / cpp/server/http_api.cpp), the same
@@ -332,7 +334,7 @@ class HekbClient:
         """GET /v1/objects/{id}. Read-only. Returns None on 404 (an object
         genuinely not existing is a normal outcome, not a failure) —
         mirrors `hekb.client.HekbClient.get()`'s own None-on-404 contract."""
-        response = await request_with_retry("GET", self.query_base_url, f"/v1/objects/{object_id}")
+        response = await request_with_retry("GET", self.base_url, f"/v1/objects/{object_id}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
@@ -345,7 +347,7 @@ class HekbClient:
         server does not mutate the store — see GemminAI/hekb's own
         docstring: "Exact k-nearest search"). Returns the `matches` list
         verbatim (`[{"id", "distance"}, ...]`)."""
-        result = await self.call_query(
+        result = await self.call(
             "POST", "/v1/query/nearest", json={"vector": vector, "limit": limit, "metric": metric}
         )
         return list(result.get("matches", []))
@@ -354,7 +356,7 @@ class HekbClient:
         """GET /v1/query/neighbours?id=&depth=. Read-only BFS expansion.
         Returns the `neighbours` list verbatim (`[{"id","via","hops"}, ...]`)."""
         query = urlencode({"id": object_id, "depth": depth})
-        result = await self.call_query("GET", f"/v1/query/neighbours?{query}")
+        result = await self.call("GET", f"/v1/query/neighbours?{query}")
         return list(result.get("neighbours", []))
 
     async def geodesic(self, source: str, target: str) -> dict[str, Any]:
@@ -362,13 +364,13 @@ class HekbClient:
         Returns `{"found","cost","objects","morphisms"}` verbatim —
         `found: false` (no path) is a real, non-error outcome, not raised."""
         query = urlencode({"from": source, "to": target})
-        return await self.call_query("GET", f"/v1/query/geodesic?{query}")
+        return await self.call("GET", f"/v1/query/geodesic?{query}")
 
     async def stats(self) -> dict[str, int]:
         """GET /metrics (Prometheus text) on hekbd, parsed the same way
         `hekb.client.HekbClient.stats()` parses it — no new parsing rule
         invented, same two counter lines (`hekb_objects`, `hekb_morphisms`)."""
-        response = await request_with_retry("GET", self.query_base_url, "/metrics")
+        response = await request_with_retry("GET", self.base_url, "/metrics")
         response.raise_for_status()
         counts: dict[str, int] = {}
         for line in response.text.splitlines():
@@ -380,26 +382,13 @@ class HekbClient:
 
     async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
         """POST /v1/morphisms. NOT a read — this WRITES a morphism (edge)
-        into HEKB's graph. Included because it was explicitly requested
-        alongside the read tools; kept as its own method (not folded into
-        `store()`) because it targets `query_base_url` (hekbd), not
-        `base_url` (hekb-api), and has its own response shape (`{"id"}`,
-        not `{"object_id","hash","timestamp"}`)."""
-        result = await self.call_query(
+        into hekbd's graph. Kept as its own method (not folded into
+        `store()`) because its response shape (`{"id"}`) and payload
+        (source/target/kind/weight) are morphism-specific, not object
+        create/read."""
+        result = await self.call(
             "POST",
             "/v1/morphisms",
             json={"source": source, "target": target, "kind": kind, "weight": weight},
         )
         return str(result["id"])
-
-    async def call_query(
-        self, method: str, path: str, *, json: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """As `call()`, but against `query_base_url` (hekbd) instead of
-        `base_url` (hekb-api). Separate method, not a `call()` parameter,
-        so every existing `call()` caller (`store()` and any future one)
-        keeps writing to hekb-api without having to think about which URL
-        applies."""
-        response = await request_with_retry(method, self.query_base_url, path, json=json)
-        response.raise_for_status()
-        return response.json()

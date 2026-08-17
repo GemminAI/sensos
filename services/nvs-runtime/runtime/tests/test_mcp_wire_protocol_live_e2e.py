@@ -6,7 +6,7 @@ MCP Inspector, ...) actually does; unlike the module-level tests in
 test_mcp_tools.py, it proves the protocol layer itself, not just the tool
 handlers.
 
-Skips automatically if hekbd is not reachable at HEKB_QUERY_URL_LIVE (the
+Skips automatically if hekbd is not reachable at HEKB_URL_LIVE (the
 `nvs_hekb_stats` call needs a live backend to return a real, non-error
 result) — mirrors the skip convention used elsewhere in this test suite.
 """
@@ -18,7 +18,7 @@ import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-LIVE_HEKBD_URL = os.environ.get("HEKB_QUERY_URL_LIVE", "http://127.0.0.1:8100")
+LIVE_HEKBD_URL = os.environ.get("HEKB_URL_LIVE", "http://127.0.0.1:8100")
 
 
 async def _reachable(url: str) -> bool:
@@ -39,7 +39,7 @@ async def test_mcp_server_real_wire_protocol_round_trip():
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "runtime.mcp.server"],
-        env={"HEKB_QUERY_URL": LIVE_HEKBD_URL, "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+        env={"HEKB_URL": LIVE_HEKBD_URL, "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     )
     async with stdio_client(params) as (read, write):
