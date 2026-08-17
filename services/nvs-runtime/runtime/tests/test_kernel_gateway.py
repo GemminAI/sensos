@@ -332,3 +332,66 @@ async def test_invoke_port_rejects_invalid_port_id_before_any_http_call(monkeypa
     with pytest.raises(ValueError, match="port_id"):
         await gateway.invoke_port(port_id, {})
     assert calls == []  # rejected client-side, before any HTTP request
+
+
+# ---------------------------------------------------------------------------
+# get_port_capability — capability_available? boundary (GET /ports/{id}_Port)
+# ---------------------------------------------------------------------------
+
+_REAL_P04_CAPABILITY = {
+    "type": "port",
+    "id": "P04_Port",
+    "layer": "CORE",
+    "name": "HEXT Closure Verifier",
+    "version": "1.0.0",
+    "status": "IMPLEMENTED",
+    "input": {"type": "CoreInvokeRequest", "schema_uri": None},
+    "output": {"type": "Core.C04.ClosureResult", "schema_uri": None},
+    "capabilities": ["core_c04_hext_closure_verifier"],
+    "provider": {"implementation": "nvs-kernel-v5", "abi_version": "5.0.0"},
+    "invoke_endpoints": ["POST /ports/{port_id}/invoke"],
+}
+
+
+async def test_get_port_capability_uses_get_method_on_port_url(monkeypatch):
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["method"] = request.method
+        captured["path"] = request.url.path
+        return httpx.Response(200, json=_REAL_P04_CAPABILITY)
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    result = await gateway.get_port_capability("P04")
+
+    assert captured["method"] == "GET"
+    assert captured["path"] == "/ports/P04_Port"
+    assert result == _REAL_P04_CAPABILITY
+
+
+async def test_get_port_capability_rejects_invalid_port_id_before_any_http_call(monkeypatch):
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json={})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    with pytest.raises(ValueError, match="port_id"):
+        await gateway.get_port_capability("P99")
+    assert calls == []
+
+
+async def test_get_port_capability_propagates_kernel_error(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"detail": "unknown port"})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await gateway.get_port_capability("P04")

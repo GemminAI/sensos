@@ -126,3 +126,17 @@ async def test_invoke_port_against_live_canonical_kernel():
 
     result = await gateway.invoke_port("P04", {"vector": [1.0, 2.0, 3.0]})
     assert isinstance(result, dict)
+
+
+async def test_get_port_capability_against_live_canonical_kernel():
+    """KernelGateway.get_port_capability() against a real, live nvs-kernel's
+    GET /ports/{port_id}_Port — no mocks. Skips automatically if no live
+    kernel is reachable, same as the rest of this file.
+    """
+    gateway = await _live_gateway()
+    if gateway is None:
+        pytest.skip(f"no live nvs-kernel reachable at {LIVE_KERNEL_URL}")
+
+    capability = await gateway.get_port_capability("P04")
+    assert capability["id"] == "P04_Port"
+    assert capability["status"] in ("IMPLEMENTED", "NOT_IMPLEMENTED")

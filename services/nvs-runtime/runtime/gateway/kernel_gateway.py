@@ -181,6 +181,32 @@ class KernelGateway:
         response.raise_for_status()
         return response.json()
 
+    async def get_port_capability(self, port_id: str) -> dict[str, Any]:
+        """Real, live GET /ports/{port_id}_Port capability descriptor —
+        nvs-kernel's own existing schema, not invented here: `{type, id,
+        layer, name, version, status, input: {type, schema_uri},
+        output: {type, schema_uri}, capabilities, provider:
+        {implementation, abi_version}, invoke_endpoints}`. Confirmed live
+        for both the 8 L0-L7 layer Ports (via GET /ports) and the 38
+        individually-addressed P0x Ports (e.g. live P04_Port:
+        status="IMPLEMENTED", capabilities=["core_c04_hext_closure_verifier"]).
+
+        This is the read-only "is this capability available?" boundary —
+        no invocation happens here, matching `invoke_port()`'s own
+        read-only-observation guarantee for the same 38-Port SSOT.
+
+        Raises ValueError before any HTTP call for the same reason
+        `invoke_port()` does.
+        """
+        if not _PORT_ID_PATTERN.match(port_id):
+            raise ValueError(
+                f"port_id {port_id!r} is not a valid Port identifier; must be "
+                "P01-P38 per the v1.4 Section 5.1 38-Port SSOT"
+            )
+        response = await request_with_retry("GET", self.base_url, f"/ports/{port_id}_Port")
+        response.raise_for_status()
+        return response.json()
+
     async def forward_runtime_event(self, envelope: dict[str, Any]) -> tuple[ForwardStatus, str | None]:
         """Forward a single runtime envelope to the kernel via the real
         /observe contract. Batch-of-one convenience wrapper around
