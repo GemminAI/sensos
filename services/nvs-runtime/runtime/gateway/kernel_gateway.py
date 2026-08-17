@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any
@@ -23,6 +24,14 @@ from runtime.models.enums import ForwardStatus, RuntimeEventType
 from runtime.abi.observation import EventKind, ObservationEvent, ObserveRequest, ObserveResponse
 
 logger = logging.getLogger(__name__)
+
+#: The 38-Port SSOT (P01-P38, v1.4 Section 5.1) is a frozen, already-settled
+#: fact, not a new decision made here — confirmed live across three prior
+#: audit cycles (P02, P04, P17 all real, all returning 200). Validating
+#: against it client-side, before any HTTP call, turns a caller's malformed
+#: port_id into an immediate, clear local error instead of a confusing
+#: remote 404 — it does not choose a port, a trigger, or any policy.
+_PORT_ID_PATTERN = re.compile(r"^P(0[1-9]|[12][0-9]|3[0-8])$")
 
 #: Runtime event types that get forwarded to the kernel as an Observation-ABI
 #: event, and the EventKind they're recorded as. Every other RuntimeEventType
@@ -156,7 +165,16 @@ class KernelGateway:
         observation-only (no intervention fields found in any real
         captured response body across a prior live pilot run), so this
         method performs no local mutation and expects none server-side.
+
+        Raises ValueError before any HTTP call if `port_id` is not a real
+        P01-P38 identifier (the frozen 38-Port SSOT) — a client-side check
+        against an already-settled fact, not a new port/trigger decision.
         """
+        if not _PORT_ID_PATTERN.match(port_id):
+            raise ValueError(
+                f"port_id {port_id!r} is not a valid Port identifier; must be "
+                "P01-P38 per the v1.4 Section 5.1 38-Port SSOT"
+            )
         response = await request_with_retry(
             "POST", self.base_url, f"/ports/{port_id}_Port/invoke", json=body
         )

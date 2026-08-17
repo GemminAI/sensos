@@ -302,3 +302,33 @@ async def test_invoke_port_propagates_kernel_error(monkeypatch):
 
     with pytest.raises(httpx.HTTPStatusError):
         await gateway.invoke_port("P04", {"vector": [1.0]})
+
+
+@pytest.mark.parametrize("port_id", ["P01", "P09", "P10", "P17", "P38"])
+async def test_invoke_port_accepts_valid_ssot_boundaries(monkeypatch, port_id):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    await gateway.invoke_port(port_id, {})  # must not raise
+
+
+@pytest.mark.parametrize(
+    "port_id",
+    ["P00", "P39", "P99", "P1", "p17", "P17X", "", "P017", "17", "Q17"],
+)
+async def test_invoke_port_rejects_invalid_port_id_before_any_http_call(monkeypatch, port_id):
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(200, json={})
+
+    _mock_pooled_client(monkeypatch, handler)
+    gateway = KernelGateway()
+
+    with pytest.raises(ValueError, match="port_id"):
+        await gateway.invoke_port(port_id, {})
+    assert calls == []  # rejected client-side, before any HTTP request
