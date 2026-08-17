@@ -21,9 +21,11 @@ from runtime.services.capability_decision import (
     RuntimeOutcome,
     request_capability,
     request_meaning_trajectory,
+    request_meaning_triangulation,
 )
 from runtime.services.event_service import EventService
 from runtime.services.meaning_trajectory import build_hext_observation
+from runtime.services.meaning_triangulation import TriangulationInput
 from runtime.services.session_service import SessionService
 
 _REAL_P04_CAPABILITY = {
@@ -72,15 +74,45 @@ class _FakeGateway:
 
 
 class _FakeHekb:
-    def __init__(self, fail: bool = False):
+    def __init__(self, fail: bool = False, fail_after: int | None = None):
         self.calls: list[dict] = []
+        self.relate_calls: list[tuple] = []
         self._fail = fail
+        # fail_after: succeed the first N store()/relate() calls combined,
+        # then start failing -- for proving a *partial* write is reported
+        # BLOCKED, not PERSISTED.
+        self._fail_after = fail_after
+        self._call_count = 0
+
+    def _maybe_fail(self):
+        self._call_count += 1
+        if self._fail or (self._fail_after is not None and self._call_count > self._fail_after):
+            raise RetryExhaustedError("simulated HEKB failure")
 
     async def store(self, knowledge_object: dict) -> dict:
-        if self._fail:
-            raise RetryExhaustedError("simulated HEKB failure")
+        self._maybe_fail()
         self.calls.append(knowledge_object)
         return {"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
+
+    async def call_query(self, method: str, path: str, *, json: dict | None = None) -> dict:
+        # request_meaning_triangulation() writes trajectory/summary objects
+        # via call_query() (hekbd shape: {"id"}), not store() (hekb-api
+        # shape: {"object_id",...}) -- see capability_decision.py's own
+        # comment on why. Tracked in the same `calls` list as store() so
+        # existing assertions (`len(hekb.calls)`, `hekb.calls[i]["kind"]`)
+        # keep working regardless of which method wrote a given object.
+        # Ids are unique per call (unlike store()'s fixed "a"*64 -- no
+        # pre-existing test depends on call_query() returning a fixed id,
+        # and the triangulation tests want distinct trajectory/summary ids).
+        self._maybe_fail()
+        self.calls.append(json)
+        object_id = f"{len(self.calls):01x}" * 64
+        return {"id": object_id[:64]}
+
+    async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
+        self._maybe_fail()
+        self.relate_calls.append((source, target, kind))
+        return "e" * 64
 
 
 # ---------------------------------------------------------------------------
@@ -500,3 +532,154 @@ def test_request_meaning_trajectory_no_hard_coded_capability_selection():
     for port_id in ["P01", "P04", "P17", "P38"]:
         assert f'"{port_id}"' not in source
         assert f"'{port_id}'" not in source
+
+
+# ---------------------------------------------------------------------------
+# request_meaning_triangulation() — real MeaningMapper/MSR (via
+# run_meaning_triangulation), faked HekbClient (store + relate), same
+# convention as request_meaning_trajectory()'s own tests above.
+# ---------------------------------------------------------------------------
+
+
+def _triangulation_inputs(text_a: str, text_b: str) -> list[TriangulationInput]:
+    return [
+        TriangulationInput(
+            path_id="path-a",
+            observations=[
+                build_hext_observation(
+                    observation_id=f"rmt-a-{i:04d}",
+                    text=text_a,
+                    state_hash="c" * 64,
+                    sealed_at=f"2026-08-17T02:00:{i:02d}Z",
+                )
+                for i in range(8)
+            ],
+            method="repeated_stable",
+        ),
+        TriangulationInput(
+            path_id="path-b",
+            observations=[
+                build_hext_observation(
+                    observation_id=f"rmt-b-{i:04d}",
+                    text=text_b,
+                    state_hash="c" * 64,
+                    sealed_at=f"2026-08-18T02:00:{i:02d}Z",
+                )
+                for i in range(8)
+            ],
+            method="paraphrase",
+        ),
+    ]
+
+
+async def test_request_meaning_triangulation_persists_trajectories_and_summary_and_relates_them(
+    db_session, fake_redis
+):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _triangulation_inputs("x", "x"),  # identical text on both paths -> both stabilize identically
+        divergence_epsilon=1e-6,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS
+    assert result.invocation_result["state"] == "STABLE"
+    assert result.evidence_status == EvidenceStatus.PERSISTED
+    assert result.evidence_object_id is not None
+    # 2 stabilized paths -> 2 trajectory objects + 1 summary object = 3 store() calls
+    assert len(hekb.calls) == 3
+    assert hekb.calls[0]["kind"] == "EVIDENCE"
+    assert hekb.calls[1]["kind"] == "EVIDENCE"
+    assert hekb.calls[2]["labels"]["value_kind"] == "derived"  # the summary object
+    # both trajectory objects DERIVES-related to the summary
+    assert len(hekb.relate_calls) == 2
+    for source, target, kind in hekb.relate_calls:
+        assert kind == "DERIVES"
+        assert target == result.evidence_object_id
+
+
+async def test_request_meaning_triangulation_persists_evidence_even_when_divergent(db_session, fake_redis):
+    """Divergent results are still real evidence worth keeping -- must not
+    be silently dropped just because the paths disagreed."""
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _triangulation_inputs(
+            "the system is stable and observing correctly",
+            "a completely different sentence about something else",
+        ),
+        divergence_epsilon=1e-12,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.invocation_result["state"] == "DIVERGENT"
+    assert result.evidence_status == EvidenceStatus.PERSISTED
+    assert len(hekb.calls) == 3  # both trajectories + the (divergent) summary, all persisted
+
+
+async def test_request_meaning_triangulation_partial_write_is_blocked_not_persisted(db_session, fake_redis):
+    """A failure partway through the write sequence (after some
+    trajectories are stored, before all DERIVES edges exist) must report
+    BLOCKED, never a fabricated PERSISTED for an incomplete graph."""
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb(fail_after=2)  # 2 trajectory stores succeed, summary store fails
+
+    result = await request_meaning_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _triangulation_inputs("x", "x"),
+        divergence_epsilon=1e-6,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS  # the measurement itself ran fine
+    assert result.evidence_status == EvidenceStatus.BLOCKED  # but persistence did not complete
+    assert result.evidence_object_id is None
+
+
+async def test_request_meaning_triangulation_empty_inputs_is_invalid(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_triangulation(
+        db_session, session.session_id, agent.agent_id, [], hekb=hekb, event_service=EventService()
+    )
+
+    assert result.outcome == RuntimeOutcome.INVALID
+    assert hekb.calls == []
+
+
+async def test_request_meaning_triangulation_lineage_linked(db_session, fake_redis):
+    agent, session = _make_session(db_session)
+    hekb = _FakeHekb()
+
+    result = await request_meaning_triangulation(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        _triangulation_inputs("x", "x"),
+        divergence_epsilon=1e-6,
+        hekb=hekb,
+        event_service=EventService(),
+    )
+
+    events = EventService().list_events(db_session, session.session_id)
+    assert len(events) == 2
+    request_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_REQUESTED.value)
+    result_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_RESULT.value)
+    assert request_event.event_id == result.runtime_cycle_id
+    assert result_event.parent_event_id == request_event.event_id
+    assert request_event.payload["capability_id"] == "meaning_mapper.triangulation"

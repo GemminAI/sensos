@@ -58,17 +58,47 @@ class _FakeGateway:
 
 
 class _FakeHekb:
-    def __init__(self, fail=False):
+    def __init__(self, fail=False, object_store=None):
         self.calls: list[dict] = []
         self._fail = fail
+        self._objects = object_store or {}
+        self.relate_calls: list[tuple] = []
 
-    async def store(self, knowledge_object: dict) -> dict:
+    def _maybe_fail(self):
         if self._fail:
             from runtime.gateway.http_pool import RetryExhaustedError
 
             raise RetryExhaustedError("simulated HEKB failure")
+
+    async def store(self, knowledge_object: dict) -> dict:
+        self._maybe_fail()
         self.calls.append(knowledge_object)
         return {"object_id": "a" * 64, "hash": "a" * 64, "timestamp": "2026-08-06T00:00:00Z"}
+
+    async def get_object(self, object_id: str) -> dict | None:
+        self._maybe_fail()
+        return self._objects.get(object_id)
+
+    async def nearest(self, vector, limit=10, metric="cosine") -> list[dict]:
+        self._maybe_fail()
+        return [{"id": "a" * 64, "distance": 0.0}]
+
+    async def neighbours(self, object_id: str, depth: int = 1) -> list[dict]:
+        self._maybe_fail()
+        return [{"id": "b" * 64, "via": "c" * 64, "hops": 1}]
+
+    async def geodesic(self, source: str, target: str) -> dict:
+        self._maybe_fail()
+        return {"found": True, "cost": 1.0, "objects": [source, target], "morphisms": ["d" * 64]}
+
+    async def stats(self) -> dict:
+        self._maybe_fail()
+        return {"objects": 3, "morphisms": 2}
+
+    async def relate(self, source: str, target: str, kind: str, weight: float = 0.0) -> str:
+        self._maybe_fail()
+        self.relate_calls.append((source, target, kind, weight))
+        return "e" * 64
 
 
 _REAL_P04_RESULT = {
@@ -225,3 +255,79 @@ def test_run_meaning_trajectory_tool_empty_input():
     result = mcp_tools.nvs_run_meaning_trajectory({})
     assert result["steps_processed"] == 0
     assert result["stabilized"] is False
+
+
+# ---------------------------------------------------------------------------
+# HEKB Read MCP tools — mocked at the HekbClient boundary, same fake-object
+# convention as the Port tools above.
+# ---------------------------------------------------------------------------
+
+
+async def test_hekb_get_tool_found(monkeypatch):
+    fake = _FakeHekb(object_store={"a" * 64: {"id": "a" * 64, "kind": "OBSERVATION"}})
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_get({"object_id": "a" * 64})
+    assert result == {"found": True, "id": "a" * 64, "kind": "OBSERVATION"}
+
+
+async def test_hekb_get_tool_not_found_is_data_not_error(monkeypatch):
+    fake = _FakeHekb(object_store={})
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_get({"object_id": "b" * 64})
+    assert result == {"found": False}
+
+
+async def test_hekb_get_tool_propagates_backend_failure(monkeypatch):
+    from runtime.gateway.http_pool import RetryExhaustedError
+
+    fake = _FakeHekb(fail=True)
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    with pytest.raises(RetryExhaustedError):
+        await mcp_tools.nvs_hekb_get({"object_id": "a" * 64})
+
+
+async def test_hekb_nearest_tool_delegates_to_client(monkeypatch):
+    fake = _FakeHekb()
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_nearest({"vector": [1.0, 0.0], "limit": 3})
+    assert result == {"matches": [{"id": "a" * 64, "distance": 0.0}]}
+
+
+async def test_hekb_neighbours_tool_delegates_to_client(monkeypatch):
+    fake = _FakeHekb()
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_neighbours({"object_id": "a" * 64, "depth": 2})
+    assert result == {"neighbours": [{"id": "b" * 64, "via": "c" * 64, "hops": 1}]}
+
+
+async def test_hekb_geodesic_tool_delegates_to_client(monkeypatch):
+    fake = _FakeHekb()
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_geodesic({"from_object_id": "a" * 64, "to_object_id": "b" * 64})
+    assert result["found"] is True
+    assert result["cost"] == 1.0
+
+
+async def test_hekb_stats_tool_delegates_to_client(monkeypatch):
+    fake = _FakeHekb()
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_stats({})
+    assert result == {"objects": 3, "morphisms": 2}
+
+
+async def test_hekb_relate_tool_creates_morphism(monkeypatch):
+    fake = _FakeHekb()
+    monkeypatch.setattr(mcp_tools, "_hekb_client", fake)
+
+    result = await mcp_tools.nvs_hekb_relate(
+        {"source": "a" * 64, "target": "b" * 64, "kind": "SUPPORTS", "weight": 0.5}
+    )
+    assert result == {"id": "e" * 64}
+    assert fake.relate_calls == [("a" * 64, "b" * 64, "SUPPORTS", 0.5)]

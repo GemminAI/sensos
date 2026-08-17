@@ -11,8 +11,11 @@ from runtime.gateway.kernel_gateway import KernelGateway
 from runtime.models.enums import AgentProvider, RuntimeEventType
 from runtime.models.schemas import AgentCreate, EventIngestRequest, ExperimentType, SessionCreate
 from runtime.services.agent_service import AgentService
+from runtime.services.capability_decision import request_meaning_triangulation
 from runtime.services.event_service import EventService
 from runtime.services.meaning_trajectory import build_hext_observation, run_meaning_trajectory
+from runtime.services.meaning_triangulation import TriangulationInput
+from runtime.services.runtime_context import get_triangulation_context
 from runtime.services.session_service import SessionService
 
 LAYER3_STUBS = {
@@ -155,6 +158,75 @@ def nvs_meaning_mapper_capability(arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# HEKB Read MCP tools — thin wrappers over HekbClient's existing hekbd
+# routes (get_object/nearest/neighbours/geodesic/stats; `relate` is a
+# write, see its own docstring). No new HEKB route, payload shape, or
+# object model is invented here — every field name below is copied from
+# `GemminAI/hekb`'s own server routes (docs/API.md, cpp/server/http_api.cpp)
+# and its own Python client (hekb/python/hekb/client.py). None of these
+# handlers touch the DB/session/queue infra the tools above use — they are
+# pure passthroughs to `_hekb_client`, so they raise on failure exactly as
+# `nvs_invoke_port` does, letting the MCP SDK's call_tool wrapper turn any
+# exception into isError:true rather than a fabricated success.
+# ---------------------------------------------------------------------------
+
+
+async def nvs_hekb_get(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: GET /v1/objects/{id} on hekbd. `found: false` (not an
+    exception) when the id genuinely does not exist — a real, honest
+    outcome, matching `nvs_run_meaning_trajectory`'s treatment of
+    "criteria not met yet" as data, not an error."""
+    obj = await _hekb_client.get_object(str(arguments["object_id"]))
+    return {"found": False} if obj is None else {"found": True, **obj}
+
+
+async def nvs_hekb_nearest(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: POST /v1/query/nearest on hekbd. k-nearest by vector."""
+    matches = await _hekb_client.nearest(
+        [float(c) for c in arguments["vector"]],
+        int(arguments.get("limit", 10)),
+        str(arguments.get("metric", "cosine")),
+    )
+    return {"matches": matches}
+
+
+async def nvs_hekb_neighbours(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: GET /v1/query/neighbours on hekbd. Bounded-hop BFS
+    expansion of the morphism graph around one object."""
+    neighbours = await _hekb_client.neighbours(
+        str(arguments["object_id"]), int(arguments.get("depth", 1))
+    )
+    return {"neighbours": neighbours}
+
+
+async def nvs_hekb_geodesic(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: GET /v1/query/geodesic on hekbd. Cheapest path between
+    two objects by summed morphism weight. `found: false` is a real
+    outcome (no path exists), not an error."""
+    return await _hekb_client.geodesic(str(arguments["from_object_id"]), str(arguments["to_object_id"]))
+
+
+async def nvs_hekb_stats(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: GET /metrics on hekbd, parsed to object/morphism counts."""
+    return await _hekb_client.stats()
+
+
+async def nvs_hekb_relate(arguments: dict[str, Any]) -> dict[str, Any]:
+    """NOT a read: POST /v1/morphisms on hekbd — creates or updates a
+    typed, weighted edge between two existing objects. Included in this
+    tranche because it was explicitly requested alongside the read tools,
+    but it is the one tool here that mutates HEKB; callers should not
+    assume the "HEKB Read MCP" name covers it."""
+    morphism_id = await _hekb_client.relate(
+        str(arguments["source"]),
+        str(arguments["target"]),
+        str(arguments["kind"]),
+        float(arguments.get("weight", 0.0)),
+    )
+    return {"id": morphism_id}
+
+
 def nvs_run_meaning_trajectory(arguments: dict[str, Any]) -> dict[str, Any]:
     """invoke_capability() for the MeaningMapper capability: feed a
     sequence of real HEXT Observations through
@@ -205,3 +277,69 @@ def nvs_run_meaning_trajectory(arguments: dict[str, Any]) -> dict[str, Any]:
             else None
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Meaning Triangulation capability tools — the MCP Capability Bus surface
+# for runtime.services.meaning_triangulation / capability_decision.
+# request_meaning_triangulation() / runtime.services.runtime_context. Async
+# (unlike nvs_run_meaning_trajectory above): this tool persists to HEKB and
+# needs a DB session for Event lineage, both of which do real I/O, unlike
+# the pure in-process measurement nvs_run_meaning_trajectory wraps.
+# ---------------------------------------------------------------------------
+
+
+async def nvs_run_meaning_triangulation(arguments: dict[str, Any]) -> dict[str, Any]:
+    """invoke_capability() for Meaning Triangulation: runs each of
+    `arguments["paths"]` (each `{"path_id", "observations", "method"}`)
+    through MeaningMapper -> MSR independently, compares the resulting
+    stabilized trajectories, and persists the result to HEKB (trajectories
+    + summary + DERIVES lineage) via `request_meaning_triangulation()`.
+
+    Requires an already-registered `session_id`/`agent_id` — same
+    requirement `nvs_emit_sep_event` already has. `divergence_epsilon` is
+    optional; omitting it means the returned `state` is `NOT_EVALUABLE`
+    (see `meaning_triangulation` module docstring for why no default
+    exists) — evidence is still persisted either way.
+    """
+    session_id = UUID(arguments["session_id"])
+    agent_id = UUID(arguments["agent_id"])
+    inputs = [
+        TriangulationInput(
+            path_id=str(path["path_id"]),
+            observations=list(path["observations"]),
+            method=str(path.get("method", "")),
+        )
+        for path in arguments["paths"]
+    ]
+    divergence_epsilon = arguments.get("divergence_epsilon")
+
+    with db_session() as db:
+        result = await request_meaning_triangulation(
+            db,
+            session_id,
+            agent_id,
+            inputs,
+            divergence_epsilon=divergence_epsilon,
+            hekb=_hekb_client,
+        )
+
+    return {
+        "runtime_cycle_id": str(result.runtime_cycle_id),
+        "outcome": result.outcome.value,
+        "invocation_result": result.invocation_result,
+        "evidence_status": result.evidence_status.value,
+        "evidence_object_id": result.evidence_object_id,
+    }
+
+
+async def nvs_get_triangulation_context(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Read-only: the Runtime Context leg. Reads back a triangulation
+    summary (by the HEKB object id `nvs_run_meaning_triangulation`
+    returned as `evidence_object_id`) and its DERIVES-linked per-path
+    trajectory evidence via `runtime.services.runtime_context.
+    get_triangulation_context()` — pure HEKB reads (Phase 1's
+    get_object/neighbours), no capability-selection policy."""
+    return await get_triangulation_context(
+        str(arguments["triangulation_object_id"]), hekb=_hekb_client
+    )
