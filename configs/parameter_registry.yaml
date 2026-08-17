@@ -1,0 +1,30 @@
+# Parameter Registry — SensOS Runtime v2.0
+# Source: SPEC-SENSOS-RTV2-001, Revision v1.4, Section 7.1
+#         "Protocol Parameter Registry (V2.0 Static Constants)"
+#
+# Status: Frozen standard. Per v1.4 §7.1, do not add, remove, or change these
+# values without a new spec revision.
+#
+# NOTE: this file is a human-readable reference copy. It is verified in sync
+# with services/observation-runtime/sensos/parameter_registry.py by
+# tests/test_parameter_registry.py (repo root, run with
+# PYTHONPATH=services/observation-runtime, matching this repo's existing
+# test convention). It is NOT loaded at container runtime today — the
+# observation-runtime Docker build context (services/observation-runtime)
+# does not include this repo-root configs/ directory, the same reason
+# configs/dak.yaml is currently unloaded (see
+# SENSOS_RUNTIME_V1_V2_ARCHITECTURE_GAP_AUDIT.md §12). The Python dataclass
+# in parameter_registry.py is the actual runtime source of truth; this file
+# exists for human readability and spec traceability.
+spec_id: SPEC-SENSOS-RTV2-001
+spec_revision: v1.4
+
+parameter_registry:
+  AEC_THRESHOLD_V1: 0.90         # AEC 結合相関閾値
+  CROSS_HARDWARE_EPSILON: 1e-4   # G0-B 許容誤差上限 (||v - v'||_infinity)
+  MIN_EFFECT_SIZE_DELTA: 0.05    # G2 最小個別効果量 U_min
+  FDR_BENJAMINI_HOCHBERG_Q: 0.05 # G1/G2 多重比較補正 FDR q 水準
+  CRYSTAL_VAR_EPSILON: 0.01      # PSC 判定分散閾値 epsilon_v
+  CRYSTAL_ENTROPY_EPSILON: 0.05  # PSC 判定エントロピー閾値 epsilon_H
+  PLASMA_ENTROPY_DELTA: 0.05     # Plasma 判定エントロピー余裕 delta_H
+  PLASMA_VAR_MAX: 10.0           # Plasma 判定分散上限 V_max
