@@ -140,3 +140,55 @@ async def test_get_port_capability_against_live_canonical_kernel():
     capability = await gateway.get_port_capability("P04")
     assert capability["id"] == "P04_Port"
     assert capability["status"] in ("IMPLEMENTED", "NOT_IMPLEMENTED")
+
+
+async def test_request_capability_against_live_canonical_kernel(db_session, fake_redis):
+    """Runtime Decision Boundary (runtime/services/capability_decision.py)
+    end-to-end: real SQLite test DB + fake Redis (this repo's own test
+    convention for DB/queue infrastructure — see
+    test_full_chain_against_live_canonical_kernel above) + a REAL, LIVE
+    KernelGateway and a REAL HekbClient (default settings — genuinely
+    unreachable, not mocked). Proves the orchestration logic drives a real
+    external Port call correctly, and that HEKB's real unavailability is
+    reported honestly as BLOCKED evidence, not silently converted to
+    success. Skips automatically if no live kernel is reachable.
+    """
+    from runtime.gateway.hekb_client import HekbClient
+    from runtime.services.capability_decision import (
+        CapabilityRequest,
+        EvidenceStatus,
+        RuntimeOutcome,
+        request_capability,
+    )
+
+    gateway = await _live_gateway()
+    if gateway is None:
+        pytest.skip(f"no live nvs-kernel reachable at {LIVE_KERNEL_URL}")
+
+    agent_svc = AgentService()
+    session_svc = SessionService()
+    from runtime.models.enums import AgentProvider
+
+    agent = agent_svc.create(db_session, AgentCreate(provider=AgentProvider.CUSTOM, model="e2e-verify"))
+    db_session.flush()
+    session = session_svc.create(db_session, SessionCreate(participants=[agent.agent_id]))
+    db_session.flush()
+
+    result = await request_capability(
+        db_session,
+        session.session_id,
+        agent.agent_id,
+        CapabilityRequest(capability_id="P04", input={"vector": [1.0, 2.0, 3.0]}),
+        gateway=gateway,
+        hekb=HekbClient(),  # real client, real (unreachable) default hekb_url
+        event_service=EventService(),
+    )
+
+    assert result.outcome == RuntimeOutcome.SUCCESS  # real live Port call succeeded
+    assert result.invocation_result is not None
+    assert result.evidence_status == EvidenceStatus.BLOCKED  # HEKB genuinely unreachable
+
+    events = EventService().list_events(db_session, session.session_id)
+    request_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_REQUESTED.value)
+    result_event = next(e for e in events if e.event_type == RuntimeEventType.CAPABILITY_RESULT.value)
+    assert result_event.parent_event_id == request_event.event_id

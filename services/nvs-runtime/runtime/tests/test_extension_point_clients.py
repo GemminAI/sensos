@@ -205,6 +205,29 @@ def test_build_hekb_object_from_port_result_omits_cycle_when_absent():
     assert "cycle" not in obj["labels"]
 
 
+def test_build_hekb_object_from_port_result_preserves_runtime_cycle_id_when_present():
+    obj = build_hekb_object_from_port_result(
+        "P02", _REAL_P04_RESULT, runtime_cycle_id="9f5a1e2c-0000-0000-0000-000000000001"
+    )
+    assert obj["labels"]["runtime_cycle_id"] == "9f5a1e2c-0000-0000-0000-000000000001"
+
+
+def test_build_hekb_object_from_port_result_omits_runtime_cycle_id_when_absent():
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert "runtime_cycle_id" not in obj["labels"]
+
+
+def test_build_hekb_object_from_port_result_keeps_cycle_and_runtime_cycle_id_distinct():
+    # NVS's own integer /observe cycle counter vs the Runtime Decision
+    # Boundary's own UUID cycle identity -- two different identities from
+    # two different systems, never conflated under one label.
+    obj = build_hekb_object_from_port_result(
+        "P04", _REAL_P04_RESULT, cycle=7, runtime_cycle_id="9f5a1e2c-0000-0000-0000-000000000001"
+    )
+    assert obj["labels"]["cycle"] == "7"
+    assert obj["labels"]["runtime_cycle_id"] == "9f5a1e2c-0000-0000-0000-000000000001"
+
+
 def test_build_hekb_object_from_port_result_preserves_raw_result_verbatim():
     obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
     assert json.loads(obj["labels"]["raw_result"]) == _REAL_P04_RESULT

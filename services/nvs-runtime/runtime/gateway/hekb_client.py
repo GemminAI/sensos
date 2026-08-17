@@ -77,6 +77,7 @@ def build_hekb_object_from_port_result(
     *,
     session_id: str | None = None,
     cycle: int | None = None,
+    runtime_cycle_id: str | None = None,
 ) -> dict[str, Any]:
     """One real 38-Port invoke result -> the existing HEKB `POST /v1/objects`
     request shape.
@@ -108,6 +109,14 @@ def build_hekb_object_from_port_result(
       and none is claimed) -- this is a Port Evidence record, not a v1.4
       Canonical Observation, which requires EOU data this repo does not
       have (see Reality Audit).
+
+    `runtime_cycle_id` (when present) is the Runtime Decision Boundary's
+    own cycle identity (an Event.event_id — see
+    `runtime.services.capability_decision`), kept deliberately separate
+    from `cycle` (NVS-Kernel's own integer `/observe` cycle counter,
+    `ObserveResponse.cycle`) — the two are different identities from
+    different systems, and conflating them under one label would be a
+    fabricated equivalence this repo has no evidence for.
     """
     labels: dict[str, str] = {
         "port_id": port_id,
@@ -118,6 +127,8 @@ def build_hekb_object_from_port_result(
         labels["session_id"] = session_id
     if cycle is not None:
         labels["cycle"] = str(cycle)
+    if runtime_cycle_id is not None:
+        labels["runtime_cycle_id"] = runtime_cycle_id
 
     return {
         "kind": "EVIDENCE",
