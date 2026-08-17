@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # the default target — see the ADR for the full Reality Audit.
     hekb_url: str = "http://127.0.0.1:8100"
 
+    # Semantic Anchor capability: real local inference runtime, confirmed
+    # present on this host (Reality Audit — Ollama was the only one of
+    # Ollama/MLX/vLLM/llama.cpp actually installed). Default matches
+    # LOCAL_LLM_BASE_URL's own default in compose/docker-compose.yml
+    # (Ollama's standard port). Not the shared low-latency NetworkProfile —
+    # see runtime/gateway/ollama_client.py for why LLM inference needs its
+    # own timeout profile.
+    ollama_url: str = "http://localhost:11434"
+
     # EXP-Ubuntu011: WAN-aware network profile (LOCAL/GCP_INTERNAL/WAN).
     sensos_env: str = "local"
     network_profile_path: str = "config/network_profile.yaml"

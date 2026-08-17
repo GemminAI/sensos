@@ -60,16 +60,19 @@ from msr.errors import MSRError
 from runtime.gateway.hekb_client import (
     HekbClient,
     build_hekb_object_from_port_result,
+    build_hekb_object_from_semantic_anchor,
     build_hekb_object_from_trajectory,
     build_hekb_object_from_triangulation,
 )
 from runtime.gateway.http_pool import RetryExhaustedError
 from runtime.gateway.kernel_gateway import KernelGateway
+from runtime.gateway.ollama_client import OllamaClient
 from runtime.models.enums import RuntimeEventType
 from runtime.models.schemas import EventIngestRequest
 from runtime.services.event_service import EventService
-from runtime.services.meaning_trajectory import run_meaning_trajectory
+from runtime.services.meaning_trajectory import build_hext_observation, run_meaning_trajectory
 from runtime.services.meaning_triangulation import TriangulationInput, run_meaning_triangulation
+from runtime.services.semantic_anchor import request_semantic_anchor, semantic_anchor_to_triangulation_input
 
 _TRANSPORT_ERRORS = (httpx.HTTPError, RetryExhaustedError)
 
@@ -456,6 +459,182 @@ async def request_meaning_triangulation(
             invocation_result["trajectory_object_ids"] = trajectory_object_ids
         except _TRANSPORT_ERRORS:
             evidence_status = EvidenceStatus.BLOCKED
+
+    result_ingest = event_service.ingest(
+        db,
+        session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.CAPABILITY_RESULT,
+            agent_id=agent_id,
+            parent_event_id=runtime_cycle_id,
+            payload={
+                "outcome": outcome.value,
+                "capability_descriptor": capability_descriptor,
+                "invocation_result": invocation_result,
+                "evidence_status": evidence_status.value,
+                "evidence_object_id": evidence_object_id,
+            },
+        ),
+    )
+
+    return CapabilityResult(
+        runtime_cycle_id=runtime_cycle_id,
+        outcome=outcome,
+        capability_descriptor=capability_descriptor,
+        invocation_result=invocation_result,
+        evidence_status=evidence_status,
+        evidence_object_id=evidence_object_id,
+        result_event_id=result_ingest.event_ids[0],
+    )
+
+
+async def request_semantic_anchor_triangulation(
+    db: Session,
+    session_id: UUID,
+    agent_id: UUID,
+    observation_text: str,
+    *,
+    observation_id: str,
+    model_id: str = "gpt-oss:20b",
+    prompt_version: str = "v1",
+    divergence_epsilon: float | None = None,
+    capability_id: str = "semantic_anchor.triangulation",
+    ollama: OllamaClient | None = None,
+    hekb: HekbClient | None = None,
+    event_service: EventService | None = None,
+) -> CapabilityResult:
+    """The Runtime Decision Boundary for GPT-OSS-as-Semantic-Anchor: a real
+    generation from a real local inference runtime (`OllamaClient`,
+    `runtime.services.semantic_anchor`) becomes ONE triangulation path,
+    compared against a second path built directly from `observation_text`
+    -- the same unmodified MeaningMapper -> MSR -> Trajectory ->
+    Triangulation chain `request_meaning_triangulation()` already uses is
+    called here UNCHANGED, not reimplemented. GPT-OSS is never the
+    "correct" answer; it is one more measurement `run_meaning_triangulation`
+    compares like any other path.
+
+    Persists: the SemanticAnchor object itself (via
+    `build_hekb_object_from_semantic_anchor()`), everything
+    `request_meaning_triangulation()` already persists (both paths'
+    trajectories, the triangulation summary, DERIVES edges from each
+    trajectory to the summary), plus one additional DERIVES edge from the
+    SemanticAnchor object to its own trajectory object -- so the full
+    provenance chain (SemanticAnchor -> anchor trajectory -> triangulation
+    summary; direct trajectory -> triangulation summary) is real HEKB
+    graph structure, not only labels.
+
+    `evidence_status` is `PERSISTED` only if every one of those writes
+    succeeds, exactly like `request_meaning_triangulation()`'s own
+    contract -- this function adds one more thing that can go BLOCKED
+    (the anchor's own persistence/relate), it does not weaken that one.
+
+    Failure at the GENERATION step (Ollama unreachable, model not pulled)
+    is `RuntimeOutcome.INVOCATION_FAILED` -- a real, distinct outcome from
+    evidence persistence failing after a successful generation.
+    """
+    ollama = ollama or OllamaClient()
+    hekb = hekb or HekbClient()
+    event_service = event_service or EventService()
+
+    request_ingest = event_service.ingest(
+        db,
+        session_id,
+        EventIngestRequest(
+            event_type=RuntimeEventType.CAPABILITY_REQUESTED,
+            agent_id=agent_id,
+            payload={
+                "capability_id": capability_id,
+                "input": {
+                    "observation_id": observation_id,
+                    "model_id": model_id,
+                    "prompt_version": prompt_version,
+                    "divergence_epsilon": divergence_epsilon,
+                },
+                "reason": None,
+            },
+        ),
+    )
+    runtime_cycle_id = request_ingest.event_ids[0]
+
+    capability_descriptor: dict[str, Any] = {
+        "capability_id": capability_id,
+        "status": "IMPLEMENTED",
+        "transport": "ollama-http",
+    }
+    invocation_result: dict[str, Any] | None = None
+    evidence_status = EvidenceStatus.NOT_ATTEMPTED
+    evidence_object_id: str | None = None
+
+    try:
+        anchor = await request_semantic_anchor(
+            observation_text,
+            observation_id=observation_id,
+            model_id=model_id,
+            prompt_version=prompt_version,
+            client=ollama,
+        )
+    except _TRANSPORT_ERRORS:
+        outcome = RuntimeOutcome.INVOCATION_FAILED
+    else:
+        direct_input = TriangulationInput(
+            path_id="direct",
+            observations=[
+                build_hext_observation(
+                    observation_id=f"{observation_id}-direct-{i:04d}",
+                    text=observation_text,
+                    state_hash=anchor.input_hash,
+                    sealed_at=f"2026-08-18T06:00:{i:02d}Z",
+                )
+                for i in range(8)
+            ],
+            method="direct",
+        )
+        anchor_input = semantic_anchor_to_triangulation_input(anchor, path_id="gpt_oss_anchor")
+
+        triangulation_result = await request_meaning_triangulation(
+            db,
+            session_id,
+            agent_id,
+            [direct_input, anchor_input],
+            divergence_epsilon=divergence_epsilon,
+            capability_id="semantic_anchor.triangulation.inner",
+            hekb=hekb,
+            event_service=event_service,
+        )
+        outcome = RuntimeOutcome.SUCCESS
+        invocation_result = {
+            "anchor_id": anchor.anchor_id,
+            "model_id": anchor.model_id,
+            "model_revision": anchor.model_revision,
+            "structured_result": anchor.structured_result,
+            "reproducibility": anchor.reproducibility,
+            "triangulation": triangulation_result.invocation_result,
+            "triangulation_evidence_status": triangulation_result.evidence_status.value,
+        }
+
+        if triangulation_result.evidence_status == EvidenceStatus.PERSISTED:
+            try:
+                anchor_object = build_hekb_object_from_semantic_anchor(
+                    anchor, session_id=str(session_id), runtime_cycle_id=str(runtime_cycle_id)
+                )
+                stored_anchor = await hekb.store(anchor_object)
+                anchor_object_id = stored_anchor["object_id"]
+
+                anchor_trajectory_id = (
+                    (triangulation_result.invocation_result or {})
+                    .get("trajectory_object_ids", {})
+                    .get("gpt_oss_anchor")
+                )
+                if anchor_trajectory_id:
+                    await hekb.relate(anchor_object_id, anchor_trajectory_id, "DERIVES")
+
+                evidence_status = EvidenceStatus.PERSISTED
+                evidence_object_id = triangulation_result.evidence_object_id
+                invocation_result["anchor_object_id"] = anchor_object_id
+            except _TRANSPORT_ERRORS:
+                evidence_status = EvidenceStatus.BLOCKED
+        else:
+            evidence_status = triangulation_result.evidence_status
 
     result_ingest = event_service.ingest(
         db,

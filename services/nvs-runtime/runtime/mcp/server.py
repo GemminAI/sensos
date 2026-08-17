@@ -27,6 +27,7 @@ from runtime.mcp.tools import (
     nvs_persist_port_evidence,
     nvs_query_events,
     nvs_register_agent,
+    nvs_request_semantic_anchor_triangulation,
     nvs_run_meaning_trajectory,
     nvs_run_meaning_triangulation,
     stub_response,
@@ -58,6 +59,7 @@ ASYNC_TOOLS = {
     "nvs_hekb_relate": nvs_hekb_relate,
     "nvs_run_meaning_triangulation": nvs_run_meaning_triangulation,
     "nvs_get_triangulation_context": nvs_get_triangulation_context,
+    "nvs_request_semantic_anchor_triangulation": nvs_request_semantic_anchor_triangulation,
 }
 
 
@@ -267,6 +269,28 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {"triangulation_object_id": {"type": "string"}},
                 "required": ["triangulation_object_id"],
+            },
+        ),
+        Tool(
+            name="nvs_request_semantic_anchor_triangulation",
+            description=(
+                "Generate a real completion from a local inference runtime (GPT-OSS via "
+                "Ollama by default), triangulate it against a direct-observation path "
+                "through MeaningMapper -> MSR, and persist both to HEKB with DERIVES "
+                "lineage. GPT-OSS is never treated as ground truth."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "observation_text": {"type": "string"},
+                    "observation_id": {"type": "string"},
+                    "model_id": {"type": "string"},
+                    "prompt_version": {"type": "string"},
+                    "divergence_epsilon": {"type": "number"},
+                },
+                "required": ["session_id", "agent_id", "observation_text", "observation_id"],
             },
         ),
         Tool(

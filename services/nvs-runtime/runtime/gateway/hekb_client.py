@@ -283,6 +283,49 @@ def build_hekb_object_from_triangulation(
     return {"kind": "EVIDENCE", "vector": [], "attributes": attributes, "labels": labels}
 
 
+def build_hekb_object_from_semantic_anchor(
+    anchor: Any,
+    *,
+    session_id: str | None = None,
+    runtime_cycle_id: str | None = None,
+) -> dict[str, Any]:
+    """One real `runtime.services.semantic_anchor.SemanticAnchor` -> the
+    existing HEKB `POST /v1/objects` request shape.
+
+    `anchor` is duck-typed (same reason as `build_hekb_object_from_
+    trajectory()`'s own argument): it must have `.anchor_id`, `.model_id`,
+    `.model_revision`, `.runtime`, `.input_hash`, `.prompt_version`,
+    `.structured_result`, `.provenance`, `.reproducibility`.
+
+    `kind: EVIDENCE`, `value_kind: "measured"` (a real generation, the same
+    character as a Port invoke result or a raw HEXT Observation -- not a
+    derived aggregate like a triangulation summary). No `vector`: the
+    anchor's text has no meaning-space position of its own until
+    `semantic_anchor_to_triangulation_input()` runs it through
+    MeaningMapper -- that trajectory is a SEPARATE HEKB object, related to
+    this one the same DERIVES way every other trajectory is (see
+    `request_semantic_anchor_triangulation()`), not merged into it.
+    """
+    labels: dict[str, str] = {
+        "anchor_id": anchor.anchor_id,
+        "model_id": anchor.model_id,
+        "model_revision": anchor.model_revision or "",
+        "runtime": anchor.runtime,
+        "input_hash": anchor.input_hash,
+        "prompt_version": anchor.prompt_version,
+        "value_kind": "measured",
+        "structured_result": json.dumps(anchor.structured_result),
+        "provenance": json.dumps(anchor.provenance),
+        "reproducibility": json.dumps(anchor.reproducibility),
+    }
+    if session_id is not None:
+        labels["session_id"] = session_id
+    if runtime_cycle_id is not None:
+        labels["runtime_cycle_id"] = runtime_cycle_id
+
+    return {"kind": "EVIDENCE", "vector": [], "attributes": {}, "labels": labels}
+
+
 class HekbClient:
     """One client, one backend: hekbd (ADR-0013). Every method below talks
     to `self.base_url`; there is no second URL to route around."""
