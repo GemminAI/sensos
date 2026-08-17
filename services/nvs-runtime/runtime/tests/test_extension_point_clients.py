@@ -2,12 +2,14 @@
 Semantic Mapping payload methods `lift()`/`store()` (EXP-Ubuntu012B).
 """
 
+import json
+
 import httpx
 
 from runtime.core.config import Settings
 from runtime.gateway import http_pool
 from runtime.gateway.cle_client import CLEClient
-from runtime.gateway.hekb_client import HekbClient, build_hekb_object
+from runtime.gateway.hekb_client import HekbClient, build_hekb_object, build_hekb_object_from_port_result
 
 
 def _mock_pooled_client(monkeypatch, handler):
@@ -153,3 +155,82 @@ def test_build_hekb_object_maps_lift_response_fields():
         "concept_id": "c1", "normalized_hash": "h1",
         "session_id": "sess-1", "cycle": "7", "proof_is_valid": "True",
     }
+
+
+# ---------------------------------------------------------------------------
+# build_hekb_object_from_port_result
+# ---------------------------------------------------------------------------
+
+_REAL_P04_RESULT = {
+    "port_id": "P04_Port",
+    "layer": "CORE",
+    "capability": "core_c04_hext_closure_verifier",
+    "status": "OK",
+    "output_type": "Core.C04.ClosureResult",
+    "result": {"quantized_once": [1.0, 2.0, 3.0], "residual": 0.0, "closed": True},
+}
+
+
+def test_build_hekb_object_from_port_result_uses_evidence_kind():
+    """EVIDENCE is a real, pre-existing HextKind member (GemminAI/hekb/
+    python/hekb/model.py) -- distinct from OBSERVATION, which
+    build_hekb_object() already claims for CLE lift results."""
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert obj["kind"] == "EVIDENCE"
+
+
+def test_build_hekb_object_from_port_result_preserves_port_id():
+    obj = build_hekb_object_from_port_result("P17", _REAL_P04_RESULT)
+    assert obj["labels"]["port_id"] == "P17"
+
+
+def test_build_hekb_object_from_port_result_preserves_session_id_when_present():
+    obj = build_hekb_object_from_port_result("P02", _REAL_P04_RESULT, session_id="sess-abc")
+    assert obj["labels"]["session_id"] == "sess-abc"
+
+
+def test_build_hekb_object_from_port_result_omits_session_id_when_absent():
+    # Stateless Ports (v1.4 Section 5.1) require no session_id at all.
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert "session_id" not in obj["labels"]
+
+
+def test_build_hekb_object_from_port_result_preserves_cycle_when_present():
+    obj = build_hekb_object_from_port_result("P02", _REAL_P04_RESULT, cycle=7)
+    assert obj["labels"]["cycle"] == "7"
+
+
+def test_build_hekb_object_from_port_result_omits_cycle_when_absent():
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert "cycle" not in obj["labels"]
+
+
+def test_build_hekb_object_from_port_result_preserves_raw_result_verbatim():
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert json.loads(obj["labels"]["raw_result"]) == _REAL_P04_RESULT
+
+
+def test_build_hekb_object_from_port_result_marks_value_kind_measured():
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    assert obj["labels"]["value_kind"] == "measured"
+
+
+def test_build_hekb_object_from_port_result_does_not_fabricate_derived_fields():
+    """No Var[S]/H_comp/Triad/state_hash computation happens here -- this is
+    a raw Port Evidence record, not a v1.4 Canonical Observation (which
+    requires EOU data this repo does not have)."""
+    obj = build_hekb_object_from_port_result("P04", _REAL_P04_RESULT)
+    forbidden_substrings = ("var_s", "h_comp", "state_hash", "canonical", "triad", "eou")
+    haystack = json.dumps(obj).lower()
+    for term in forbidden_substrings:
+        assert term not in haystack, f"unexpected fabricated field marker: {term!r}"
+    assert obj["vector"] == []
+    assert obj["attributes"] == {}
+
+
+def test_build_hekb_object_from_port_result_handles_non_json_native_values():
+    # Port results can carry nested/heterogeneous types; json.dumps(default=str)
+    # must not raise on them.
+    weird_result = {"a": {1, 2, 3}, "b": object()}
+    obj = build_hekb_object_from_port_result("P04", weird_result)
+    assert isinstance(obj["labels"]["raw_result"], str)

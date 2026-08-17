@@ -13,6 +13,7 @@ end to end.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from runtime.core.config import Settings, get_settings
@@ -66,6 +67,62 @@ def build_hekb_object(
         "kind": "OBSERVATION",
         "vector": list(position),
         "attributes": attributes,
+        "labels": labels,
+    }
+
+
+def build_hekb_object_from_port_result(
+    port_id: str,
+    port_result: dict[str, Any],
+    *,
+    session_id: str | None = None,
+    cycle: int | None = None,
+) -> dict[str, Any]:
+    """One real 38-Port invoke result -> the existing HEKB `POST /v1/objects`
+    request shape.
+
+    Unlike `build_hekb_object()` (CLE `LiftResponse` -> HEKB), the 38 Ports'
+    response schemas vary per port (P04 returns a scalar `residual`/`closed`
+    pair, P02 returns `betti`/`identity_code`, etc. -- confirmed by live
+    invocation) and no single ABI type covers them, so this does not attempt
+    to interpret or flatten `port_result` into `vector`/`attributes`
+    (float-typed fields) -- doing so would mean guessing a per-port
+    numeric-extraction rule this repo has no evidence for. Instead the raw
+    result is preserved verbatim, JSON-encoded into `labels` (already
+    string-typed per HEKB's existing schema) -- the same
+    encode-non-string-values-losslessly technique
+    `kernel_gateway._string_attributes()` already uses elsewhere in this
+    codebase, not a new one invented here.
+
+    - `kind`: HEKB's existing `HextKind.EVIDENCE` (`GemminAI/hekb/python/
+      hekb/model.py`) -- a real, pre-existing member of HEKB's closed object
+      vocabulary, distinct from the `OBSERVATION` kind `build_hekb_object()`
+      already uses for CLE lift results, and a better semantic fit for a
+      Port's read-only observation result.
+    - `vector` / `attributes`: left empty (schema defaults) -- not fabricated
+      from `port_result`, for the reason above.
+    - `labels`: `port_id` and `session_id` (when present) preserved exactly;
+      `raw_result` carries the complete, unmodified Port response;
+      `value_kind: "measured"` marks this as raw measured data, not
+      anything derived (no Var[S]/H_comp/Triad computation happens here,
+      and none is claimed) -- this is a Port Evidence record, not a v1.4
+      Canonical Observation, which requires EOU data this repo does not
+      have (see Reality Audit).
+    """
+    labels: dict[str, str] = {
+        "port_id": port_id,
+        "value_kind": "measured",
+        "raw_result": json.dumps(port_result, default=str),
+    }
+    if session_id is not None:
+        labels["session_id"] = session_id
+    if cycle is not None:
+        labels["cycle"] = str(cycle)
+
+    return {
+        "kind": "EVIDENCE",
+        "vector": [],
+        "attributes": {},
         "labels": labels,
     }
 

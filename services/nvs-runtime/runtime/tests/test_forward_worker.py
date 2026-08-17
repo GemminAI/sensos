@@ -47,11 +47,16 @@ class _FakeGateway:
         cycle_start: int = 1,
         fail_sessions: frozenset[str] = frozenset(),
         geometry: dict | None = None,
+        port_results: dict[str, dict] | None = None,
+        fail_port_ids: frozenset[str] = frozenset(),
     ):
         self.calls: list[tuple[str, int]] = []
+        self.port_calls: list[tuple[str, dict]] = []
         self._cycle = cycle_start
         self._fail_sessions = fail_sessions
         self._geometry = geometry
+        self._port_results = port_results or {}
+        self._fail_port_ids = fail_port_ids
 
     async def observe_batch(self, session_id: str, events: list):
         if session_id in self._fail_sessions:
@@ -66,6 +71,17 @@ class _FakeGateway:
             geometry = self._geometry
 
         return _Resp()
+
+    async def invoke_port(self, port_id: str, body: dict) -> dict:
+        self.port_calls.append((port_id, body))
+        if port_id in self._fail_port_ids:
+            from runtime.gateway.http_pool import RetryExhaustedError
+
+            raise RetryExhaustedError(f"simulated Port failure for {port_id}")
+        return self._port_results.get(
+            port_id,
+            {"port_id": f"{port_id}_Port", "status": "OK", "result": {}},
+        )
 
 
 class _FakeCLE:
@@ -337,3 +353,127 @@ async def test_semantic_mapping_failure_does_not_affect_nvs_forward_status(db_se
     stored = service.list_events(db_session, session.session_id)[0]
     assert stored.forward_status == ForwardStatus.FORWARDED.value
     assert hekb.calls == []  # never reached — lift() failed first
+
+
+# ---------------------------------------------------------------------------
+# ForwardWorker.persist_port_evidence — 38-Port invoke -> HEKB Evidence
+# ---------------------------------------------------------------------------
+
+_REAL_P04_RESULT = {
+    "port_id": "P04_Port",
+    "capability": "core_c04_hext_closure_verifier",
+    "status": "OK",
+    "result": {"quantized_once": [1.0, 2.0, 3.0], "residual": 0.0, "closed": True},
+}
+_REAL_P02_RESULT = {
+    "port_id": "P02_Port",
+    "capability": "core_c02_homotopic_identity_resolver",
+    "status": "OK",
+    "result": {"top_eigenvalue": 0.0, "betti": [1, 0, 0], "identity_code": 1.0},
+}
+
+
+async def test_persist_port_evidence_stateless_port(db_session, fake_redis):
+    """Stateless Port (no session_id needed) -> real result -> HEKB Evidence."""
+    gateway = _FakeGateway(port_results={"P04": _REAL_P04_RESULT})
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    result = await worker.persist_port_evidence("P04", {"vector": [1.0, 2.0, 3.0]})
+
+    assert gateway.port_calls == [("P04", {"vector": [1.0, 2.0, 3.0]})]
+    assert len(hekb.calls) == 1
+    assert hekb.calls[0]["kind"] == "EVIDENCE"
+    assert hekb.calls[0]["labels"]["port_id"] == "P04"
+    assert "session_id" not in hekb.calls[0]["labels"]
+    assert result["object_id"] == "a" * 64
+
+
+async def test_persist_port_evidence_session_scoped_port(db_session, fake_redis):
+    gateway = _FakeGateway(port_results={"P02": _REAL_P02_RESULT})
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    await worker.persist_port_evidence(
+        "P02", {"session_id": "sess-live-1", "epsilon": 0.5}, session_id="sess-live-1", cycle=3
+    )
+
+    assert gateway.port_calls == [("P02", {"session_id": "sess-live-1", "epsilon": 0.5})]
+    assert hekb.calls[0]["labels"]["session_id"] == "sess-live-1"
+    assert hekb.calls[0]["labels"]["cycle"] == "3"
+
+
+async def test_persist_port_evidence_preserves_port_id(db_session, fake_redis):
+    gateway = _FakeGateway(port_results={"P17": {"port_id": "P17_Port", "result": {}}})
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    await worker.persist_port_evidence("P17", {})
+
+    assert hekb.calls[0]["labels"]["port_id"] == "P17"
+
+
+async def test_persist_port_evidence_preserves_session_id(db_session, fake_redis):
+    gateway = _FakeGateway(port_results={"P02": _REAL_P02_RESULT})
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    await worker.persist_port_evidence("P02", {}, session_id="sess-xyz")
+
+    assert hekb.calls[0]["labels"]["session_id"] == "sess-xyz"
+
+
+async def test_persist_port_evidence_port_invoke_failure_propagates(db_session, fake_redis):
+    """Error propagation: unlike _propagate_semantic_mapping, there is no
+    prior success to protect, so a Port-invoke failure must surface."""
+    from runtime.gateway.http_pool import RetryExhaustedError
+
+    gateway = _FakeGateway(fail_port_ids=frozenset({"P04"}))
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    with pytest.raises(RetryExhaustedError):
+        await worker.persist_port_evidence("P04", {"vector": [1.0]})
+
+    assert hekb.calls == []  # never reached
+
+
+async def test_persist_port_evidence_hekb_unavailable_propagates(db_session, fake_redis):
+    """Unavailable downstream dependency: HEKB unreachable must surface as
+    a real failure, not be silently swallowed."""
+    from runtime.gateway.http_pool import RetryExhaustedError
+
+    gateway = _FakeGateway(port_results={"P04": _REAL_P04_RESULT})
+    hekb = _FakeHekb(fail=True)
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    with pytest.raises(RetryExhaustedError):
+        await worker.persist_port_evidence("P04", {"vector": [1.0]})
+
+
+async def test_persist_port_evidence_does_not_call_cle(db_session, fake_redis):
+    """No CLE step: nothing maps a Port result onto CLE's theta shape."""
+    gateway = _FakeGateway(port_results={"P04": _REAL_P04_RESULT})
+    cle, hekb = _FakeCLE(), _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), cle=cle, hekb=hekb)
+
+    await worker.persist_port_evidence("P04", {"vector": [1.0]})
+
+    assert cle.calls == []
+
+
+async def test_persist_port_evidence_no_fabricated_evidence_fields(db_session, fake_redis):
+    """No Var[S]/H_comp/Triad/state_hash is computed or claimed anywhere in
+    the persisted object."""
+    import json as _json
+
+    gateway = _FakeGateway(port_results={"P04": _REAL_P04_RESULT})
+    hekb = _FakeHekb()
+    worker = _worker(db_session, gateway, _redis_service_from(fake_redis), hekb=hekb)
+
+    await worker.persist_port_evidence("P04", {"vector": [1.0]})
+
+    haystack = _json.dumps(hekb.calls[0]).lower()
+    for term in ("var_s", "h_comp", "state_hash", "canonical", "triad", "eou"):
+        assert term not in haystack
+    assert hekb.calls[0]["labels"]["value_kind"] == "measured"

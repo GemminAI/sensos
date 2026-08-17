@@ -21,7 +21,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from contextlib import AbstractContextManager
-from typing import Callable
+from typing import Any, Callable
 from uuid import UUID
 
 import httpx
@@ -31,7 +31,7 @@ from runtime.abi.observation import ObservationEvent, ObserveResponse
 from runtime.core.network_profile import get_network_profile
 from runtime.db.session import get_db_session
 from runtime.gateway.cle_client import CLEClient
-from runtime.gateway.hekb_client import HekbClient, build_hekb_object
+from runtime.gateway.hekb_client import HekbClient, build_hekb_object, build_hekb_object_from_port_result
 from runtime.gateway.http_pool import RetryExhaustedError
 from runtime.gateway.kernel_gateway import KernelGateway, build_observation_event
 from runtime.models.enums import ForwardStatus
@@ -179,3 +179,45 @@ class ForwardWorker:
                 "ForwardWorker: Semantic Mapping failed for session %s (cycle %s): %s",
                 session_id, response.cycle, exc,
             )
+
+    async def persist_port_evidence(
+        self,
+        port_id: str,
+        body: dict[str, Any],
+        *,
+        session_id: str | None = None,
+        cycle: int | None = None,
+    ) -> dict[str, Any]:
+        """Invoke one real 38-Port and persist its raw result to HEKB as
+        Evidence: NVS Port invoke -> HEKB, the Port-result analog of
+        `_propagate_semantic_mapping`'s NVS -> CLE -> HEKB chain.
+
+        No CLE step: nothing in this repo maps a Port result onto CLE's
+        theta/ConceptInput shape, and inventing one would fabricate a
+        protocol this integration must avoid (see
+        `build_hekb_object_from_port_result`'s docstring).
+
+        Unlike `_propagate_semantic_mapping`, this does NOT swallow
+        transport errors. That method is a best-effort side effect chained
+        after an observation delivery that has already succeeded and been
+        ACKed; this method has no such prior success to protect -- a
+        Port-invoke or HEKB-store failure here is the caller's only signal
+        that persistence did not happen, so it propagates.
+
+        `session_id`/`cycle` are optional and independent of each other:
+        many of the 38 Ports are stateless (v1.4 Section 5.1's own
+        taxonomy; confirmed in this repo's prior audit -- 11 real stateless
+        Ports require no session_id at all) and this method is not itself
+        wired into the automatic queue-drain loop -- WHICH port(s) should
+        be invoked routinely, on what trigger, and with what body
+        constructed from which real observation field, is not specified
+        anywhere in v1.4 or in NVS-Kernel's own documented contract, and is
+        not decided here (see Reality Audit: BLOCKED_BY_SPEC_DECISION).
+        This method makes the resulting capability real and callable; it
+        does not auto-invoke itself.
+        """
+        port_result = await self.gateway.invoke_port(port_id, body)
+        hekb_object = build_hekb_object_from_port_result(
+            port_id, port_result, session_id=session_id, cycle=cycle
+        )
+        return await self.hekb.store(hekb_object)
