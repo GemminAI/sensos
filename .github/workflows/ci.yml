@@ -52,6 +52,9 @@ jobs:
           print("BOUNDARY_OK")
           PY
 
+      - name: Forbid personal absolute filesystem paths in dependency manifests
+        run: python scripts/check_no_personal_paths.py
+
       - name: Ruff (product Python paths)
         run: |
           ruff check \

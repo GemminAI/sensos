@@ -9,5 +9,23 @@ httpx==0.28.1
 mcp==1.9.0
 PyYAML==6.0.3
 numpy>=1.26
--e /Users/tomonam3/GemminAI/meaning-mapper
--e /Users/tomonam3/GemminAI/meaning-space-runtime
+
+# meaning-mapper and meaning-space-runtime are required, private
+# (GemminAI-internal) dependencies of this service's MeaningMapper ->
+# meaning-space-runtime -> Trajectory -> Runtime Observation path. They
+# are not published to PyPI or any public index, so they cannot be
+# listed here as an installable requirement -- doing so as a
+# machine-specific absolute path (the previous state of this file) both
+# leaked a developer's local directory layout and made this file's own
+# Docker build (see ../Dockerfile) silently fail to install them in any
+# container, since that host path never exists in the build context.
+#
+# For local development, copy requirements-local.example to
+# requirements-local.txt (gitignored) alongside this file, point it at
+# your own local clones, and install with:
+#   pip install -r requirements.txt -r requirements-local.txt
+#
+# For a container/production build, these two packages must be supplied
+# by whatever private-index or build-context mechanism the deployment
+# actually uses -- not yet established in this repository (see
+# services/nvs-runtime/requirements-local.example's own note).

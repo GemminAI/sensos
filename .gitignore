@@ -30,6 +30,12 @@ node_modules/
 !.env.example
 !**/.env.example
 
+# Local-only dependency overlays (machine-specific paths to private repo
+# clones) -- see services/nvs-runtime/requirements-local.example
+requirements-local.txt
+**/requirements-local.txt
+!**/requirements-local.example
+
 *.pem
 *.key
 *.p12
