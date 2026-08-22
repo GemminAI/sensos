@@ -60,3 +60,14 @@ docker-compose.override.yml
 # Local tooling
 uv.lock
 !.uv-lock-keep
+
+# Starter Guide LaTeX build artifacts
+docs/guides/starter/build.log
+docs/guides/starter/*.aux
+docs/guides/starter/*.log
+docs/guides/starter/*.toc
+docs/guides/starter/*.out
+docs/guides/starter/*.fls
+docs/guides/starter/*.fdb_latexmk
+docs/guides/starter/*.xdv
+docs/guides/starter/*.synctex.gz

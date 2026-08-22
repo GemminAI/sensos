@@ -115,6 +115,8 @@ Adapters under `integrations/` call HEKB. Interfaces under `interfaces/` publish
 
 | Document | Contents |
 |----------|----------|
+| **[SensOS Starter Guide (PDF)](docs/guides/starter/SensOS_Starter_Guide.pdf)** | Official new-user onboarding PDF |
+| **[SensOS Starter Guide (Markdown source)](https://github.com/GemminAI/sensos-ux/blob/main/docs/SENSOS_STARTER_GUIDE.md)** | Content source of truth in `sensos-ux` |
 | [`docs/architecture/overview.md`](docs/architecture/overview.md) | Architecture and service communication |
 | [`docs/spec/PRODUCT_BOUNDARY.md`](docs/spec/PRODUCT_BOUNDARY.md) | Product constitution and ownership rules |
 | [`docs/deployment/compose.md`](docs/deployment/compose.md) | Compose bring-up |
