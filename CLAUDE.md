@@ -9,12 +9,12 @@ documents prevail, not this one.
 
 Before treating any of CLE / MSR / HEKB / MeaningMapper as referring to a
 single implementation, read the OKF entry node:
-`~/vaults/20260124/OKF/SensOS-Primer.md`. These acronyms each name multiple,
+`~/vaults/20260124/OKF/SensOS/SensOS-Primer.md`. These acronyms each name multiple,
 independent implementations across the SensOS repository family — see
-`~/vaults/20260124/OKF/SensOS-Naming-Collisions.md` before writing code that
+`~/vaults/20260124/OKF/SensOS/SensOS-Naming-Collisions.md` before writing code that
 assumes which one is meant. This repository (`GemminAI/sensos`, `main`
 branch) is the canonical one for SensOS development — see
-`~/vaults/20260124/OKF/SensOS-Work-Rules.md`. `Projects/sensos` (`empty`
+`~/vaults/20260124/OKF/SensOS/SensOS-Work-Rules.md`. `Projects/sensos` (`empty`
 branch) is a separate, non-canonical checkout; do not treat work found there
 as authoritative for this repository without review.
 
