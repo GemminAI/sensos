@@ -2,23 +2,28 @@
 # Local development only.
 #
 # Copy this file to requirements-local.txt (gitignored) in this same
-# directory, and edit the two paths below to point at YOUR OWN local
-# clones of these two private (GemminAI-internal) repositories.
+# directory, and edit the three paths below to point at YOUR OWN local
+# clones of these private (GemminAI-internal) repositories.
 #
 # Never commit requirements-local.txt.
 # Never put a real path in this .example file.
 #
-# meaning-mapper and meaning-space-runtime are not published to PyPI or
-# any public index -- they must be cloned separately (private GitHub
-# access required) and referenced here as editable installs for local
-# iteration on this service.
+# meaning-mapper, meaning-space-runtime, and categorical-lift-engine are
+# not published to PyPI or any public index -- they must be cloned
+# separately (private GitHub access required) and referenced here as
+# editable installs for local iteration on this service.
+#
+# categorical-lift-engine is only needed for tests/e2e/ (Phase 3's minimal
+# MeaningMapper -> MSR -> CLE -> hekb-vnext loop) -- runtime.services.
+# meaning_trajectory (this service's own production code) does not import
+# cle at all, only meaning_mapper and msr.
 #
 # Install with:
 #   pip install -r requirements.txt -r requirements-local.txt
 #
 # Known gap, disclosed rather than silently worked around: this
 # repository does not yet define how a container/production build is
-# meant to obtain these two packages (no private package index, no
+# meant to obtain these packages (no private package index, no
 # build-context vendoring is configured anywhere in this repo as of this
 # note). services/nvs-runtime/Dockerfile currently installs only from
 # requirements.txt and will not have MeaningMapper/meaning-space-runtime
@@ -27,3 +32,4 @@
 
 -e /path/to/your/local/clone/of/meaning-mapper
 -e /path/to/your/local/clone/of/meaning-space-runtime
+-e /path/to/your/local/clone/of/categorical-lift-engine
