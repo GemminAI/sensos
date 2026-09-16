@@ -85,19 +85,20 @@ architecture to be evaluated, not what this repository currently
 implements. No part of V2 may be treated as an implementation fact until it
 is promoted through the Evidence Promotion Rule above.
 
-`docs/spec/SPEC-SENSOS-RTV2-JSON-002.md` exists in this repository's working
-tree as a draft (uncommitted as of the last check) describing a candidate
-wire protocol. It is not named by `PRODUCT_BOUNDARY.md` or
-`GIT_GOVERNANCE.md`. Several of its concrete claims — JCS/RFC 8785 actually
-implemented in code, `/v2/*` endpoints existing, Port intervention
-capability — were checked against live/wire evidence and found
-**contradicted**, not merely unverified. Treat it as an input to V2
-validation work, not as an active specification, and do not treat its
-existence in this repository as making it Active.
+`docs/spec/SPEC-SENSOS-RTV2-JSON-002.md` exists in this repository as a
+draft (committed 2026-09-17, commit `4c177c9` — previously sat untracked)
+describing a candidate wire protocol. It is not named by
+`PRODUCT_BOUNDARY.md` or `GIT_GOVERNANCE.md`. Several of its concrete
+claims — JCS/RFC 8785 actually implemented in code, `/v2/*` endpoints
+existing, Port intervention capability — were checked against live/wire
+evidence and found **contradicted**, not merely unverified. Treat it as an
+input to V2 validation work, not as an active specification, and do not
+treat its existence in this repository as making it Active.
 
 `docs/SENSOS_KNOWLEDGE_CORE_AND_CATEGORY_THEORY.md` also exists in this
-repository (uncommitted as of the last check). Its content has not been
-verified against implementation and its authority status is `UNKNOWN`.
+repository (committed 2026-09-17, commit `4c177c9` — previously sat
+untracked). Its content has not been verified against implementation and
+its authority status is `UNKNOWN`.
 
 ## Candidate V2 Path
 
@@ -150,15 +151,58 @@ taxonomy without re-verifying against current live evidence.
 - Do not fabricate: for components with no real data, model, or endpoint,
   report `BLOCKED` or `NOT_EVALUABLE` rather than mocking a pass.
 
+## MeaningMapper → MSR → CLE → hekb-vnext Path (verified 2026-09-17)
+
+This is a **separate candidate path from the NVS-Kernel-centric one above**
+(`CLE → NVS-Kernel → GPT-OSS → 38 Ports → DAK → HEKB`) — do not merge the
+two tables or treat evidence for one as evidence for the other. This path
+uses `meaning-mapper` / `meaning-space-runtime` (MSR) / `categorical-lift-engine`
+(CLE) / `hekb-vnext`, none of which are the same as the NVS-Kernel/DAK/Port
+components above (see
+`~/vaults/20260124/OKF/SensOS/SensOS-Naming-Collisions.md`).
+
+| Edge | Status | Note |
+|---|---|---|
+| MeaningMapper → MSR | **VERIFIED** (WIRE TRACE, this repo's own code) | `services/nvs-runtime/runtime/services/meaning_trajectory.py`'s `run_meaning_trajectory()`, in production use in this repo, not just a test |
+| MSR → CLE | **VERIFIED** (WIRE TRACE, 2026-09-17) | No adapter exists or is needed: `msr.abi.StabilizedTrajectory` satisfies `categorical-lift-engine`'s `cle.abi.inputs.StabilizedTrajectoryLike` Protocol structurally (`isinstance` check passes), and is passed to `CLEEngine.lift()` unmodified. Pinned as a test in `sensos-core` (`tests/test_trajectory_cle_protocol.py`) |
+| CLE → hekb-vnext | **VERIFIED** (TCK-style, in-process, 2026-09-17) | `tests/e2e/test_minimal_loop.py`, one real pass through the full chain; the CLE lift result is written via `POST /experience` with a real (dev-signed) `X-Audit-Signature`, and the returned `object_id` matches an independently computed SHA-256 |
+
+Two corrections made while building this, kept here so they are not
+rediscovered the hard way:
+
+- `hekb-vnext`'s `object_id` is **SHA-256** of `ExperiencePayload.canonical_dict()`'s
+  own canonical JSON bytes — not BLAKE2b. BLAKE2b belongs to NVS-Kernel's
+  separate, undeployed `/trajectory/ingest` design; do not conflate the two.
+- `services/nvs-runtime/runtime/gateway/hekb_client.py` in this repository
+  targets the **old** `hekbd` (`GemminAI/hekb`, `POST /v1/objects`) backend,
+  not `hekb-vnext` (`POST /experience`). Using it for a `hekb-vnext` write
+  would silently write to the wrong store.
+
+Known, unrelated break (not fixed here): `hekb-vnext/index/recalibrate.py`
+hard-codes a path to
+`Projects/sensos/experiments/EXP-BABY-MAC005/mac005_quantizer.py`, archived
+off this Mac and no longer present, so importing `hekb-vnext/store_service.py`
+fails without a stub. See `tests/e2e/dev_hekb_writer.py`'s
+`_stub_broken_recalibrate_dependency()` for the workaround and
+`~/vaults/20260124/OKF/SensOS/SensOS-Phase0-3-Audit-Fix-20260917.md` for
+the full record.
+
 ## Open References
 
 - The V1/V2 gap audit and documentation governance audit that inform the
-  "V1 Baseline" and "V2 Status" sections above were produced in a separate
-  repository (`Projects/sensos/experiments/`), not committed to this one.
-  This file does not assume that location is stable or authoritative for
-  this repository — treat it as external evidence to re-verify, not as a
-  citation this repository can rely on.
+  "V1 Baseline" and "V2 Status" sections above are now committed in this
+  repository under `experiments/` (`SENSOS_RUNTIME_V2_CROSS_REPOSITORY_ARCHITECTURE_AUDIT.md`,
+  `SENSOS_RUNTIME_V2_CLE_GROUNDING_IMPLEMENTATION_PLAN.md` — commit
+  `4c177c9`, 2026-09-17). They previously sat untracked in this repository's
+  own `experiments/` directory; the prior version of this file incorrectly
+  attributed them to `Projects/sensos/experiments/`, a different
+  repository. Still treat their contents as external audit evidence to
+  re-verify, not as a citation this file's own authority extends to.
 - Prior versions of this file referenced `sensos/specs/SPEC-SENSOS-RTV2-PHASED-ROADMAP-003.md`,
   `SensOS_v2_JSON_Contracts_Specification.md`, and
   `SensOS_Runtime_v2_Integration_Contract.md`. None of these exist anywhere
   in this repository as of the last check. They are not referenced above.
+- This repository's GitHub visibility was changed from PUBLIC to PRIVATE on
+  2026-09-17 (executing a prior, previously unactioned conclusion from
+  `experiments/EXP-GITHUB-SAFETY-AUDIT-001`) before committing the audit
+  documents above.
