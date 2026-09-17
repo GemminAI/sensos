@@ -34,6 +34,57 @@ SensOS operates.
 NVS-Kernel decides.
 ```
 
+## Meaning Pipeline (MeaningMapper → MSR → CLE → hekb-vnext)
+
+A second, separate pipeline — verified end-to-end on 2026-09-17
+(`tests/e2e/test_minimal_loop.py`), not yet wired into the production
+services above:
+
+```text
+MeaningMapper ──▶ MSR (meaning-space-runtime) ──▶ CLE (categorical-lift-engine) ──▶ hekb-vnext
+ (measurement)      (trajectory stabilization)      (concept lifting, no adapter)    (POST /experience,
+                                                                                       SHA-256 content address)
+```
+
+- **MeaningMapper → MSR**: `services/nvs-runtime/runtime/services/meaning_trajectory.py`'s
+  `run_meaning_trajectory()`, already used by this repo's own `nvs-runtime` service.
+- **MSR → CLE**: no adapter. `msr.abi.StabilizedTrajectory` satisfies
+  `categorical-lift-engine`'s `cle.abi.inputs.StabilizedTrajectoryLike`
+  Protocol structurally and is passed to `CLEEngine.lift()` unmodified.
+- **CLE → hekb-vnext**: `hekb-vnext`'s `POST /experience` requires a
+  P-256 `X-Audit-Signature` (SPEC-HEKB-002_v2 §3.1); `object_id` is the
+  **SHA-256** of the payload's canonical JSON bytes (not BLAKE2b — that
+  belongs to NVS-Kernel's separate, undeployed `/trajectory/ingest`
+  design).
+
+This pipeline is **not yet called from `nvs-runtime` in production** —
+today it is exercised only by `tests/e2e/test_minimal_loop.py`
+(in-process) and by the `hekb-vnext` Docker service below (via
+hand-issued requests, e.g. `tools/dev_audit_signer.py`). Wiring a live
+inter-service call is separate, not-yet-done work.
+
+### Sibling repository layout (required for building this pipeline)
+
+`meaning-mapper`, `meaning-space-runtime`, and `categorical-lift-engine`
+are private, unpublished (not on PyPI) dependencies pulled into the
+`nvs-runtime` image at build time via Docker Compose
+`additional_contexts`. `hekb-vnext` is built as its own service from its
+own `Dockerfile`. All four must be cloned as siblings of this repository:
+
+```text
+GemminAI/
+├── sensos/                      # this repository
+├── meaning-mapper/
+├── meaning-space-runtime/
+├── categorical-lift-engine/
+└── hekb-vnext/
+```
+
+`sensos-core` (a separate, standalone reimplementation of CLE/MSR/HEKB
+client logic used for its own tests) is a fifth sibling repo but is
+**not** part of this pipeline's Docker build — nothing in this
+repository imports it.
+
 ## Components
 
 | Component | Role |
@@ -41,9 +92,10 @@ NVS-Kernel decides.
 | **Observation Runtime** | Ingests signals, runs observation modules, and schedules work before meaning is attached. |
 | **Semantic Annotator** | Attaches HEXT-compatible meaning to observations. |
 | **HEKB** | External Apache-2.0 knowledge store. SensOS calls it through a thin adapter; the implementation is not in this repository. |
-| **NVS Runtime** | Application plane: agents, sessions, events, and MCP. |
+| **NVS Runtime** | Application plane: agents, sessions, events, and MCP. Also the home of the MeaningMapper → MSR → CLE bridge (`runtime/services/meaning_trajectory.py`). |
 | **Gateway** | Reverse proxy and single public entry for product services. |
 | **Dashboard** | Operator console for health and platform status. |
+| **hekb-vnext** | HEKB vNext Experience Store (`SPEC-HEKB-003_v2`). Separate from the `HEKB` row above — see [Repository Boundaries](#repository-boundaries). Not yet called by NVS Runtime in production; verified only via `tests/e2e/test_minimal_loop.py` and hand-issued requests. |
 
 ## Getting Started
 
@@ -59,7 +111,15 @@ cp .env.example .env
 
 `.env.example` is a development template only. Never commit `.env`. Never use template values in production. Production secrets must come from a secret manager or the deployment environment—not from files in this repository.
 
-2. Start the stack:
+2. If you need the Meaning Pipeline (`hekb-vnext`), generate its
+   dev-only P-256 audit keypair once (never the real Secure Enclave key;
+   `GET /health` doesn't need this, so step 3 succeeds without it):
+
+```bash
+make hekb-devkeys
+```
+
+3. Start the stack:
 
 ```bash
 docker compose --env-file .env -f compose/docker-compose.yml up --build -d
@@ -67,6 +127,7 @@ docker compose --env-file .env -f compose/docker-compose.yml up --build -d
 make up
 
 curl -s http://localhost:8080/healthz
+make health   # also checks hekb-vnext's /health
 ```
 
 | Service | Local URL |
@@ -76,6 +137,16 @@ curl -s http://localhost:8080/healthz
 | Semantic Annotator | http://localhost:8011 |
 | NVS Runtime | http://localhost:8020 |
 | Dashboard | http://localhost:3000 |
+| hekb-vnext | http://localhost:8300 |
+
+`hekb-vnext` requires a Bearer token on every route including `/health`
+(generated at container startup, written to
+`$HEKB_APP_SUPPORT_DIR/hekb.token` inside the container — see
+`make health`'s implementation in the `Makefile` and the `HEALTHCHECK`
+in `../hekb-vnext/Dockerfile` for the exact pattern). Writing via
+`POST /experience` additionally requires the P-256 `X-Audit-Signature`
+from step 2; see `../hekb-vnext/tools/dev_audit_signer.py`'s own
+docstring for how to sign a payload by hand.
 
 ## Ecosystem
 
@@ -105,11 +176,21 @@ This repository owns:
 This repository does not contain:
 
 - HEXT specification or SDK
-- HEKB implementation
+- HEKB implementation (either the `HextKind`/`/v1/objects` store referenced above, or `hekb-vnext`)
 - NVS-Kernel implementation
+- MeaningMapper, meaning-space-runtime, or categorical-lift-engine (pulled in at build time — see [Sibling repository layout](#sibling-repository-layout-required-for-building-this-pipeline))
 - Research artifacts
 
 Adapters under `integrations/` call HEKB. Interfaces under `interfaces/` publish the NVS-Kernel ABI. Neither vendors upstream source.
+
+**Two separately-named HEKB stores exist and are not interchangeable**
+(see `~/vaults/20260124/OKF/SensOS/SensOS-Naming-Collisions.md`): the
+`HEKB` referenced in Components/Ecosystem above is the older
+`/v1/objects`-style store (`GemminAI/hekb`); `hekb-vnext`
+(`POST /experience`, SHA-256 content addressing) is the store the
+Meaning Pipeline above writes to. `services/nvs-runtime/runtime/gateway/hekb_client.py`
+in this repository talks to the **former**, not `hekb-vnext` — do not
+assume it can be pointed at `hekb-vnext` without changes.
 
 ## Documentation
 
