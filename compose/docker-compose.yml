@@ -229,7 +229,16 @@ services:
       - ../../hekb-vnext/devkeys:/app/keys:ro
     networks: [sensos_net]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8300/health"]
+      # The local transport-auth Bearer guard applies to EVERY route
+      # including /health -- an unauthenticated check gets 401, not a
+      # pass. Read the token fresh from the file main() writes at
+      # startup (regenerated every container start, so it can't be
+      # baked in here).
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -H \"Authorization: Bearer $(cat /app/app_support/hekb.token)\" http://localhost:8300/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5

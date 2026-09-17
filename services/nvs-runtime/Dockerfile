@@ -16,14 +16,22 @@ RUN pip install --no-cache-dir -r requirements.txt
 # private, unpublished (not on PyPI) sibling repos supplied as Compose
 # `additional_contexts` (see ../../compose/docker-compose.yml's
 # `nvs-runtime` service) -- not vendored into this repo, not fetched from
-# any index. Only pyproject.toml + src/ are copied (not each repo's full
-# tree: no .venv/, tests/, or experiments/), matching each repo's own
-# `[tool.setuptools.packages.find] include = ["<pkg>*"]` layout.
+# any index. pyproject.toml + src/ + README.md are copied (not each
+# repo's full tree: no .venv/, tests/, or experiments/), matching each
+# repo's own `[tool.setuptools.packages.find] include = ["<pkg>*"]`
+# layout. README.md is required, not cosmetic: all three declare
+# `readme = "README.md"` in their own pyproject.toml, and setuptools'
+# metadata build fails outright (OSError: Readme file does not exist)
+# without it -- found by actually running this build, not by reading the
+# Dockerfile alone.
 COPY --from=meaning-mapper pyproject.toml /deps/meaning-mapper/pyproject.toml
+COPY --from=meaning-mapper README.md /deps/meaning-mapper/README.md
 COPY --from=meaning-mapper src /deps/meaning-mapper/src
 COPY --from=meaning-space-runtime pyproject.toml /deps/meaning-space-runtime/pyproject.toml
+COPY --from=meaning-space-runtime README.md /deps/meaning-space-runtime/README.md
 COPY --from=meaning-space-runtime src /deps/meaning-space-runtime/src
 COPY --from=categorical-lift-engine pyproject.toml /deps/categorical-lift-engine/pyproject.toml
+COPY --from=categorical-lift-engine README.md /deps/categorical-lift-engine/README.md
 COPY --from=categorical-lift-engine src /deps/categorical-lift-engine/src
 RUN pip install --no-cache-dir \
     /deps/meaning-mapper \
