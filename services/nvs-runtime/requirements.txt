@@ -10,9 +10,9 @@ mcp==1.9.0
 PyYAML==6.0.3
 numpy>=1.26
 
-# meaning-mapper and meaning-space-runtime are required, private
-# (GemminAI-internal) dependencies of this service's MeaningMapper ->
-# meaning-space-runtime -> Trajectory -> Runtime Observation path. They
+# meaning-mapper, meaning-space-runtime, and categorical-lift-engine are
+# required, private (GemminAI-internal) dependencies of this service's
+# MeaningMapper -> meaning-space-runtime -> Trajectory -> CLE path. They
 # are not published to PyPI or any public index, so they cannot be
 # listed here as an installable requirement -- doing so as a
 # machine-specific absolute path (the previous state of this file) both
@@ -25,7 +25,12 @@ numpy>=1.26
 # your own local clones, and install with:
 #   pip install -r requirements.txt -r requirements-local.txt
 #
-# For a container/production build, these two packages must be supplied
-# by whatever private-index or build-context mechanism the deployment
-# actually uses -- not yet established in this repository (see
-# services/nvs-runtime/requirements-local.example's own note).
+# For a container build (2026-09-17): resolved via Docker Compose
+# `additional_contexts` -- see ../../compose/docker-compose.yml's
+# `nvs-runtime` service and ../Dockerfile's `COPY --from=meaning-mapper`
+# etc. lines. This assumes meaning-mapper/, meaning-space-runtime/, and
+# categorical-lift-engine/ are cloned as siblings of this `sensos`
+# checkout under the same parent directory (true on the machine this was
+# written on; see ../../compose/docker-compose.yml's own note on the same
+# assumption) -- it is still not a private package index, just a
+# machine-local build-context convention.

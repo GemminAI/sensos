@@ -2,11 +2,20 @@
 #
 # Usage (from repository root):
 #   cp .env.example .env   # then replace CHANGE_ME with generated secrets
+#   make hekb-devkeys      # one-time: dev-only P-256 keypair for hekb-vnext
 #   docker compose --env-file .env -f compose/docker-compose.yml up --build -d
 #   docker compose --env-file .env -f compose/docker-compose.yml config
 #
 # Secrets must be supplied via .env or the process environment.
 # Compose has no usable default passwords or JWT secrets.
+#
+# Machine-local convention notice (2026-09-17): `nvs-runtime`'s build and
+# `hekb-vnext` assume `meaning-mapper/`, `meaning-space-runtime/`,
+# `categorical-lift-engine/`, and `hekb-vnext/` are cloned as siblings of
+# this `sensos` checkout under the same parent directory (true on the
+# machine this was written on). If that layout doesn't hold, adjust the
+# `additional_contexts` / `build.context` paths below before running
+# `docker compose build`.
 
 name: sensos
 
@@ -28,6 +37,7 @@ volumes:
   sensos_logs:
   hext_redis_data:
   hekb_data:
+  hekb_vnext_data:
   nvs_runtime_logs:
   postgres_data:
 
@@ -191,6 +201,40 @@ services:
       retries: 5
       start_period: 20s
 
+  hekb-vnext:
+    # NOT the same component as `hekb-projection` above -- see
+    # ~/vaults/20260124/OKF/SensOS/SensOS-Naming-Collisions.md. This is the
+    # HEKB vNext Experience Store (SPEC-HEKB-003_v2, `POST /experience`,
+    # SHA-256 content addressing), added 2026-09-17 alongside the
+    # MeaningMapper -> MSR -> CLE -> hekb-vnext path verified in
+    # tests/e2e/test_minimal_loop.py. Standalone here: nvs-runtime does not
+    # yet call this service in production (that E2E test runs against an
+    # in-process TestClient, not this container) -- wiring a live
+    # inter-service call is separate, not-yet-done work.
+    <<: [*restart-policy, *default-logging]
+    build:
+      context: ../../hekb-vnext
+      dockerfile: Dockerfile
+    image: sensos/hekb-vnext:0.1.0
+    ports:
+      - "8300:8300"
+    environment:
+      # POST /experience's X-Audit-Signature governance fails closed (403)
+      # until this points to a real key. Run `make hekb-devkeys` once for
+      # a dev-only P-256 keypair (never the real Secure Enclave key) --
+      # /health does not require it, so `make up` succeeds without it.
+      HEKB_AUDIT_PUBLIC_KEY_PATH: "${HEKB_AUDIT_PUBLIC_KEY_PATH:-/app/keys/dev_public_key.raw}"
+    volumes:
+      - hekb_vnext_data:/app/experience
+      - ../../hekb-vnext/devkeys:/app/keys:ro
+    networks: [sensos_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8300/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   nvs-kernel:
     <<: [*restart-policy, *default-logging]
     # Built and tagged separately from the sibling `nvs-kernel` repository
@@ -219,6 +263,10 @@ services:
     build:
       context: ../services/nvs-runtime
       dockerfile: Dockerfile
+      additional_contexts:
+        meaning-mapper: ../../meaning-mapper
+        meaning-space-runtime: ../../meaning-space-runtime
+        categorical-lift-engine: ../../categorical-lift-engine
     image: sensos/nvs-runtime:0.3.0
     ports:
       - "8020:8020"
