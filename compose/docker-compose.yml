@@ -285,11 +285,20 @@ services:
       NVS_LOG_LEVEL: "info"
       NVS_JWT_SECRET: "${NVS_JWT_SECRET:?Set NVS_JWT_SECRET in .env (see .env.example)}"
       NVS_KERNEL_URL: "http://nvs-kernel:8100"
+      # runtime/core/config.py's own default (postgresql://nvs:nvs@postgres:5432/nvs_runtime)
+      # matches neither the postgres service's real password (POSTGRES_PASSWORD,
+      # from .env) nor its real database name (POSTGRES_DB: nvs, not
+      # nvs_runtime) -- found by actually starting this container against a
+      # real postgres, not just reading the two files side by side. Override
+      # explicitly rather than edit the two hardcoded defaults apart.
+      DATABASE_URL: "postgresql://nvs:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}@postgres:5432/nvs"
     volumes:
       - nvs_runtime_logs:/app/logs
       - ../configs:/app/config:ro
     depends_on:
       nvs-kernel:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks: [sensos_net]
     healthcheck:
