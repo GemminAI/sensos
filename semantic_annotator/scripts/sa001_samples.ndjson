@@ -1,0 +1,5 @@
+{"id": "sa001-001", "source": "sa001-fixture", "timestamp": "2026-07-18T00:00:00+00:00", "payload": {"text": "A red car is parked outside the main entrance."}}
+{"id": "sa001-002", "source": "sa001-fixture", "timestamp": "2026-07-18T00:00:01+00:00", "payload": {"text": "Two people are walking a dog along the riverside path."}}
+{"id": "sa001-003", "source": "sa001-fixture", "timestamp": "2026-07-18T00:00:02+00:00", "payload": {"text": "The kitchen smoke detector went off at 3am with no visible fire."}}
+{"id": "sa001-004", "source": "sa001-fixture", "timestamp": "2026-07-18T00:00:03+00:00", "payload": {"text": ""}}
+{"id": "sa001-005", "source": "sa001-fixture", "timestamp": "2026-07-18T00:00:04+00:00", "payload": {"text": "Server room temperature reading: 41.2C, rising steadily over the last hour."}}

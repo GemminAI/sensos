@@ -1,0 +1,51 @@
+# SA001: RunPod Gemma baseline via vLLM + semantic-annotator's RuntimeBridge.
+#
+# Every value below marked "confirm before real use" is still a
+# placeholder per docs/handoff/HANDOFF_SA001_RUNPOD_BASELINE.md §8 (Known
+# Risks) -- this file makes SA001 reproducible via `docker compose up`,
+# but does not itself resolve the open Gemma-model-ID / GPU-tier decision.
+#
+# Required environment (see .env.example): GEMMA_MODEL_ID, HF_TOKEN.
+#
+# `semantic-annotator` has no HTTP server (it's a CLI/library today, per
+# ARCHITECTURE_REVIEW.md) -- Step 4/5 of the handoff are adapted, as the
+# handoff itself suggests, to running scripts/sa001_eval.py inside the
+# container rather than probing a health endpoint:
+#
+#   docker compose up -d
+#   docker compose exec semantic-annotator \
+#     python scripts/sa001_eval.py --samples scripts/sa001_samples.ndjson
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest # confirm before real use: pin an exact tag
+    command: ["--model", "${GEMMA_MODEL_ID}", "--dtype", "auto"]
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 5m # model load is the slowest, most failure-prone step (handoff §8)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1 # confirm before real use: pin to the GPU tier the chosen model needs
+              capabilities: [gpu]
+
+  semantic-annotator:
+    build: .
+    entrypoint: ["sleep", "infinity"] # no HTTP server exists yet; exec in to run the CLI/eval script
+    environment:
+      - RUNTIME_BRIDGE_URL=http://vllm:8000
+      - GEMMA_MODEL_ID=${GEMMA_MODEL_ID}
+    volumes:
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      vllm:
+        condition: service_healthy

@@ -8,16 +8,16 @@ inference `RuntimeBridge`, a Linux installer, and — separately — a
 knowledge-storage library, HEKB) connected by narrow, explicit
 contracts, rather than one monolithic runtime.
 
-> **Where the verified implementation actually lives today:** this
-> repository (`GemminAI/sensos`) does not yet contain the code described
-> below. Everything in this README has been implemented and verified
-> inside `GemminAI/nvs-platform-runtime`, under `sensos/`, on branch
-> `feature/linux-sensos-installer` — not yet merged into
-> `nvs-platform-runtime`'s own `main`, and not yet migrated into this
-> repository. This README describes that verified implementation
-> accurately, including exactly what has and hasn't been checked, so
-> that migrating it here is a matter of moving code, not resolving
-> ambiguity about what state it's in.
+> **Where the implementation lives:** the code described below is in
+> this repository: the SensOS Linux installer and `sensos` CLI are in
+> `sensos/`, and the Semantic Annotator they depend on is in
+> `semantic_annotator/`. They were migrated unchanged from
+> `GemminAI/nvs-platform-runtime`, branch `feature/linux-sensos-installer`
+> (commit `b21f75a`). Everything in this README was implemented and
+> verified in that original location (§9); it has not yet been
+> re-verified from this repository. This README describes that verified
+> implementation accurately, including exactly what has and hasn't been
+> checked.
 
 Status, in one line per area (see §3 for the full table): the **Linux
 installer, Semantic Annotator, and vLLM path are implemented and
@@ -64,18 +64,12 @@ cd sensos
 ./install.sh
 ```
 
-This is the intended flow once the verified implementation (see the
-note in §1) is migrated into this repository. **Right now**, the
-equivalent — and what was actually run to produce the verification
-results in this README — is:
-
-```bash
-git clone git@github.com:GemminAI/nvs-platform-runtime.git
-cd nvs-platform-runtime
-git checkout feature/linux-sensos-installer
-cd sensos
-./install.sh
-```
+`./install.sh` at the repository root runs `sensos/install.sh`
+unchanged. The Python environment is created inside `sensos/`
+(`sensos/.venv`), and `sensos/pyproject.toml` depends on
+`semantic_annotator/` as a sibling directory (a relative editable
+path), so keep both directories together. Run the commands in §5 and
+§6 from `sensos/` (`cd sensos`).
 
 `install.sh` installs the SensOS Runtime, Semantic Annotator, and vLLM
 (`uv sync` + `uv pip install vllm`). It does **not** start a vLLM
