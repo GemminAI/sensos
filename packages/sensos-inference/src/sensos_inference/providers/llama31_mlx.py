@@ -135,7 +135,7 @@ class Llama31MLXProvider:
             prompt_ids = self._tokenizer.apply_chat_template(
                 messages, add_generation_prompt=True, tokenize=True
             )
-            if isinstance(prompt_ids, dict):  # transformers may return a BatchEncoding
+            if hasattr(prompt_ids, "keys") and "input_ids" in prompt_ids:  # BatchEncoding (transformers 5)
                 prompt_ids = prompt_ids["input_ids"]
             stream = self._stream
             if stream is None:

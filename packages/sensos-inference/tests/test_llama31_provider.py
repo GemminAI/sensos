@@ -112,3 +112,19 @@ def test_sampler_is_passed_through_and_seeded():
     _provider(stream).generate_chat([{"role": "user", "content": "x"}], seed=9)
     logits = np.log(np.array([0.5, 0.5]))
     assert seen["sampler"](logits) in (0, 1)
+
+
+def test_batch_encoding_like_prompt():
+    class _Enc(dict):
+        pass
+
+    class _Tok2(_Tok):
+        def apply_chat_template(self, messages, add_generation_prompt, tokenize):
+            return _Enc(input_ids=[7, 8], attention_mask=[1, 1])
+
+    def stream(model, tok, prompt, max_tokens, sampler):
+        assert prompt == [7, 8]
+        yield _Resp(128009)
+
+    r = _provider(stream, tok=_Tok2()).generate_chat([{"role": "user", "content": "x"}])
+    assert r.ok and r.prompt_tokens == 2
