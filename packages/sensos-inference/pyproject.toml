@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sensos-inference"
+version = "0.1.0"
+description = "Minimal InferenceProvider / InferenceResult types and a Llama-3.1-8B-Instruct MLX provider (additive; no existing SensOS module changed)"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+mlx = ["mlx-lm"]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
