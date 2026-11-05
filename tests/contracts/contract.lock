@@ -1,0 +1,27 @@
+{
+  "contract_id": "IC-00",
+  "version": "0.6.2",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. msr/ files are verbatim copies of the vault originals (\u65e5\u5831/202611/20261105/). Update only by an explicit, reviewed contract change.",
+  "schemas": [
+    {
+      "path": "common/artifact.schema.json",
+      "sha256": "1b560f9a7a0ac9faf781628773aae78d46e96837b282658aee1a978221a33112"
+    },
+    {
+      "path": "common/provenance.schema.json",
+      "sha256": "302ed730b172483bb50ac23badad65271c4ab4fed1090d32dd51befede49fba7"
+    },
+    {
+      "path": "common/uncertainty.schema.json",
+      "sha256": "e57a85a4f13a1e42e4cdbdb3abe35fc524f2bc7c8afce842f3f3984ac52311a4"
+    },
+    {
+      "path": "msr/calibration.schema.json",
+      "sha256": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58"
+    },
+    {
+      "path": "msr/geometry-measurement.schema.json",
+      "sha256": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4"
+    }
+  ]
+}
