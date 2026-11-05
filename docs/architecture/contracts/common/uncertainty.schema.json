@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "sensos:contracts/common/uncertainty/0.6.2",
+  "$id": "sensos:contracts/common/uncertainty/1.0.0",
   "title": "IC-00 uncertainty ({value, method, meaning, scale}); used inside payloads, never in the envelope",
   "description": "`method` names the producing component's way of measuring uncertainty and is mandatory. Uncertainties with different `method` are never compared or summed (H4, S7).",
   "type": "object",

@@ -15,8 +15,14 @@ SCHEMA_PATHS = (
     "common/artifact.schema.json",
     "common/provenance.schema.json",
     "common/uncertainty.schema.json",
+    "common/blob.schema.json",
     "msr/calibration.schema.json",
     "msr/geometry-measurement.schema.json",
+)
+# Kept for the record (design Appendix A); self-contained, not used by any gate.
+ARCHIVED_PATHS = (
+    "msr/archive/0.6.1/calibration.schema.json",
+    "msr/archive/0.6.2/geometry-measurement.schema.json",
 )
 
 
@@ -27,7 +33,7 @@ def load_schema(relpath: str) -> dict[str, Any]:
 
 def registry() -> Registry[Any]:
     reg: Registry[Any] = Registry()
-    for rel in SCHEMA_PATHS:
+    for rel in (*SCHEMA_PATHS, *ARCHIVED_PATHS):
         schema = load_schema(rel)
         reg = reg.with_resource(schema["$id"], Resource.from_contents(schema, DRAFT202012))
     return reg

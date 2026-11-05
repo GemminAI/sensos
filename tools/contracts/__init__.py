@@ -1,4 +1,4 @@
-"""Reference implementation of the IC-00 contract primitives (design v0.6.2).
+"""Reference implementation of the IC-00 contract primitives (IC-00 1.0.0, design v0.7.1).
 
 Standard library + jsonschema only; imports nothing from sensos or any other
 repository. The language-neutral vectors under

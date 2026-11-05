@@ -1,26 +1,48 @@
 {
   "contract_id": "IC-00",
-  "version": "0.6.2",
-  "note": "sha256 of each contract schema file in docs/architecture/contracts/. msr/ files are verbatim copies of the vault originals (\u65e5\u5831/202611/20261105/). Update only by an explicit, reviewed contract change.",
+  "version": "1.0.0",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen only after the independent re-derivation of the vectors, FREEZE.md and the tag are not made yet). common/blob 0.7.0 and msr/* 0.7.0 are drafts. `archived` = the superseded 0.6.x payload schemas, kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
   "schemas": [
     {
       "path": "common/artifact.schema.json",
-      "sha256": "1b560f9a7a0ac9faf781628773aae78d46e96837b282658aee1a978221a33112"
+      "id": "sensos:contracts/common/artifact/1.0.0",
+      "sha256": "4a1107d866ae576610e2e1a14b2268a02eb2fd7e853a6b5eda682f199354ef33"
     },
     {
       "path": "common/provenance.schema.json",
-      "sha256": "302ed730b172483bb50ac23badad65271c4ab4fed1090d32dd51befede49fba7"
+      "id": "sensos:contracts/common/provenance/1.0.0",
+      "sha256": "dcde3f691b52241d5e347df94a36b6793d07d779ad5a990a1e3f7ae3a4a4dbea"
     },
     {
       "path": "common/uncertainty.schema.json",
-      "sha256": "e57a85a4f13a1e42e4cdbdb3abe35fc524f2bc7c8afce842f3f3984ac52311a4"
+      "id": "sensos:contracts/common/uncertainty/1.0.0",
+      "sha256": "8ce4a7a2f52e9913eacf180d07b08a63b7cc574024b39c3aa0323dca1448a517"
+    },
+    {
+      "path": "common/blob.schema.json",
+      "id": "sensos:contracts/common/blob/0.7.0",
+      "sha256": "bd1909fe05d76c503fe3fdbd0f1dd9e9486bb01a49b0113eda3afefdcdbe9ce2"
     },
     {
       "path": "msr/calibration.schema.json",
-      "sha256": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58"
+      "id": "sensos:contracts/msr/calibration/0.7.0",
+      "sha256": "7a702f1ff8305ed808885a46b9b200d75380f66fd45276888867ad1eb93d8c72"
     },
     {
       "path": "msr/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.7.0",
+      "sha256": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a"
+    }
+  ],
+  "archived": [
+    {
+      "path": "msr/archive/0.6.1/calibration.schema.json",
+      "id": "sensos:contracts/msr/calibration/0.6.1",
+      "sha256": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58"
+    },
+    {
+      "path": "msr/archive/0.6.2/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.6.2",
       "sha256": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4"
     }
   ]

@@ -22,6 +22,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from contracts import ids  # noqa: E402
+from contracts.blob import check_blob  # noqa: E402
 from contracts.check import check_envelope  # noqa: E402
 from contracts.errors import ContractError  # noqa: E402
 from contracts.jcs import jcs  # noqa: E402
@@ -255,7 +256,7 @@ def _env(
     version: str = "1.0.0",
 ) -> dict[str, Any]:
     return {
-        "contract": {"id": "IC-00", "version": "0.6.2"},
+        "contract": {"id": "IC-00", "version": "1.0.0"},
         "content_id": "cnt:" + "0" * 64,
         "artifact_id": "art:" + "0" * 64,
         "kind": kind,
@@ -574,11 +575,103 @@ def check_cases() -> dict[str, Any]:
     return {"cases": out}
 
 
+# --------------------------------------------------------------------- blob
+
+
+def _ints(values: list[int]) -> bytes:
+    return struct.pack(f"<{len(values)}q", *values)
+
+
+def _int_ref(data: bytes, shape: list[int], **over: Any) -> dict[str, Any]:
+    digest = sha256_hex(data)
+    ref: dict[str, Any] = {
+        "uri": "blob:sha256:" + digest,
+        "sha256": digest,
+        "media_type": "application/vnd.sensos.ndarray-raw",
+        "dtype": "int64",
+        "shape": shape,
+        "byte_order": "little",
+        "order": "C",
+        "quantization": {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1},
+        "unit": "distance",
+    }
+    ref.update(over)
+    return ref
+
+
+def blob_cases() -> dict[str, Any]:
+    out: list[dict[str, Any]] = []
+
+    def case(case_id: str, ref: dict[str, Any], data: bytes | None, note: str = "") -> None:
+        codes = sorted({v.code for v in check_blob(ref, data)})
+        item: dict[str, Any] = {"id": case_id, "note": note, "ref": ref, "expect": {"result": "reject" if codes else "accept", "codes": codes}}
+        if data is not None:
+            item["data_hex"] = data.hex()
+        out.append(item)
+
+    real = _ints([0, 1 << 30, 3 << 29])
+    case("accept-real-int-blob", _int_ref(real, [3]), real)
+    undef = _ints([INT64_RANGE[0], 5, 1 << 29])
+    case("accept-real-with-undefined-declared", _int_ref(undef, [3], undefined="int64_min"), undef, "-2^63 marks a value that does not exist")
+    count = _ints([0, 0, 2, 7])
+    case("accept-count-blob", _int_ref(count, [4], quantization=None, unit="returns"), count)
+    count_u = _ints([INT64_RANGE[0], 0, 1])
+    case("accept-count-with-undefined-declared", _int_ref(count_u, [3], quantization=None, unit="returns", undefined="int64_min"), count_u)
+    flat = _ints([5, 6, 7, 8, 9, 10])
+    case("accept-two-dimensional-shape", _int_ref(flat, [2, 3]), flat)
+    fdata = struct.pack("<2d", 0.5, 2.25)
+    fref = {
+        "uri": "blob:sha256:" + sha256_hex(fdata),
+        "sha256": sha256_hex(fdata),
+        "media_type": "application/vnd.sensos.ndarray-raw",
+        "dtype": "float64",
+        "shape": [2],
+        "byte_order": "little",
+        "order": "C",
+        "unit": "distance",
+        "comparison": {"rule": "absolute_error", "bound": {"base": 2, "exponent": -30}},
+    }
+    case("accept-float-blob-with-comparison", fref, fdata)
+    case("accept-ref-only-no-bytes", _int_ref(real, [3]), None, "bytes not at hand: only the reference is checked")
+
+    digest = sha256_hex(real)
+    for name, uri in (
+        ("file-uri", "file:///tmp/" + digest),
+        ("https-uri", "https://example.com/" + digest),
+        ("uppercase-hex", "blob:sha256:" + digest.upper().replace("0", "A")),
+        ("short-hex", "blob:sha256:" + digest[:63]),
+        ("extra-suffix", "blob:sha256:" + digest + "/x"),
+        ("empty", ""),
+    ):
+        case("reject-uri-" + name, _int_ref(real, [3], uri=uri), real)
+    case("S34-uri-hex-differs-from-sha256", _int_ref(real, [3], uri="blob:sha256:" + "0" * 64), real, "well-formed uri whose hex is not the sha256")
+    case("S24-sha256-differs-from-bytes", _int_ref(real, [3], sha256="1" * 64, uri="blob:sha256:" + "1" * 64), real)
+    case("S24-length-differs-from-shape", _int_ref(real, [4]), real)
+    case("S36-int64-min-without-declaration", _int_ref(undef, [3]), undef, "-2^63 is reserved; without the declaration it is an error")
+    case("S36-int64-min-in-count-blob-without-declaration", _int_ref(count_u, [3], quantization=None), count_u)
+    neg = _ints([0, -1, 2])
+    case("reject-negative-count", _int_ref(neg, [3], quantization=None, unit="returns"), neg)
+    case("accept-negative-in-real-blob", _int_ref(neg, [3]), neg, "quantized reals may be negative")
+    case("reject-undefined-bad-value", _int_ref(real, [3], undefined="nan"), real)
+    case("reject-quantization-missing", {k: v for k, v in _int_ref(real, [3]).items() if k != "quantization"}, real)
+    case("reject-dtype-missing", {k: v for k, v in _int_ref(real, [3]).items() if k != "dtype"}, real)
+    case("reject-big-endian", _int_ref(real, [3], byte_order="big"), real)
+    case("reject-fortran-order", _int_ref(real, [3], order="F"), real)
+    case("reject-media-type", _int_ref(real, [3], media_type="application/octet-stream"), real)
+    case("reject-rounding", _int_ref(real, [3], quantization={"quantum": {"base": 2, "exponent": -30}, "rounding": "half-up", "tolerance_quanta": 1}), real)
+    case("reject-extra-field", _int_ref(real, [3], note="x"), real)
+    case("reject-float-blob-without-comparison", {k: v for k, v in fref.items() if k != "comparison"}, fdata)
+    case("reject-float-blob-with-quantization", {**fref, "quantization": None}, fdata)
+    case("reject-float-blob-with-undefined", {**fref, "undefined": "int64_min"}, fdata, "float Blobs have no undefined mark (no NaN)")
+    case("reject-float-blob-sha-differs", {**fref, "sha256": "2" * 64, "uri": "blob:sha256:" + "2" * 64}, fdata)
+    return {"cases": out}
+
+
 # --------------------------------------------------------------------- main
 
 
 def _dump(name: str, doc: dict[str, Any]) -> None:
-    VECTORS.mkdir(parents=True, exist_ok=True)
+    (VECTORS / name).parent.mkdir(parents=True, exist_ok=True)
     (VECTORS / name).write_text(json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
 
 
@@ -602,6 +695,11 @@ def generate() -> dict[str, dict[str, Any]]:
             "lookup": env["lookup"],
             "cases": env["cases"],
             "relations": env["relations"],
+        },
+        "blob/blob-refs.json": {
+            "format": "blob-refs/1",
+            "rule": "check_blob(ref, data): ref must match common/blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes: S34 uri hex != sha256; S24 / S25 sha256 or length of an int / float Blob; S36 -2^63 without undefined: int64_min; count_negative a negative value in a count Blob (quantization null)",
+            **blob_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope/1",

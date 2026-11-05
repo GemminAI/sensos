@@ -46,7 +46,7 @@ def test_quantize_input_types() -> None:
 
 
 def test_strict_load_accepts_nested_valid_pair_in_key() -> None:
-    assert strict_load('{"\\ud83d\\ude00": [1, {"b": null}]}'.encode()) == {"\U0001f600": [1, {"b": None}]}
+    assert strict_load(b'{"\\ud83d\\ude00": [1, {"b": null}]}') == {"\U0001f600": [1, {"b": None}]}
     assert code_of(strict_load, b'[{"a":"\\ud800"}]') == "E_SURROGATE"
     assert code_of(strict_load, b"[" * 100000) == "E_SYNTAX"
 

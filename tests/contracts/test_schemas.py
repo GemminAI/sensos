@@ -1,4 +1,4 @@
-"""Schema validity, lint rules from design 0.6.2 (section 2.1/7), the lock, and a
+"""Schema validity, lint rules from design 0.7.1 (section 2.1/7), the lock, and a
 minimal pass/fail sample set for the two copied msr schemas."""
 
 from __future__ import annotations
@@ -60,9 +60,9 @@ def test_every_array_declares_order(rel: str) -> None:
 def test_envelope_id_patterns_and_constants() -> None:
     schema = load_schema("common/artifact.schema.json")
     props = schema["properties"]
-    assert schema["$id"].endswith("/0.6.2")
+    assert schema["$id"].endswith("/1.0.0")
     assert props["contract"]["properties"]["id"] == {"const": "IC-00"}
-    assert props["contract"]["properties"]["version"] == {"const": "0.6.2"}
+    assert props["contract"]["properties"]["version"] == {"const": "1.0.0"}
     assert props["content_id"]["pattern"] == "^cnt:[0-9a-f]{64}$"
     assert props["artifact_id"]["pattern"] == "^art:[0-9a-f]{64}$"
     assert set(props["kind"]["enum"]) == {"observation", "evidence", "interpretation", "selection", "outcome"}
@@ -83,10 +83,22 @@ def test_uncertainty_requires_method() -> None:
 
 def test_lock_matches_files() -> None:
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
-    assert lock["contract_id"] == "IC-00" and lock["version"] == "0.6.2"
+    assert lock["contract_id"] == "IC-00" and lock["version"] == "1.0.0"
     recorded = {e["path"]: e["sha256"] for e in lock["schemas"]}
     assert sorted(recorded) == sorted(SCHEMA_PATHS)
     for rel, digest in recorded.items():
+        assert hashlib.sha256((CONTRACTS_DIR / rel).read_bytes()).hexdigest() == digest, rel
+    for entry in lock["schemas"] + lock["archived"]:
+        schema = load_schema(entry["path"])
+        assert schema["$id"] == entry["id"]
+        if entry["path"].startswith("common/") and entry["path"] != "common/blob.schema.json":
+            assert entry["id"].endswith("/1.0.0")
+    archived = {e["path"]: e["sha256"] for e in lock["archived"]}
+    assert archived == {
+        "msr/archive/0.6.1/calibration.schema.json": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58",
+        "msr/archive/0.6.2/geometry-measurement.schema.json": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4",
+    }
+    for rel, digest in archived.items():
         assert hashlib.sha256((CONTRACTS_DIR / rel).read_bytes()).hexdigest() == digest, rel
 
 
@@ -100,17 +112,38 @@ INPUT_REF = {
     "length": 10,
     "dimension": 4,
 }
-SERIES = {
-    "uri": "blob://series/1",
-    "sha256": H64,
-    "media_type": "application/vnd.sensos.ndarray-raw",
-    "dtype": "int64",
-    "shape": [10],
-    "byte_order": "little",
-    "order": "C",
-    "unit": "distance",
-    "quantization": {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1},
+QUANT = {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1}
+SERIES_UNITS = {
+    "displacement_mean": ("distance", True),
+    "displacement_median": ("distance", True),
+    "displacement_longest_sub_delta_run": ("steps", False),
+    "recurrence_pair_fraction": ("fraction", True),
+    "recurrence_return_count": ("returns", False),
+    "recurrence_return_rate": ("returns_per_point", True),
+    "diversity_cell_entropy": ("nats", True),
+    "diversity_participation_ratio": ("dimensionless", True),
+    "persistence_longest_stay": ("points", False),
+    "persistence_dominant_cell_share": ("fraction", True),
 }
+
+
+def _series(length: int = 10) -> dict[str, Any]:
+    return {
+        name: {
+            "uri": "blob:sha256:" + H64,
+            "sha256": H64,
+            "media_type": "application/vnd.sensos.ndarray-raw",
+            "dtype": "int64",
+            "shape": [length],
+            "byte_order": "little",
+            "order": "C",
+            "unit": unit,
+            "quantization": copy.deepcopy(QUANT) if real else None,
+        }
+        for name, (unit, real) in SERIES_UNITS.items()
+    }
+
+
 PAIR = {
     "mode": "pair",
     "space_id": "S1",
@@ -142,7 +175,7 @@ def _single() -> dict[str, Any]:
             "diversity": {"cell_entropy": 1 << 29, "participation_ratio": 1 << 30},
             "persistence": {"longest_stay": 3, "dominant_cell_share": 1 << 29},
         },
-        "series": copy.deepcopy(SERIES),
+        "series": _series(),
         "verdict": {"state": None, "reason": "shift verdict applies to trajectory pairs (SPEC-MSR-001 v2 §3.2)"},
     }
 
@@ -189,11 +222,22 @@ def _mutations() -> list[tuple[str, dict[str, Any]]]:
     single("float-epsilon", lambda s: s["thresholds"].update(epsilon=0.5))
     single("return-rate-above-one", lambda s: s["metrics"]["recurrence"].update(return_rate=(1 << 30) + 1))
     single("bad-source", lambda s: s.update(source="T-x"))
-    single("blob-dtype-removed", lambda s: s["series"].pop("dtype"))
-    single("blob-big-endian", lambda s: s["series"].update(byte_order="big"))
-    single("blob-rounding-changed", lambda s: s["series"]["quantization"].update(rounding="half-up"))
-    single("blob-media-type-changed", lambda s: s["series"].update(media_type="application/octet-stream"))
-    single("blob-float-without-comparison", lambda s: s["series"].update(dtype="float64"))
+    first = "displacement_mean"
+    single("series-dtype-removed", lambda s: s["series"][first].pop("dtype"))
+    single("series-big-endian", lambda s: s["series"][first].update(byte_order="big"))
+    single("series-rounding-changed", lambda s: s["series"][first]["quantization"].update(rounding="half-up"))
+    single("series-float-blob", lambda s: s["series"][first].update(dtype="float64"))
+    single("series-name-missing", lambda s: s["series"].pop("recurrence_return_rate"))
+    single("series-extra-name", lambda s: s["series"].update(extra=copy.deepcopy(s["series"][first])))
+    single("series-as-one-blob", lambda s: s.update(series=s["series"][first]))
+    single("series-two-dimensional", lambda s: s["series"][first].update(shape=[2, 5]))
+    single("series-empty-shape-element", lambda s: s["series"][first].update(shape=[0]))
+    single("series-real-without-quantization", lambda s: s["series"][first].update(quantization=None))
+    single("series-count-with-quantization", lambda s: s["series"]["recurrence_return_count"].update(quantization=copy.deepcopy(QUANT)))
+    single("series-real-wrong-exponent", lambda s: s["series"][first]["quantization"]["quantum"].update(exponent=-20))
+    single("series-wrong-unit", lambda s: s["series"][first].update(unit="nats"))
+    single("series-uri-not-blob", lambda s: s["series"][first].update(uri="file:///x"))
+    single("series-bad-undefined", lambda s: s["series"][first].update(undefined="zero"))
     single("mode-unknown", lambda s: s.update(mode="triple"))
     return out
 
@@ -206,12 +250,32 @@ def test_msr_measurement_rejections(name: str, sample: dict[str, Any]) -> None:
     assert _errors(sample), f"{name} should be rejected"
 
 
-def test_msr_float_blob_with_comparison_passes() -> None:
+def test_msr_series_with_undefined_declaration_passes() -> None:
     single = _single()
-    blob = single["series"]
-    blob.pop("quantization")
-    blob.update(dtype="float64", comparison={"rule": "absolute_error", "bound": {"base": 2, "exponent": -30}})
+    single["series"]["displacement_mean"]["undefined"] = "int64_min"
+    single["series"]["recurrence_return_count"]["undefined"] = "int64_min"
     assert _errors(single) == [], [e.message for e in _errors(single)][:3]
+
+
+def test_archived_0_6_schemas_still_accept_their_old_samples() -> None:
+    old = validator("msr/archive/0.6.2/geometry-measurement.schema.json")
+    assert not list(old.iter_errors(PAIR))
+    one = _single()
+    one["series"] = {
+        "uri": "blob://series/1",
+        "sha256": H64,
+        "media_type": "application/vnd.sensos.ndarray-raw",
+        "dtype": "int64",
+        "shape": [10, 10],
+        "byte_order": "little",
+        "order": "C",
+        "unit": "msr-geometry-series/1",
+        "quantization": copy.deepcopy(QUANT),
+    }
+    assert not list(old.iter_errors(one))
+    assert _errors(one), "the 0.7.0 schema rejects the 0.6.2 single-Blob series"
+    cal = validator("msr/archive/0.6.1/calibration.schema.json")
+    assert not list(cal.iter_errors(_cal()))
 
 
 def _cal() -> dict[str, Any]:

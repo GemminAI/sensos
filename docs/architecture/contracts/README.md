@@ -1,8 +1,8 @@
 # SensOS 受け渡し契約（Contracts）
 
-**正の設計書**：`~/vaults/20260124/日報/202611/20261105/SensOS 受け渡し契約 設計書 v0.6.2.md`（v0.6.2、ai-draft、Tomo の承認待ち）。
-この README はその要約で、食い違いがあれば設計書が正。`msr/` の 2 つのスキーマは、同じフォルダの
-`geometry-measurement.schema.json`（0.6.2）・`calibration.schema.json`（0.6.1）をそのまま写したもの（中身を変えない）。
+**正の設計書**：`~/vaults/20260124/日報/202611/20261106/SensOS 受け渡し契約 設計書 v0.7.1.md`（v0.7.1、ai-draft、Tomo の承認待ち）。
+この README はその要約で、食い違いがあれば設計書が正。`common/` の IC-00（artifact・provenance・uncertainty）は **1.0.0**（凍結の準備中。`FREEZE.md` とタグは独立の確かめの後）。
+`common/blob.schema.json`・`msr/` の 2 つのスキーマは **0.7.0**（草案）。旧スキーマ（0.6.1・0.6.2）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
 
 ## 0. 目的と原則（§0・§0.1）
 
@@ -20,13 +20,13 @@
 ```
 docs/architecture/contracts/
 ├── README.md
-├── common/  artifact.schema.json  provenance.schema.json  uncertainty.schema.json  vectors/
-└── msr/     geometry-measurement.schema.json  calibration.schema.json
+├── common/  artifact.schema.json  provenance.schema.json  uncertainty.schema.json  blob.schema.json  vectors/
+└── msr/     geometry-measurement.schema.json  calibration.schema.json  README.md  archive/
 ```
 
 - 版：契約ごとに `contract_id`（例 `IC-00`）と Semantic Versioning。互換を壊す変更は major を上げる。
 - 各部品のリポジトリは `tests/contract/contract.lock` に `contract_id`・版・sensos のコミット・スキーマのパス・sha256 を記録し、CI で一致を確かめる。不一致なら落ちる。契約の変更は sensos での明示の更新とレビューを経てから、各部品が lock を更新する。
-- このリポジトリの lock：`tests/contracts/contract.lock`。
+- このリポジトリの lock：`tests/contracts/contract.lock`（`archived` は旧スキーマ）。
 - 参照実装：`tools/contracts/`（標準ライブラリと jsonschema だけ）。**言語に依らない定義は `common/vectors/` の見本**で、将来の Rust 版は見本だけで同じ結果を確かめる（`vectors/README.md`）。
 
 ## 2. IC-00 の封筒（要約。正は `common/artifact.schema.json`）
@@ -84,9 +84,16 @@ Unicode のエスケープを戻した後で比べて拒否（正規化はしな
 | S23 | `thresholds.source.X` が `calibration` なら、`thresholds.X` は `calibration_ref` が指す calibration の `values.X` と同じ整数 |
 | S24 | 整数の Blob だけ：sha256 は正規のバイト列（int64、リトルエンディアン、C の順、ヘッダなし）で計算。ファイルの長さ＝要素数×8 |
 | S25 | 浮動小数の Blob だけ：封筒の `extensions.x-<部品名>-float-blob` に理由。長さ＝要素数×要素のバイト数。S15b は宣言した `comparison` |
+| S34 | Blob の参照の `uri` は `blob:sha256:<hex>` で、`<hex>` は同じ参照の `sha256` と同じ |
+| S35 | `series` の各 Blob は 1 次元で `shape[0]` ＝ `input_ref.length`。キーの集合はスキーマの系列の名前の集合と同じ |
+| S36 | 整数の Blob の −2^63 は、`undefined: "int64_min"` を宣言した Blob の中で、契約が値なしと定めた位置（`msr/README.md`）にだけある |
+| S37 | `series` の各系列の最後の要素は `metrics` の同じ名前の値と同じ整数（値なしなら `metrics` は null） |
+| S38 | ペアの `verdict.state` は `distance.value` と calibration の `noise_floor_lower`・`noise_floor_upper` から §3.3.3 の式で計算し直した値と同じ |
+| S39 | `payload_schema` の `{id, version}` は Gate が知っているスキーマの `$id` と一致する（IC-00 の `contract.version` と別） |
 
-この版の参照実装（`tools/contracts/check.py`）が検査するのは、IC-00 だけで確かめられる S4・S5・S8・S16 と、スキーマ・id の計算し直し・親の既知。
-S1〜S3・S6・S7・S9〜S15・S17〜S25 は payload や他部品が要るので、この版では未実装（各部品の試験で）。
+IC-00 の参照実装（`tools/contracts/check.py`、凍結の範囲）が検査するのは、IC-00 だけで確かめられる S4・S5・S8・S16 と、スキーマ・id の計算し直し・親の既知。
+S1〜S3・S6・S7・S9〜S15・S17〜S25 は payload や他部品が要るので `check_envelope` には入れない（各部品の試験で）。
+凍結の外の検査器：`tools/contracts/blob.py`（S34・S24/S25・S36 の宣言・個数の負の値）、`ic02.py`（S35・S36 の位置・S37・S38）、`gate.py`（S39・payload のスキーマ）。
 
 ## 9. 契約の試験（3 段）
 
