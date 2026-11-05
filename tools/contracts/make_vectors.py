@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from contracts import ids  # noqa: E402
 from contracts.blob import check_blob  # noqa: E402
 from contracts.gate import check_payload  # noqa: E402
-from contracts.ic02 import SERIES  # noqa: E402
+from contracts.ic02 import SERIES, check_calibration_parents  # noqa: E402
 from contracts.check import check_envelope  # noqa: E402
 from contracts.errors import ContractError  # noqa: E402
 from contracts.jcs import jcs  # noqa: E402
@@ -761,6 +761,56 @@ def series_cases() -> dict[str, Any]:
     return {"cases": out}
 
 
+# ------------------------------------------------------ calibration parents
+
+
+def calibration_parent_cases() -> dict[str, Any]:
+    ses = ids.session_id_experiment("sha256:" + "d" * 64, "item-001", "baseline", 0, 7)
+    members = [f"art:{i:064x}" for i in (1, 2, 3)]
+    contents = {a: f"cnt:{i + 100:064x}" for i, a in enumerate(members, start=1)}
+    book = "art:" + "b" * 64
+    contents[book] = "cnt:" + "c" * 64
+
+    def payload(null_set: list[str], codebook: dict[str, str] | None) -> dict[str, Any]:
+        return {
+            "space_id": "S1", "model_build_id": "m1",
+            "method": {"name": "msr-geometry-calibration", "version": "msr-geometry-calibration/1",
+                       "quantiles": {"epsilon": 1 << 25, "delta": 1 << 26, "floor": [1 << 25, (1 << 30) - (1 << 25)]}},
+            "null_set": null_set, "between_alignment": "equal_only",
+            "values": {"noise_floor_lower": 1 << 30, "noise_floor_upper": 2 << 30, "background_mean": 3 << 29,
+                       "epsilon": 1 << 28, "delta": 1 << 20, "w_min": 1, "codebook_ref": codebook},
+            "sample_config": {"trajectories": len(null_set), "points": 40, "dims": 3},
+        }
+
+    def envelope(null_set: list[str], codebook: dict[str, str] | None, parents: list[dict[str, Any]]) -> dict[str, Any]:
+        env = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(null_set, codebook), seq=5, session=ses, obs=None, parents=parents)
+        env["payload_schema"] = {"id": "msr.calibration", "version": "0.7.0"}
+        return seal(env, {a: {"content_id": c} for a, c in contents.items()})
+
+    def role(name: str, artifact_ids: list[str], ordered: bool = False) -> dict[str, Any]:
+        return {"role": name, "ordered": ordered, "artifact_ids": artifact_ids}
+
+    ref = {"artifact_id": book, "content_id": contents[book]}
+    out: list[dict[str, Any]] = []
+
+    def case(case_id: str, env: dict[str, Any], pc: dict[str, str], note: str = "") -> None:
+        codes = sorted({v.code for v in check_calibration_parents(env, pc)})
+        out.append({"id": case_id, "note": note, "envelope": env, "parent_contents": pc,
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    base = envelope(members, None, [role("null_set", members)])
+    case("accept-null-set-only", base, contents)
+    with_book = envelope(members, ref, [role("codebook", [book]), role("null_set", members)])
+    case("accept-with-codebook", with_book, contents)
+    case("point1-parent-not-retrieved", base, {k: v for k, v in contents.items() if k != members[1]}, "a null_set parent is not among the retrieved parents")
+    case("point2-codebook-content-id-differs", with_book, {**contents, book: "cnt:" + "9" * 64}, "the stored codebook's content_id is not codebook_ref's")
+    case("point3-codebook-ref-without-codebook-role", envelope(members, ref, [role("null_set", members)]), contents, "payload names a codebook, parents have none")
+    case("point3-codebook-role-without-codebook-ref", envelope(members, None, [role("codebook", [book]), role("null_set", members)]), contents, "parents have a codebook, payload names none")
+    case("point4-null-set-is-ordered", envelope(members, None, [role("null_set", members, ordered=True)]), contents)
+    case("point5-null-set-differs-from-parents", envelope(members, None, [role("null_set", members[:2])]), contents, "payload lists 3 artifacts, the parents' null_set has 2")
+    return {"cases": out}
+
+
 # --------------------------------------------------------------------- main
 
 
@@ -804,6 +854,11 @@ def generate() -> dict[str, dict[str, Any]]:
             "format": "ic02-series/1",
             "rule": "check_payload(envelope) with envelope = {payload_schema: msr.geometry-measurement 0.7.1, payload, parents}, blobs = uri -> bytes (hex here): the codes in expect.codes (empty = accept). T=1 and T=2, each without and with delta",
             **series_cases(),
+        },
+        "msr/vectors/calibration-parents.json": {
+            "format": "calibration-parents/1",
+            "rule": "check_calibration_parents(envelope, parent_contents): the codes in expect.codes (empty = accept). parent_contents = artifact_id -> content_id of the parents that nvs-runtime fetched from HEKB and confirmed. msr/README.md, section on parent-reference consistency",
+            **calibration_parent_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope/1",

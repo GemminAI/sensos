@@ -16,7 +16,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from contracts.check import Violation
-from contracts.ic02 import check_geometry
+from contracts.ic02 import check_calibration_parents, check_geometry
 from contracts.schemas import validator
 
 # (payload_schema.id, payload_schema.version) -> schema path. The version is the
@@ -36,6 +36,7 @@ def check_payload(
     envelope: Mapping[str, Any],
     stored: Mapping[str, Any] | None = None,
     blobs: Mapping[str, bytes] | None = None,
+    parent_contents: Mapping[str, str] | None = None,
 ) -> list[Violation]:
     declared = envelope["payload_schema"]
     path = PAYLOAD_SCHEMAS.get((declared["id"], declared["version"]))
@@ -47,4 +48,6 @@ def check_payload(
         return [Violation("schema", f"payload/{'/'.join(str(p) for p in first.absolute_path)}: {first.message}")]
     if declared["id"] == "msr.geometry-measurement":
         return check_geometry(envelope, stored or {}, blobs or {})
+    if declared["id"] == "msr.calibration" and parent_contents is not None:
+        return check_calibration_parents(envelope, parent_contents)
     return []

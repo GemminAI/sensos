@@ -290,3 +290,33 @@ def test_readme_table_is_a_copy_of_the_schema() -> None:
         assert extra["properties"]["unit"] == {"const": unit}, name
         assert (extra["properties"]["quantization"] == {"type": "null"}) == (kind == "個数"), name
         assert undefined == "常に" and extra["required"] == ["undefined"], name
+
+
+# ------------------------------------- calibration: parent-reference consistency
+
+PARENT_CASES = json.loads(
+    (VECTORS.parent.parent / "msr/vectors/calibration-parents.json").read_text(encoding="utf-8")
+)["cases"]
+POINT_CODES = {
+    "point1": "parent_unknown",
+    "point2": "codebook_content_mismatch",
+    "point3": "role_set_mismatch",
+    "point4": "null_set_ordered",
+    "point5": "null_set_mismatch",
+}
+
+
+@pytest.mark.parametrize("case", PARENT_CASES, ids=[c["id"] for c in PARENT_CASES])
+def test_calibration_parent_vectors(case: dict[str, Any]) -> None:
+    found = check_payload(case["envelope"], None, None, case["parent_contents"])
+    assert sorted({v.code for v in found}) == case["expect"]["codes"]
+    # the payload is schema-valid either way: the checks above are the five points only
+    assert check_payload(case["envelope"]) == []
+
+
+def test_calibration_parent_vectors_cover_each_point_once_or_more() -> None:
+    accepts = [c for c in PARENT_CASES if c["expect"]["result"] == "accept"]
+    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 6)
+    for point, code in POINT_CODES.items():
+        mine = [c for c in PARENT_CASES if c["id"].startswith(point)]
+        assert mine and all(c["expect"]["codes"] == [code] for c in mine), point

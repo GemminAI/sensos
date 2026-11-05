@@ -112,3 +112,34 @@ def check_geometry(
         if (INT64_MIN if metric is None else metric) != last:
             out.append(Violation("S37", f"{name}: last element {last} != metrics {metric}"))
     return out
+
+
+def check_calibration_parents(
+    envelope: Mapping[str, Any], parent_contents: Mapping[str, str]
+) -> list[Violation]:
+    """The five parent-reference checks of ``msr/README.md`` (calibration).
+
+    ``parent_contents`` is what nvs-runtime fetched from HEKB and confirmed
+    (artifact_id -> content_id). Codes: ``parent_unknown``,
+    ``codebook_content_mismatch``, ``role_set_mismatch``, ``null_set_ordered``,
+    ``null_set_mismatch``.
+    """
+    payload = envelope["payload"]
+    out: list[Violation] = []
+    roles = {p["role"]: p for p in envelope["parents"]}
+    for parent in envelope["parents"]:
+        for artifact in parent["artifact_ids"]:
+            if artifact not in parent_contents:
+                out.append(Violation("parent_unknown", artifact))
+    codebook = payload["values"]["codebook_ref"]
+    if codebook is not None and parent_contents.get(codebook["artifact_id"]) != codebook["content_id"]:
+        out.append(Violation("codebook_content_mismatch", codebook["artifact_id"]))
+    wanted = {"null_set"} | ({"codebook"} if codebook is not None else set())
+    if set(roles) != wanted:
+        out.append(Violation("role_set_mismatch", f"roles {sorted(roles)} != {sorted(wanted)}"))
+    if "null_set" in roles:
+        if roles["null_set"]["ordered"] is not False:
+            out.append(Violation("null_set_ordered", "null_set must be ordered: false"))
+        if roles["null_set"]["artifact_ids"] != payload["null_set"]:
+            out.append(Violation("null_set_mismatch", "payload null_set differs from the parents' null_set"))
+    return out
