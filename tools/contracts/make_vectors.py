@@ -806,6 +806,7 @@ def calibration_parent_cases() -> dict[str, Any]:
     case("point2-codebook-content-id-differs", with_book, {**contents, book: "cnt:" + "9" * 64}, "the stored codebook's content_id is not codebook_ref's")
     case("point3-codebook-ref-without-codebook-role", envelope(members, ref, [role("null_set", members)]), contents, "payload names a codebook, parents have none")
     case("point1-content-id-is-not-cnt-form", base, {**contents, members[0]: "not-a-content-id"}, "a retrieved content_id is not cnt: + 64 hex (reported by its own code, not as a hash mismatch)")
+    case("point1-unrelated-entry-content-id-is-not-cnt-form", base, {**contents, "art:" + "e" * 64: "not-a-content-id"}, "an entry of parent_contents that no parent names also needs a cnt: content_id")
     dup = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(members, None), seq=5, session=ses, obs=None, parents=[role("null_set", members), role("null_set", members)])
     dup["payload_schema"] = {"id": "msr.calibration", "version": "0.7.0"}
     case("point3-role-appears-twice", dup, contents, "parents has two null_set roles (not sealed: ids cannot be computed for it)")

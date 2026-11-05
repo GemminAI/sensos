@@ -316,7 +316,7 @@ def test_calibration_parent_vectors(case: dict[str, Any]) -> None:
 
 def test_calibration_parent_vectors_cover_each_point_once_or_more() -> None:
     accepts = [c for c in PARENT_CASES if c["expect"]["result"] == "accept"]
-    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 9)
+    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 10)
     for point, codes in POINT_CODES.items():
         mine = [c for c in PARENT_CASES if c["id"].startswith(point)]
         assert mine and all(len(c["expect"]["codes"]) == 1 for c in mine), point
