@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "sensos:contracts/common/blob/0.7.0",
-  "title": "SensOS Blob の参照（IC-00 とは別の契約、草案 0.7.0。設計書 v0.7.1 §7.1）",
+  "title": "SensOS Blob の参照（IC-00 とは別の契約、草案 0.7.0。設計書 v0.7.2 §7.1）",
   "description": "大きな配列の参照。intBlob（標準）と floatBlob（例外）。Blob の中身の検査（sha256・長さ・−2^63・負の個数）はスキーマの外（S24・S34・S36）。",
   "oneOf": [
     {

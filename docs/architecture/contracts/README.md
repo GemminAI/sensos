@@ -1,6 +1,6 @@
 # SensOS 受け渡し契約（Contracts）
 
-**正の設計書**：`~/vaults/20260124/日報/202611/20261106/SensOS 受け渡し契約 設計書 v0.7.1.md`（v0.7.1、ai-draft、Tomo の承認待ち）。
+**正の設計書**：`~/vaults/20260124/日報/202611/20261106/SensOS 受け渡し契約 設計書 v0.7.2.md`（v0.7.2、ai-draft、Tomo の承認待ち）。
 この README はその要約で、食い違いがあれば設計書が正。`common/` の IC-00（artifact・provenance・uncertainty）は **1.0.0**（凍結の準備中。`FREEZE.md` とタグは独立の確かめの後）。
 `common/blob.schema.json`・`msr/` の 2 つのスキーマは **0.7.0**（草案）。旧スキーマ（0.6.1・0.6.2）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
 

@@ -1,12 +1,12 @@
 {
   "contract_id": "IC-00",
   "version": "1.0.0",
-  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen only after the independent re-derivation of the vectors, FREEZE.md and the tag are not made yet). common/blob 0.7.0 and msr/* 0.7.0 are drafts. `archived` = the superseded 0.6.x payload schemas, kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0 and msr/* 0.7.0 are drafts. `archived` = the superseded 0.6.x payload schemas, kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
   "schemas": [
     {
       "path": "common/artifact.schema.json",
       "id": "sensos:contracts/common/artifact/1.0.0",
-      "sha256": "4a1107d866ae576610e2e1a14b2268a02eb2fd7e853a6b5eda682f199354ef33"
+      "sha256": "16f715bcd8e65e5c07085160c4b91b565f8564eeea00ac8fcd9162d17dabc8e2"
     },
     {
       "path": "common/provenance.schema.json",
@@ -21,7 +21,7 @@
     {
       "path": "common/blob.schema.json",
       "id": "sensos:contracts/common/blob/0.7.0",
-      "sha256": "bd1909fe05d76c503fe3fdbd0f1dd9e9486bb01a49b0113eda3afefdcdbe9ce2"
+      "sha256": "f17c53bba3b8df0b7755717dd02951c20285aaaf0e13eceb4877ed8925d6a952"
     },
     {
       "path": "msr/calibration.schema.json",
