@@ -805,8 +805,13 @@ def calibration_parent_cases() -> dict[str, Any]:
     case("point1-parent-not-retrieved", base, {k: v for k, v in contents.items() if k != members[1]}, "a null_set parent is not among the retrieved parents")
     case("point2-codebook-content-id-differs", with_book, {**contents, book: "cnt:" + "9" * 64}, "the stored codebook's content_id is not codebook_ref's")
     case("point3-codebook-ref-without-codebook-role", envelope(members, ref, [role("null_set", members)]), contents, "payload names a codebook, parents have none")
+    case("point1-content-id-is-not-cnt-form", base, {**contents, members[0]: "not-a-content-id"}, "a retrieved content_id is not cnt: + 64 hex (reported by its own code, not as a hash mismatch)")
+    dup = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(members, None), seq=5, session=ses, obs=None, parents=[role("null_set", members), role("null_set", members)])
+    dup["payload_schema"] = {"id": "msr.calibration", "version": "0.7.0"}
+    case("point3-role-appears-twice", dup, contents, "parents has two null_set roles (not sealed: ids cannot be computed for it)")
     case("point3-codebook-role-without-codebook-ref", envelope(members, None, [role("codebook", [book]), role("null_set", members)]), contents, "parents have a codebook, payload names none")
     case("point4-null-set-is-ordered", envelope(members, None, [role("null_set", members, ordered=True)]), contents)
+    case("point4-codebook-is-ordered", envelope(members, ref, [role("codebook", [book], ordered=True), role("null_set", members)]), contents)
     case("point5-null-set-differs-from-parents", envelope(members, None, [role("null_set", members[:2])]), contents, "payload lists 3 artifacts, the parents' null_set has 2")
     return {"cases": out}
 

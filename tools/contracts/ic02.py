@@ -10,11 +10,14 @@ uri -> bytes. Series definitions and the undefined conditions are in
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
 from contracts.blob import INT64_MIN, check_blob, decode_int64
 from contracts.check import Violation
+
+_CONTENT_ID = re.compile(r"cnt:[0-9a-f]{64}")
 
 # series name -> (metrics group, metrics key)
 SERIES: dict[str, tuple[str, str]] = {
@@ -117,16 +120,23 @@ def check_geometry(
 def check_calibration_parents(
     envelope: Mapping[str, Any], parent_contents: Mapping[str, str]
 ) -> list[Violation]:
-    """The five parent-reference checks of ``msr/README.md`` (calibration).
+    """The parent-reference checks of ``msr/README.md`` (calibration).
 
     ``parent_contents`` is what nvs-runtime fetched from HEKB and confirmed
     (artifact_id -> content_id). Codes: ``parent_unknown``,
-    ``codebook_content_mismatch``, ``role_set_mismatch``, ``null_set_ordered``,
-    ``null_set_mismatch``.
+    ``parent_content_id_form`` (a content_id that is not ``cnt:`` + 64 hex),
+    ``codebook_content_mismatch``, ``role_set_mismatch``, ``role_duplicate``,
+    ``null_set_ordered``, ``codebook_ordered``, ``null_set_mismatch``.
     """
     payload = envelope["payload"]
     out: list[Violation] = []
-    roles = {p["role"]: p for p in envelope["parents"]}
+    for artifact, content in parent_contents.items():
+        if not isinstance(content, str) or not _CONTENT_ID.fullmatch(content):
+            out.append(Violation("parent_content_id_form", artifact))
+    names = [p["role"] for p in envelope["parents"]]
+    roles = {p["role"]: p for p in reversed(envelope["parents"])}  # first of a repeated role wins
+    if len(names) != len(roles):
+        out.append(Violation("role_duplicate", "a role appears more than once in parents"))
     for parent in envelope["parents"]:
         for artifact in parent["artifact_ids"]:
             if artifact not in parent_contents:
@@ -142,4 +152,6 @@ def check_calibration_parents(
             out.append(Violation("null_set_ordered", "null_set must be ordered: false"))
         if roles["null_set"]["artifact_ids"] != payload["null_set"]:
             out.append(Violation("null_set_mismatch", "payload null_set differs from the parents' null_set"))
+    if "codebook" in roles and roles["codebook"]["ordered"] is not False:
+        out.append(Violation("codebook_ordered", "codebook must be ordered: false"))
     return out

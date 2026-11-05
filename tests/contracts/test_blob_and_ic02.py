@@ -298,11 +298,11 @@ PARENT_CASES = json.loads(
     (VECTORS.parent.parent / "msr/vectors/calibration-parents.json").read_text(encoding="utf-8")
 )["cases"]
 POINT_CODES = {
-    "point1": "parent_unknown",
-    "point2": "codebook_content_mismatch",
-    "point3": "role_set_mismatch",
-    "point4": "null_set_ordered",
-    "point5": "null_set_mismatch",
+    "point1": {"parent_unknown", "parent_content_id_form"},
+    "point2": {"codebook_content_mismatch"},
+    "point3": {"role_set_mismatch", "role_duplicate"},
+    "point4": {"null_set_ordered", "codebook_ordered"},
+    "point5": {"null_set_mismatch"},
 }
 
 
@@ -316,7 +316,8 @@ def test_calibration_parent_vectors(case: dict[str, Any]) -> None:
 
 def test_calibration_parent_vectors_cover_each_point_once_or_more() -> None:
     accepts = [c for c in PARENT_CASES if c["expect"]["result"] == "accept"]
-    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 6)
-    for point, code in POINT_CODES.items():
+    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 9)
+    for point, codes in POINT_CODES.items():
         mine = [c for c in PARENT_CASES if c["id"].startswith(point)]
-        assert mine and all(c["expect"]["codes"] == [code] for c in mine), point
+        assert mine and all(len(c["expect"]["codes"]) == 1 for c in mine), point
+        assert {c["expect"]["codes"][0] for c in mine} == codes, point
