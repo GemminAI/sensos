@@ -1,7 +1,9 @@
 """Gate steps beyond IC-00 itself (design v0.7.1 section 5, steps 1 and 8).
 
 ``check_envelope`` (frozen IC-00 scope) is unchanged; this module adds the
-payload side: S39 (known ``payload_schema`` ``{id, version}``), the payload's
+payload side (the complete schema check belongs to the Gate, before storing; a
+reader still recomputes ids and checks the fields it uses, the contract version
+and the parents' consistency): S39 (known ``payload_schema`` ``{id, version}``), the payload's
 schema, and the IC-02 checks. Unknown versions are rejected, never guessed.
 """
 
@@ -20,7 +22,7 @@ from contracts.schemas import validator
 # (payload_schema.id, payload_schema.version) -> schema path. The version is the
 # version in the schema's $id (design 2.6); it is not IC-00's contract.version.
 PAYLOAD_SCHEMAS: dict[tuple[str, str], str] = {
-    ("msr.geometry-measurement", "0.7.0"): "msr/geometry-measurement.schema.json",
+    ("msr.geometry-measurement", "0.7.1"): "msr/geometry-measurement.schema.json",
     ("msr.calibration", "0.7.0"): "msr/calibration.schema.json",
 }
 

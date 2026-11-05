@@ -15,7 +15,7 @@ from contracts.errors import ContractError
 from contracts.jcs import jcs
 from contracts.quantize import ENVELOPE_RANGE, INT64_RANGE, dequantize, quantize
 from contracts.strict_load import strict_load
-from make_vectors import VECTORS, generate
+from make_vectors import VECTORS, generate, vector_path
 
 
 def _load(name: str) -> dict[str, Any]:
@@ -120,5 +120,5 @@ def test_vector_counts_are_meaningful() -> None:
 
 def test_vector_files_match_generator() -> None:
     for name, doc in generate().items():
-        on_disk = json.loads((VECTORS / name).read_text(encoding="utf-8"))
+        on_disk = json.loads(vector_path(name).read_text(encoding="utf-8"))
         assert on_disk == json.loads(json.dumps(doc)), f"{name} is stale: rerun tools/contracts/make_vectors.py"

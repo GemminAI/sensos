@@ -1,7 +1,7 @@
 """IC-02 payload checks that need more than the schema (design v0.7.1 3.3.2, 3.3.3).
 
 S35 (series shape and key set), S36 (undefined only where the contract says),
-S37 (last element equals ``metrics``), S38 (pair verdict recomputed), plus the
+S37 (last element equals ``metrics``; with no displacement interval, T = 1, the three displacement values are null / undefined), S38 (pair verdict recomputed), plus the
 per-Blob checks of :mod:`contracts.blob`. ``stored`` maps artifact_id ->
 ``{"envelope": ...}`` for the calibration the payload points at; ``blobs`` maps
 uri -> bytes. Series definitions and the undefined conditions are in
@@ -29,6 +29,11 @@ SERIES: dict[str, tuple[str, str]] = {
     "persistence_longest_stay": ("persistence", "longest_stay"),
     "persistence_dominant_cell_share": ("persistence", "dominant_cell_share"),
 }
+
+
+# Series the contract says may hold "no value"; each must always declare
+# ``undefined: "int64_min"`` and no other series may (msr/README.md, 0.7.1).
+CAN_BE_UNDEFINED: frozenset[str] = frozenset(SERIES)
 
 
 def expected_undefined(
@@ -90,6 +95,9 @@ def check_geometry(
         data = blobs.get(ref["uri"])
         for v in check_blob(ref, data):
             out.append(Violation(v.code, f"{name}: {v.message}"))
+        declared = ref.get("undefined") == "int64_min"
+        if declared != (name in CAN_BE_UNDEFINED):
+            out.append(Violation("S36", f"{name}: undefined declaration must be {name in CAN_BE_UNDEFINED}"))
         if ref["shape"] != [length]:
             out.append(Violation("S35", f"{name}: shape {ref['shape']} != [{length}]"))
         if data is None or len(data) != 8 * length:

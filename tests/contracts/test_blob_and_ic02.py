@@ -65,9 +65,8 @@ def _ref(name: str, values: list[int]) -> tuple[dict[str, Any], bytes]:
         "order": "C",
         "unit": unit,
         "quantization": copy.deepcopy(QUANT) if real else None,
+        "undefined": "int64_min",  # 0.7.1: every series declares it
     }
-    if U in values:
-        ref["undefined"] = "int64_min"
     return ref, data
 
 
@@ -86,7 +85,7 @@ def single_world() -> tuple[dict[str, Any], dict[str, bytes]]:
     for name, (group, key) in SERIES.items():
         payload["metrics"][group][key] = last[name]
     envelope = {
-        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.0"},
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
         "payload": payload,
         "parents": [{"role": "trajectory", "ordered": False, "artifact_ids": ["art:" + "0" * 64]}],
     }
@@ -128,8 +127,8 @@ def test_s36_undefined_only_where_the_contract_says() -> None:
     assert "S36" in codes(envelope, blobs)
     envelope, blobs = single_world()
     ref = envelope["payload"]["series"]["diversity_cell_entropy"]
-    ref.pop("undefined")  # -2^63 present but not declared
-    assert "S36" in codes(envelope, blobs)
+    ref.pop("undefined")  # 0.7.1: the schema requires the declaration
+    assert "schema" in codes(envelope, blobs)
 
 
 def test_s37_last_element_equals_metrics() -> None:
@@ -184,7 +183,7 @@ def pair_envelope(distance: int, state: str, calibrated: bool = True) -> dict[st
     payload["verdict"]["state"] = state
     payload["calibration"] = CAL if calibrated else None
     return {
-        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.0"},
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
         "payload": payload,
         "parents": [],
     }
@@ -220,9 +219,10 @@ def test_s38_uncalibrated_and_unknown_calibration() -> None:
 
 def test_s39_unknown_payload_schema_versions_are_refused() -> None:
     envelope, blobs = single_world()
-    assert set(PAYLOAD_SCHEMAS) == {("msr.geometry-measurement", "0.7.0"), ("msr.calibration", "0.7.0")}
+    assert set(PAYLOAD_SCHEMAS) == {("msr.geometry-measurement", "0.7.1"), ("msr.calibration", "0.7.0")}
     for ident, version in (
         ("msr.geometry-measurement", "0.6.2"),
+        ("msr.geometry-measurement", "0.7.0"),  # superseded draft
         ("msr.geometry-measurement", "1.0.0"),  # IC-00's version is not a payload version
         ("msr.calibration", "0.6.1"),
         ("nope", "0.7.0"),
@@ -238,3 +238,55 @@ def test_calibration_payload_goes_through_its_schema() -> None:
     assert check_payload(ok) == []
     bad = {**ok, "payload": {**_cal(), "extra": 1}}
     assert {v.code for v in check_payload(bad)} == {"schema"}
+
+
+# ------------------------------------------- 0.7.1: T=1 / T=2, README vs schema
+
+SERIES_VECTORS = json.loads((VECTORS.parent.parent / "msr/vectors/series.json").read_text(encoding="utf-8"))["cases"]
+
+
+@pytest.mark.parametrize("case", SERIES_VECTORS, ids=[c["id"] for c in SERIES_VECTORS])
+def test_series_vectors(case: dict[str, Any]) -> None:
+    envelope = {
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
+        "payload": case["payload"],
+        "parents": case["parents"],
+    }
+    blobs = {uri: bytes.fromhex(h) for uri, h in case["blobs"].items()}
+    assert sorted({v.code for v in check_payload(envelope, {}, blobs)}) == case["expect"]["codes"]
+
+
+def test_series_vectors_cover_t1_and_t2_with_and_without_delta() -> None:
+    ids = {c["id"] for c in SERIES_VECTORS if c["expect"]["result"] == "accept"}
+    assert ids == {"accept-T1-no-delta", "accept-T1-delta", "accept-T2-no-delta", "accept-T2-delta"}
+    t1 = next(c for c in SERIES_VECTORS if c["id"] == "accept-T1-delta")["payload"]["metrics"]["displacement"]
+    assert t1 == {"count": 0, "mean": None, "median": None, "longest_sub_delta_run": None}
+
+
+def test_only_declared_series_may_declare_undefined(monkeypatch: pytest.MonkeyPatch) -> None:
+    envelope, blobs = single_world()
+    assert check_payload(envelope, {}, blobs) == []
+    monkeypatch.setattr("contracts.ic02.CAN_BE_UNDEFINED", frozenset(SERIES) - {"displacement_mean"})
+    found = check_payload(envelope, {}, blobs)
+    assert [v.code for v in found] == ["S36"] and "displacement_mean" in found[0].message
+
+
+def test_readme_table_is_a_copy_of_the_schema() -> None:
+    import re
+
+    from contracts.schemas import CONTRACTS_DIR, load_schema
+
+    readme = (CONTRACTS_DIR / "msr/README.md").read_text(encoding="utf-8")
+    rows = {}
+    for line in readme.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 6 and cells[0].strip("`") in SERIES:
+            kind, unit = re.fullmatch(r"(実数|個数)・`([^`]+)`", cells[2]).groups()  # type: ignore[union-attr]
+            rows[cells[0].strip("`")] = (kind, unit, cells[5])
+    assert set(rows) == set(SERIES)
+    schema = load_schema("msr/geometry-measurement.schema.json")["$defs"]["single"]["properties"]["series"]["properties"]
+    for name, (kind, unit, undefined) in rows.items():
+        extra = schema[name]["allOf"][1]
+        assert extra["properties"]["unit"] == {"const": unit}, name
+        assert (extra["properties"]["quantization"] == {"type": "null"}) == (kind == "個数"), name
+        assert undefined == "常に" and extra["required"] == ["undefined"], name

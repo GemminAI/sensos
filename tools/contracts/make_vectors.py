@@ -23,12 +23,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from contracts import ids  # noqa: E402
 from contracts.blob import check_blob  # noqa: E402
+from contracts.gate import check_payload  # noqa: E402
+from contracts.ic02 import SERIES  # noqa: E402
 from contracts.check import check_envelope  # noqa: E402
 from contracts.errors import ContractError  # noqa: E402
 from contracts.jcs import jcs  # noqa: E402
 from contracts.quantize import INT64_RANGE, quantize  # noqa: E402
 
-VECTORS = Path(__file__).resolve().parents[2] / "docs/architecture/contracts/common/vectors"
+CONTRACTS = Path(__file__).resolve().parents[2] / "docs/architecture/contracts"
+VECTORS = CONTRACTS / "common/vectors"
 SHA = "a" * 64
 
 
@@ -667,12 +670,108 @@ def blob_cases() -> dict[str, Any]:
     return {"cases": out}
 
 
+# ------------------------------------------------------------------ series
+
+_U = INT64_RANGE[0]
+_UNITS = {
+    "displacement_mean": "distance", "displacement_median": "distance",
+    "displacement_longest_sub_delta_run": "steps", "recurrence_pair_fraction": "fraction",
+    "recurrence_return_count": "returns", "recurrence_return_rate": "returns_per_point",
+    "diversity_cell_entropy": "nats", "diversity_participation_ratio": "dimensionless",
+    "persistence_longest_stay": "points", "persistence_dominant_cell_share": "fraction",
+}
+_COUNTS = {"displacement_longest_sub_delta_run", "recurrence_return_count", "persistence_longest_stay"}
+_QUANT = {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1}
+
+
+def _series_payload(length: int, delta: int | None, values: dict[str, list[int]], metrics_last: dict[str, int | None]) -> tuple[dict[str, Any], dict[str, bytes]]:
+    blobs: dict[str, bytes] = {}
+    series: dict[str, Any] = {}
+    for name in SERIES:
+        data = _ints(values[name])
+        digest = sha256_hex(data)
+        series[name] = {
+            "uri": "blob:sha256:" + digest, "sha256": digest,
+            "media_type": "application/vnd.sensos.ndarray-raw", "dtype": "int64",
+            "shape": [length], "byte_order": "little", "order": "C",
+            "quantization": None if name in _COUNTS else copy.deepcopy(_QUANT),
+            "unit": _UNITS[name], "undefined": "int64_min",
+        }
+        blobs[series[name]["uri"]] = data
+    group = {g: {k: metrics_last[n] for n, (gg, k) in SERIES.items() if gg == g} for g in ("displacement", "recurrence", "diversity", "persistence")}
+    group["displacement"]["count"] = max(length - 1, 0)
+    payload = {
+        "mode": "single", "space_id": "S1", "source": "T-hid", "layer": 12,
+        "input_ref": {"sha256": SHA, "model_build_id": "m1", "policy": {"name": "last-token", "sha256": SHA}, "length": length, "dimension": 3},
+        "calibration": None,
+        "thresholds": {"epsilon": None, "delta": delta, "w_min": None, "source": {"epsilon": None, "delta": None if delta is None else "explicit", "w_min": None}},
+        "metrics": group,
+        "series": series,
+        "verdict": {"state": None, "reason": "shift verdict applies to trajectory pairs (SPEC-MSR-001 v2 \u00a73.2)"},
+    }
+    return payload, blobs
+
+
+def series_cases() -> dict[str, Any]:
+    out: list[dict[str, Any]] = []
+    step = 3 << 30  # one step of length 3.0
+
+    def build(length: int, delta: int | None) -> tuple[dict[str, Any], dict[str, bytes]]:
+        values = {n: [_U] * length for n in SERIES}
+        last: dict[str, int | None] = {n: None for n in SERIES}
+        if length == 2:
+            for n in ("displacement_mean", "displacement_median"):
+                values[n] = [_U, step]
+                last[n] = step
+            values["diversity_participation_ratio"] = [_U, 1 << 30]
+            last["diversity_participation_ratio"] = 1 << 30
+            if delta is not None:
+                values["displacement_longest_sub_delta_run"] = [_U, 0]
+                last["displacement_longest_sub_delta_run"] = 0
+        return _series_payload(length, delta, values, last)
+
+    def case(case_id: str, payload: dict[str, Any], blobs: dict[str, bytes], note: str = "") -> None:
+        envelope = {"payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"}, "payload": payload,
+                    "parents": [{"role": "trajectory", "ordered": False, "artifact_ids": ["art:" + "0" * 64]}]}
+        codes = sorted({v.code for v in check_payload(envelope, {}, blobs)})
+        out.append({"id": case_id, "note": note, "payload": payload, "parents": envelope["parents"],
+                    "blobs": {u: d.hex() for u, d in blobs.items()},
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    for length in (1, 2):
+        for delta in (None, 1 << 29):
+            tag = f"T{length}-{'delta' if delta is not None else 'no-delta'}"
+            payload, blobs = build(length, delta)
+            case("accept-" + tag, payload, blobs, "T=1: no displacement interval, so count 0 and mean/median/run are null" if length == 1 else "")
+    p, b = build(1, None)
+    p["metrics"]["displacement"]["mean"] = 0
+    case("S37-T1-mean-is-0-but-series-has-no-value", p, b)
+    p, b = build(1, None)
+    p["series"]["displacement_mean"] = _series_payload(1, None, {**{n: [_U] for n in SERIES}, "displacement_mean": [0]}, {n: None for n in SERIES})[0]["series"]["displacement_mean"]
+    case("S36-T1-series-t0-has-a-value", p, {**b, **_series_payload(1, None, {**{n: [_U] for n in SERIES}, "displacement_mean": [0]}, {n: None for n in SERIES})[1]})
+    p, b = build(2, 1 << 29)
+    p["metrics"]["displacement"]["longest_sub_delta_run"] = None
+    case("S37-T2-run-null-but-series-has-0", p, b)
+    p, b = build(2, None)
+    del p["series"]["displacement_median"]["undefined"]
+    case("schema-undefined-declaration-missing", p, b, "0.7.1: every series declares undefined")
+    p, b = build(2, None)
+    p["series"]["displacement_median"]["undefined"] = "nan"
+    case("schema-undefined-declaration-wrong-value", p, b)
+    return {"cases": out}
+
+
 # --------------------------------------------------------------------- main
 
 
+def vector_path(name: str) -> Path:
+    """``msr/...`` names live next to the msr contract, the rest under common/vectors."""
+    return CONTRACTS / name if name.startswith("msr/") else VECTORS / name
+
+
 def _dump(name: str, doc: dict[str, Any]) -> None:
-    (VECTORS / name).parent.mkdir(parents=True, exist_ok=True)
-    (VECTORS / name).write_text(json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
+    vector_path(name).parent.mkdir(parents=True, exist_ok=True)
+    vector_path(name).write_text(json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
 
 
 def generate() -> dict[str, dict[str, Any]]:
@@ -700,6 +799,11 @@ def generate() -> dict[str, dict[str, Any]]:
             "format": "blob-refs/1",
             "rule": "check_blob(ref, data): ref must match common/blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes: S34 uri hex != sha256; S24 / S25 sha256 or length of an int / float Blob; S36 -2^63 without undefined: int64_min; count_negative a negative value in a count Blob (quantization null)",
             **blob_cases(),
+        },
+        "msr/vectors/series.json": {
+            "format": "ic02-series/1",
+            "rule": "check_payload(envelope) with envelope = {payload_schema: msr.geometry-measurement 0.7.1, payload, parents}, blobs = uri -> bytes (hex here): the codes in expect.codes (empty = accept). T=1 and T=2, each without and with delta",
+            **series_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope/1",

@@ -2,7 +2,7 @@
 
 **正の設計書**：`~/vaults/20260124/日報/202611/20261106/SensOS 受け渡し契約 設計書 v0.7.2.md`（v0.7.2、ai-draft、Tomo の承認待ち）。
 この README はその要約で、食い違いがあれば設計書が正。`common/` の IC-00（artifact・provenance・uncertainty）は **1.0.0**（凍結の準備中。`FREEZE.md` とタグは独立の確かめの後）。
-`common/blob.schema.json`・`msr/` の 2 つのスキーマは **0.7.0**（草案）。旧スキーマ（0.6.1・0.6.2）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
+`common/blob.schema.json`・`msr/calibration.schema.json` は **0.7.0**、`msr/geometry-measurement.schema.json` は **0.7.1**（いずれも草案）。旧スキーマ（0.6.1・0.6.2・0.7.0）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
 
 ## 0. 目的と原則（§0・§0.1）
 
@@ -86,8 +86,8 @@ Unicode のエスケープを戻した後で比べて拒否（正規化はしな
 | S25 | 浮動小数の Blob だけ：封筒の `extensions.x-<部品名>-float-blob` に理由。長さ＝要素数×要素のバイト数。S15b は宣言した `comparison` |
 | S34 | Blob の参照の `uri` は `blob:sha256:<hex>` で、`<hex>` は同じ参照の `sha256` と同じ |
 | S35 | `series` の各 Blob は 1 次元で `shape[0]` ＝ `input_ref.length`。キーの集合はスキーマの系列の名前の集合と同じ |
-| S36 | 整数の Blob の −2^63 は、`undefined: "int64_min"` を宣言した Blob の中で、契約が値なしと定めた位置（`msr/README.md`）にだけある |
-| S37 | `series` の各系列の最後の要素は `metrics` の同じ名前の値と同じ整数（値なしなら `metrics` は null） |
+| S36 | 整数の Blob の −2^63 は、`undefined: "int64_min"` を宣言した Blob の中で、契約が値なしと定めた位置（`msr/README.md`）にだけある。値なしを持ちうると定めた系列（IC-02 は 10 系列すべて）は常に宣言し、それ以外の系列の宣言は拒否 |
+| S37 | `series` の各系列の最後の要素は `metrics` の同じ名前の値と同じ整数（値なしなら `metrics` は null。変位の区間が無い T=1 では変位の 3 値が null、`count` は 0） |
 | S38 | ペアの `verdict.state` は `distance.value` と calibration の `noise_floor_lower`・`noise_floor_upper` から §3.3.3 の式で計算し直した値と同じ |
 | S39 | `payload_schema` の `{id, version}` は Gate が知っているスキーマの `$id` と一致する（IC-00 の `contract.version` と別） |
 

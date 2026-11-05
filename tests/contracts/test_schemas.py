@@ -97,6 +97,7 @@ def test_lock_matches_files() -> None:
     assert archived == {
         "msr/archive/0.6.1/calibration.schema.json": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58",
         "msr/archive/0.6.2/geometry-measurement.schema.json": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4",
+        "msr/archive/0.7.0/geometry-measurement.schema.json": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a",
     }
     for rel, digest in archived.items():
         assert hashlib.sha256((CONTRACTS_DIR / rel).read_bytes()).hexdigest() == digest, rel
@@ -139,6 +140,7 @@ def _series(length: int = 10) -> dict[str, Any]:
             "order": "C",
             "unit": unit,
             "quantization": copy.deepcopy(QUANT) if real else None,
+            "undefined": "int64_min",
         }
         for name, (unit, real) in SERIES_UNITS.items()
     }
@@ -250,11 +252,17 @@ def test_msr_measurement_rejections(name: str, sample: dict[str, Any]) -> None:
     assert _errors(sample), f"{name} should be rejected"
 
 
-def test_msr_series_with_undefined_declaration_passes() -> None:
+def test_msr_series_must_always_declare_undefined() -> None:
     single = _single()
-    single["series"]["displacement_mean"]["undefined"] = "int64_min"
-    single["series"]["recurrence_return_count"]["undefined"] = "int64_min"
-    assert _errors(single) == [], [e.message for e in _errors(single)][:3]
+    assert all(r["undefined"] == "int64_min" for r in single["series"].values())
+    assert _errors(single) == []
+    for name in single["series"]:
+        broken = _single()
+        del broken["series"][name]["undefined"]
+        assert _errors(broken), f"{name}: declaration is required in 0.7.1"
+    other = _single()
+    other["series"]["displacement_mean"]["undefined"] = "zero"
+    assert _errors(other)
 
 
 def test_archived_0_6_schemas_still_accept_their_old_samples() -> None:
@@ -273,7 +281,13 @@ def test_archived_0_6_schemas_still_accept_their_old_samples() -> None:
         "quantization": copy.deepcopy(QUANT),
     }
     assert not list(old.iter_errors(one))
-    assert _errors(one), "the 0.7.0 schema rejects the 0.6.2 single-Blob series"
+    assert _errors(one), "the 0.7.1 schema rejects the 0.6.2 single-Blob series"
+    v070 = validator("msr/archive/0.7.0/geometry-measurement.schema.json")
+    two = _single()
+    for ref in two["series"].values():
+        del ref["undefined"]  # 0.7.0 allowed omitting it
+    assert not list(v070.iter_errors(two))
+    assert _errors(two), "0.7.1 requires the declaration"
     cal = validator("msr/archive/0.6.1/calibration.schema.json")
     assert not list(cal.iter_errors(_cal()))
 

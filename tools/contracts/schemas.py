@@ -23,6 +23,7 @@ SCHEMA_PATHS = (
 ARCHIVED_PATHS = (
     "msr/archive/0.6.1/calibration.schema.json",
     "msr/archive/0.6.2/geometry-measurement.schema.json",
+    "msr/archive/0.7.0/geometry-measurement.schema.json",
 )
 
 
