@@ -92,3 +92,42 @@ class HFOrderSampler:
         )
         p = probabilities(scores)
         return int(self._rng.choice(p.shape[0], p=p))
+
+
+class PresencePenaltySampler(HFOrderSampler):
+    """``HFOrderSampler`` with a presence penalty, in the order vLLM applies it.
+
+    vLLM order: penalties on the raw logits -> temperature -> top-k -> top-p -> draw. The presence
+    penalty subtracts ``presence_penalty`` once from the logit of every token that has been
+    *generated* so far in this sequence (prompt tokens do not count). The sampler records each token
+    it returns, so it has to be used for one sequence only (a new sampler per generation). The
+    penalty is an additive constant on the selected entries, so it applies equally to logits and to
+    log-softmax(logits). ``presence_penalty == 0`` is exactly ``HFOrderSampler``.
+    """
+
+    def __init__(
+        self, *, temperature: float, top_k: int, top_p: float, seed: int, presence_penalty: float
+    ) -> None:
+        super().__init__(temperature=temperature, top_k=top_k, top_p=top_p, seed=seed)
+        self.presence_penalty = float(presence_penalty)
+        self._seen: set[int] = set()
+
+    def settings(self) -> dict[str, object]:
+        out = super().settings()
+        out["order"] = ["presence_penalty", "temperature", "top_k", "top_p"]
+        out["presence_penalty"] = self.presence_penalty
+        out["reference"] = (
+            "vLLM sampler order (penalties, temperature, top-k, top-p); warpers as in "
+            "transformers 4.48.3 generation/logits_process.py"
+        )
+        return out
+
+    def __call__(self, logprobs: object) -> int:
+        row = np.asarray(logprobs, dtype=np.float64).reshape(-1)
+        if self.presence_penalty != 0.0 and self._seen:
+            row = row.copy()
+            row[np.fromiter(self._seen, dtype=np.int64)] -= self.presence_penalty
+        scores = warp_logits(row, temperature=self.temperature, top_k=self.top_k, top_p=self.top_p)
+        token = int(self._rng.choice(scores.shape[0], p=probabilities(scores)))
+        self._seen.add(token)
+        return token
