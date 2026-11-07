@@ -1,0 +1,1416 @@
+{
+ "cases": [
+  {
+   "envelope": {
+    "artifact_id": "art:b91a271986cb6158b32621553e8b5cb08b3a38d73465e16b9f6521c9acebe558",
+    "calibration_ref": null,
+    "content_id": "cnt:b247c90a512976ece1926890cfe8ede15c7082e3ce46b214a0d5a96158a29a16",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-connector",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v100-sensos-connector-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:abff016902e2c7cb4e5f1d32e141ee1ed094f2bbd8f156b5640260a6f7bd311a",
+    "calibration_ref": null,
+    "content_id": "cnt:010703206046f5cb15644f7c337247cf74d51cc325c363f82910daacd349128e",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-connector",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-sensos-connector-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:ab2dd055d606d0ba86ab308091a5cf5f2561118d47c5f040e6ccb0daedc512e3",
+    "calibration_ref": null,
+    "content_id": "cnt:8c22541ed832117d09c599e57ae0fc0411346b6cb50013fabaee217a27ffed06",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-connector",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v110-sensos-connector-interpretation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:63d8bf09aee1af114059038e097b95de746c8894052dacd440aaaeeddaf3ffd8",
+    "calibration_ref": null,
+    "content_id": "cnt:a21e1e98b45502940e6ce5d014d6e577fe673f12e0c0cda3cbd91fb528e4972e",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "selection",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-connector",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v110-sensos-connector-selection",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac",
+    "calibration_ref": null,
+    "content_id": "cnt:12425086f402eea978d1126b27db24c286358060ec3b6994b77a29dd22029e4f",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-inference",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-sensos-inference-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:e5706b3aef9859696eb9ebb28b476d7b2e0192af26441e03d512ecdf343925d0",
+    "calibration_ref": null,
+    "content_id": "cnt:1ba3f45d383a5dac05d7b1fa679fbbbca1ef739f9af5d62296bfd491c13cbac3",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-inference",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v110-sensos-inference-interpretation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:1ce840fe9bcdb7655b0a4d9d0b607636952147833e5816e58ca69dbe55dfff0b",
+    "calibration_ref": null,
+    "content_id": "cnt:279e8b7aa208968ddf1dfdb339cda6069f86c29c2dfbb40f867ffddcdec690dd",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-inference",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v100-sensos-inference-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v100-nvs-kernel-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924",
+    "calibration_ref": null,
+    "content_id": "cnt:c7d7deb6e52cf608e0ad30efc288d89c223e448ccef67f33f6dcbe41f412b798",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-nvs-kernel-observation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:33837c986cdf9e8af96740d9f21d470a2f7a3b63df5920ba6788110de62ccb0c",
+    "calibration_ref": null,
+    "content_id": "cnt:733887dc78cabd43801bd048a89dacd7b8059a52d033a38678085fdd013621f8",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "evidence",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "hext",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v100-hext-evidence",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:98df453b6aab996b04116d7846403ab8f215832a2f90221348c19c3af2f6be33",
+    "calibration_ref": null,
+    "content_id": "cnt:9defd394806826747ce02df101cf4b17b6beb52a7abfb07271c4f880ce33ce4c",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "evidence",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "hext",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-hext-evidence",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:90083c55f5cdc722c97548e14655becac600602e3bcdbe4d3e1be8b90ae15ca5",
+    "calibration_ref": null,
+    "content_id": "cnt:9335b7bb2556d52f5c0e4f7751e80b5090cdb728446a7d8189b1d739f3632dad",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "selection",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-ux",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v100-sensos-ux-selection",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:30b487fd68ab3b6ce51a089ff93a55431b26bade62b75813a4ac6608d6508509",
+    "calibration_ref": null,
+    "content_id": "cnt:1c6273786af6af5d9fe4ca74ccaad1f90c654fc7c91f1a038849af0a6b73c217",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "selection",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-ux",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-sensos-ux-selection",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:2d8fa393eedb250eec8a8823b6d345e0b17c89535dd93b6c6713d1da01c80c3d",
+    "calibration_ref": null,
+    "content_id": "cnt:7ae155b081b749cc01564332d03e35cc03b8b48e74756e6e38efc17ca89a2ae0",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "adapter:carry-evidence",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-adapter-prefix-interpretation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:747fe7adb1e996e7c52e966a0730427d66388bb8e7c1e4fda90b132c6b21f8f6",
+    "calibration_ref": null,
+    "content_id": "cnt:834316d94dcde7c8880dc4eca31ffb07d92d2a8f771f24465ab0b94857ce71bc",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "capability:fs-read",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "v110-capability-prefix-interpretation",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:5fe07cfbbad6108b9f95122763e4fbbaced4a144d0017b5134da9ed676fc04e6",
+    "calibration_ref": null,
+    "content_id": "cnt:510d3cdb440e96da9e6f3bb3e0a55573e93b174288cd80e15621e01b8cc8c8e1",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "mystery-tool",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v110-unknown-producer",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:238ef3e9893f05c0500f994905f7a2c73477664533f65546091e9ec7c15272cf",
+    "calibration_ref": null,
+    "content_id": "cnt:03974385b543b8c0316b401095a2f4fdd9d4d58a8e1dc72b28fd2659a5d137ef",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "mystery-tool",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "S4"
+    ],
+    "result": "reject"
+   },
+   "id": "v100-unknown-producer",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.1"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-1.0.1",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.2.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-1.2.0",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "2.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-2.0.0",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "0.6.2"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-0.6.2",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-1.1",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0-rc1"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-1.1.0-rc1",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": ""
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-empty",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:abff016902e2c7cb4e5f1d32e141ee1ed094f2bbd8f156b5640260a6f7bd311a",
+    "calibration_ref": null,
+    "content_id": "cnt:010703206046f5cb15644f7c337247cf74d51cc325c363f82910daacd349128e",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.2.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "sensos-connector",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "unsupported_contract_version"
+    ],
+    "result": "reject"
+   },
+   "id": "unsupported-version-1.2.0-would-pass-110-rules",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "no-contract",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": null,
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-null",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": "IC-00 1.1.0",
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-string",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": [
+     "IC-00",
+     "1.1.0"
+    ],
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-list",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-without-version",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": 110
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-version-number",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+    "calibration_ref": null,
+    "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+    "contract": {
+     "id": "IC-00",
+     "version": null
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "contract-version-null",
+   "lookup": {}
+  },
+  {
+   "envelope": [],
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "envelope-is-a-list",
+   "lookup": {}
+  },
+  {
+   "envelope": null,
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "envelope-is-null",
+   "lookup": {}
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924",
+    "calibration_ref": null,
+    "content_id": "cnt:c7d7deb6e52cf608e0ad30efc288d89c223e448ccef67f33f6dcbe41f412b798",
+    "contract": {
+     "id": "IC-99",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "observation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 1
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "nvs-kernel",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 1,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "v110-wrong-contract-id",
+   "lookup": {}
+  }
+ ],
+ "format": "check-envelope-versioned/1",
+ "rule": "check_envelope_versioned(envelope, lookup) returns the set of violation codes in expect.codes (empty = accept); the rule is selected by contract.version; an unsupported version is `unsupported_contract_version`; a version that cannot be read is `schema`"
+}
