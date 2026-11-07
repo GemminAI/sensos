@@ -1,0 +1,1441 @@
+{
+ "cases": [
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.0.0",
+   "envelope": {
+    "artifact_id": "art:9732e56a0cd7082cf7c0793f585ada5e57e08a31c0e24b9c7dc288a68c4346db",
+    "calibration_ref": null,
+    "content_id": "cnt:d3713f7235a39fb4683aa0f4f521784ab2ac043dcbfca78891ac35bb1beccfda",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": []
+    }
+   },
+   "id": "parent-1.0.0-child-1.0.0",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+     "calibration_ref": null,
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:fe0b6d9ac988608ea688e03176f9d9a3111b3606694ed4e21f370042cf675ffd",
+    "calibration_ref": null,
+    "content_id": "cnt:3cdfe899bd5766d4e6b3dcdb758f2c4f5163dcb43a9eed6ea484011e95a12d94",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": []
+    }
+   },
+   "id": "parent-1.0.0-child-1.1.0",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+     "calibration_ref": null,
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:21b6f94e77cfbff67062d0cf5b2bb646c7cb397305920bc4f099e1f0140f5733",
+    "calibration_ref": null,
+    "content_id": "cnt:99d8f5b2caa799b2c8fa6c9f03ef4acc1b89e5f056a5a1b1542f909803430c6b",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": []
+    }
+   },
+   "id": "parent-1.1.0-child-1.1.0",
+   "lookup": {
+    "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac": {
+     "content_id": "cnt:12425086f402eea978d1126b27db24c286358060ec3b6994b77a29dd22029e4f",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.1.0",
+   "parents": {
+    "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac": {
+     "artifact_id": "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac",
+     "calibration_ref": null,
+     "content_id": "cnt:12425086f402eea978d1126b27db24c286358060ec3b6994b77a29dd22029e4f",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.1.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "sensos-inference",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.0.0",
+   "envelope": {
+    "artifact_id": "art:932884f1d6692273ff19b389e62f3d45c9bddcfc02b8a552daf4e586a6912710",
+    "calibration_ref": null,
+    "content_id": "cnt:d2325f5d4cfc3bb333b069f2771777b318b54a0bbe5680a69470e056dadc84bd",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": []
+    }
+   },
+   "id": "parent-1.1.0-child-1.0.0",
+   "lookup": {
+    "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac": {
+     "content_id": "cnt:12425086f402eea978d1126b27db24c286358060ec3b6994b77a29dd22029e4f",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.1.0",
+   "parents": {
+    "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac": {
+     "artifact_id": "art:4fe3e8f0324177d52b3c9af9f033fac335a60a9f851084ebb46101d8b7587fac",
+     "calibration_ref": null,
+     "content_id": "cnt:12425086f402eea978d1126b27db24c286358060ec3b6994b77a29dd22029e4f",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.1.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "sensos-inference",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:44359d159982e1e38e180263eb900f7be0f083185ced3f77492964b47769b447",
+    "calibration_ref": null,
+    "content_id": "cnt:564dd4b2a032e333aa027fa4654f1027a0f2b19aab6482ce1647ee28722386bd",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "artifact_id_mismatch",
+      "content_id_mismatch"
+     ]
+    }
+   },
+   "id": "parent-1.0.0-child-1.1.0-built-on-parent-reread-as-1.1.0",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:c7d7deb6e52cf608e0ad30efc288d89c223e448ccef67f33f6dcbe41f412b798",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+     "calibration_ref": null,
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.0.0",
+   "envelope": {
+    "artifact_id": "art:95e8febcc92c61385156fdb5e0be4dc76a6bda78e91932da130ae8c85014a102",
+    "calibration_ref": null,
+    "content_id": "cnt:d3713f7235a39fb4683aa0f4f521784ab2ac043dcbfca78891ac35bb1beccfda",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "artifact_id_mismatch",
+      "content_id_mismatch"
+     ]
+    }
+   },
+   "id": "parent-1.1.0-child-1.0.0-built-on-parent-reread-as-1.0.0",
+   "lookup": {
+    "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.1.0",
+   "parents": {
+    "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924": {
+     "artifact_id": "art:4e699f18fed6b88de39f5106e9ff8544d5c3f2df7b0fe874fd9af36b5425c924",
+     "calibration_ref": null,
+     "content_id": "cnt:c7d7deb6e52cf608e0ad30efc288d89c223e448ccef67f33f6dcbe41f412b798",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.1.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:8ece49e602fe8af13edeea11ff4d4e382feba5cf951e90b909bfc177b5785fe4",
+    "calibration_ref": null,
+    "content_id": "cnt:348e4d2da01499a829195e9538a37e9c2fae8be6fad80506fb23be5bf6469cfa",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "parent_invalid"
+     ]
+    }
+   },
+   "id": "parent-unsupported-version-2.0.0",
+   "lookup": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "2.0.0",
+   "parents": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "artifact_id": "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc",
+     "calibration_ref": null,
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "contract": {
+      "id": "IC-00",
+      "version": "2.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "child_version": "1.0.0",
+   "envelope": {
+    "artifact_id": "art:8d7a5d05edf3b7d6a3334efe68f26ecedacad84e9a24ec83649815b9f3ad7a9a",
+    "calibration_ref": null,
+    "content_id": "cnt:5a9ef06b6b1918074bc0af0e6516744aa7899ed8e2144ff9c630dde131aac3bc",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 3
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 3,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": []
+    }
+   },
+   "id": "grandparent-1.0.0-parent-1.1.0-child-1.0.0",
+   "lookup": {
+    "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c": {
+     "content_id": "cnt:3fd6104d18e12b3c59f2a1417f7cad19e460e5d4e80647570648f2fc8075de9f",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 2
+    }
+   },
+   "parent_version": "1.1.0",
+   "parents": {
+    "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c": {
+     "artifact_id": "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c",
+     "calibration_ref": null,
+     "content_id": "cnt:3fd6104d18e12b3c59f2a1417f7cad19e460e5d4e80647570648f2fc8075de9f",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.1.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "interpretation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [
+      {
+       "artifact_ids": [
+        "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+       ],
+       "ordered": false,
+       "role": "trajectory"
+      }
+     ],
+     "payload": {
+      "n": 2
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-runtime",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 2,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:4fdf2bd3c07d8d3441a2e47239865dff9a3afcd5ad9d9fc15022d07be70400e4",
+    "calibration_ref": null,
+    "content_id": "cnt:6b711ea91bf17f176d4248bca56d17e17ee4b4d07342a0170e57f99f0049513d",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 6
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 6,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "parent_key_mismatch",
+      "parent_unknown"
+     ]
+    }
+   },
+   "id": "parent-key-is-another-artifact",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:fa836a1e6cacfbc13b1b05de75b4cb55554f602bcb91b3558a45a5c235433cfa",
+     "calibration_ref": null,
+     "content_id": "cnt:43934e379abdf1c7be10663bc54ed78f7859164de7f63c1ac5c10ce6a782d84e",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 99
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 5,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "3.0.0",
+   "envelope": {
+    "artifact_id": "art:8ece49e602fe8af13edeea11ff4d4e382feba5cf951e90b909bfc177b5785fe4",
+    "calibration_ref": null,
+    "content_id": "cnt:348e4d2da01499a829195e9538a37e9c2fae8be6fad80506fb23be5bf6469cfa",
+    "contract": {
+     "id": "IC-00",
+     "version": "3.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": [
+      "unsupported_contract_version"
+     ]
+    },
+    "b": {
+     "codes": [
+      "unsupported_contract_version"
+     ]
+    }
+   },
+   "id": "child-unsupported-version-with-invalid-parent",
+   "lookup": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "2.0.0",
+   "parents": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "artifact_id": "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc",
+     "calibration_ref": null,
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "contract": {
+      "id": "IC-00",
+      "version": "2.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:8ece49e602fe8af13edeea11ff4d4e382feba5cf951e90b909bfc177b5785fe4",
+    "calibration_ref": null,
+    "content_id": "cnt:348e4d2da01499a829195e9538a37e9c2fae8be6fad80506fb23be5bf6469cfa",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1",
+    "unknown_field": 1
+   },
+   "expect": {
+    "a": {
+     "codes": [
+      "schema"
+     ]
+    },
+    "b": {
+     "codes": [
+      "schema"
+     ]
+    }
+   },
+   "id": "child-schema-error-with-invalid-parent",
+   "lookup": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "2.0.0",
+   "parents": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "artifact_id": "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc",
+     "calibration_ref": null,
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "contract": {
+      "id": "IC-00",
+      "version": "2.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:f2b550b5aae99afbf9fa621454a5350416e3b4419e82c2dc3b5f74570eb1cff9",
+    "calibration_ref": null,
+    "content_id": "cnt:8247d6ffbbc643b33c1ac35af8ed9b1c5325fde7e51c00c61d294ce77be068da",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "hext",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": [
+      "S4"
+     ]
+    },
+    "b": {
+     "codes": [
+      "parent_invalid"
+     ]
+    }
+   },
+   "id": "child-S4-with-invalid-parent",
+   "lookup": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "2.0.0",
+   "parents": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "artifact_id": "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc",
+     "calibration_ref": null,
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "contract": {
+      "id": "IC-00",
+      "version": "2.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:39c7ac1f82242647448e2d1abdbb1c3d178a2621603bfebaa701164f632b036b",
+    "calibration_ref": null,
+    "content_id": "cnt:2c17b83c0deffa6ae021e86a51723fa953e285860bf656ce174d6478b94905da",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "hext",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": [
+      "S4"
+     ]
+    },
+    "b": {
+     "codes": [
+      "S4"
+     ]
+    }
+   },
+   "id": "child-S4-with-valid-parent",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+     "calibration_ref": null,
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  },
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.1.0",
+   "envelope": {
+    "artifact_id": "art:fe0b6d9ac988608ea688e03176f9d9a3111b3606694ed4e21f370042cf675ffd",
+    "calibration_ref": null,
+    "content_id": "cnt:3cdfe899bd5766d4e6b3dcdb758f2c4f5163dcb43a9eed6ea484011e95a12d94",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "parent_invalid"
+     ]
+    }
+   },
+   "id": "unreferenced-invalid-parent-entry",
+   "lookup": {
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 1
+    }
+   },
+   "parent_version": "1.0.0",
+   "parents": {
+    "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc": {
+     "artifact_id": "art:8fb476161dac8a7c1e908f41ef961e2bda98a73efb95b69b6d3994645ad941bc",
+     "calibration_ref": null,
+     "content_id": "cnt:add5ea020184c538450068730e4f8475e4d9893e0bc14eee2e37399fed0894cc",
+     "contract": {
+      "id": "IC-00",
+      "version": "2.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    },
+    "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6": {
+     "artifact_id": "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6",
+     "calibration_ref": null,
+     "content_id": "cnt:e31acf662cdeb41433ffca113c4dd97f29267cc309519c9e5f113091b17b698d",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.0.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "observation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [],
+     "payload": {
+      "n": 1
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-kernel",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 1,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  }
+ ],
+ "format": "parent-versions/1",
+ "rule": "expect.a: check_envelope_versioned(envelope, lookup) (lookup is trusted); expect.b: check_envelope_with_parents(envelope, parents, ancestor_lookup) (the parents are checked with their own version's rule and their content_id is recomputed from their own contract)"
+}
