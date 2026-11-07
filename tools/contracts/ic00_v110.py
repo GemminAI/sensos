@@ -26,7 +26,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from contracts.check import Violation, _parent_ids, _s5, _s8, _s16
+from contracts.check import Violation, _parent_ids, _s5, _s16
 from contracts.errors import ContractError
 from contracts.ids import Lookup, artifact_id, content_id
 from contracts.schemas import load_schema, validator
@@ -119,3 +119,29 @@ def check_envelope(envelope: Mapping[str, Any], lookup: Lookup) -> list[Violatio
     out.extend(_s8(envelope, known))
     out.extend(_s5(envelope, known, calibration, lookup))
     return out
+
+
+def _s8(envelope: Mapping[str, Any], parents: list[Mapping[str, Any]]) -> list[Violation]:
+    """S8 for 1.1.0 (D-116 (2), D-117). Same decisions as ``check._s8`` (1.0.0, frozen, untouched).
+
+    The parents' ``observation_id`` values other than None (key missing or null) are counted as kinds by
+    equality, not by hash, so a list or a dict does not raise. The type and the form are not checked (D-116 (7)
+    leaves that open). Equality is Python's ``==``, so ``1`` and ``True`` are one kind, as in the set that
+    ``check._s8`` builds.
+    """
+    own = envelope["observation_id"]
+    if not envelope["parents"]:
+        if envelope["kind"] == "observation" and own is None:
+            return [Violation("S8", "a root observation needs an observation_id")]
+        return []
+    seen: list[Any] = []
+    for p in parents:
+        value = p.get("observation_id")
+        if value is not None and not any(value == s for s in seen):
+            seen.append(value)
+    if len(seen) == 1:
+        if not own == seen[0]:
+            return [Violation("S8", "derived artifact must inherit the parents' observation_id")]
+    elif own is not None:
+        return [Violation("S8", "observation_id must be null (parents span 0 or several observations)")]
+    return []

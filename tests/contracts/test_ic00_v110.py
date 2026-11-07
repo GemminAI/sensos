@@ -409,3 +409,92 @@ def test_d116_b_form_does_not_run_step_3_when_step_2_reports() -> None:
     env2["content_id"] = "cnt:" + "f" * 64
     reached = _codes(ic00_versions.check_envelope_with_parents(env2, {good["artifact_id"]: good}, {}))
     assert {"calibration_unknown", "content_id_mismatch", "S8"} <= set(reached)
+
+
+# ---- D-117: S8 of 1.1.0 counts kinds by equality; a list or a dict does not raise ----
+
+def _obs1() -> str:
+    from contracts import ids
+
+    return ids.observation_id(_SES, 1)
+
+
+def _s8_multi(parent_obs: list[Any], child_obs: str | None, *, child_seq: int = 2, parent_seq: int = 1, producer: str = "meaning-space-runtime") -> tuple[dict[str, Any], dict[str, Any]]:
+    parents = [_root("nvs-kernel", "observation", "1.1.0", seq=parent_seq, payload={"n": 1, "parent": i}) for i in range(len(parent_obs))]
+    lookup = {}
+    for parent, value in zip(parents, parent_obs, strict=True):
+        entry = dict(_stored(parent))
+        if value == "<absent>":
+            entry.pop("observation_id")
+        else:
+            entry["observation_id"] = value
+        lookup[parent["artifact_id"]] = entry
+    env = _env(name=producer, kind="interpretation", payload={"n": 2}, seq=child_seq, session=_SES, obs=child_obs,
+               parents=[{"role": "trajectory", "ordered": False, "artifact_ids": sorted(p["artifact_id"] for p in parents)}])
+    env["contract"]["version"] = "1.1.0"
+    return seal(env, {p["artifact_id"]: _stored(p) for p in parents}), lookup
+
+
+def _run_s8(parent_obs: list[Any], child_obs: str | None, **kw: Any) -> list[str]:
+    child, lookup = _s8_multi(parent_obs, child_obs, **kw)
+    return _codes(ic00_versions.check_envelope_versioned(child, lookup))
+
+
+@pytest.mark.parametrize("value", [[], ["OBS0"], {}, {"a": 1}], ids=["list-empty", "list-OBS0", "dict-empty", "dict-a1"])
+@pytest.mark.parametrize("child_obs", [_OBS0, None], ids=["child-OBS0", "child-null"])
+def test_d117_list_and_dict_in_a_parent_entry_do_not_raise_and_are_one_non_null_kind(value: Any, child_obs: str | None) -> None:
+    assert _run_s8([value], child_obs) == ["S8"]
+    # the other checks still return their codes: S4 (producer), S5 (seq), and the id recomputation
+    assert _run_s8([value], child_obs, producer="mystery-tool") == ["S4", "S8"]
+    assert _run_s8([value], child_obs, parent_seq=5) == ["S5", "S8"]
+    child, lookup = _s8_multi([value], child_obs)
+    assert {"content_id_mismatch", "artifact_id_mismatch", "S8"} <= set(_codes(ic00_versions.check_envelope_versioned(_tampered(child), lookup)))
+
+
+@pytest.mark.parametrize(
+    ("pair", "child_obs", "codes"),
+    [
+        (["OBS0", "<absent>"], "OBS0", []), (["OBS0", "<absent>"], None, ["S8"]),
+        (["OBS0", None], "OBS0", []), (["OBS0", None], None, ["S8"]),
+        (["OBS0", "OBS1"], "OBS0", ["S8"]), (["OBS0", "OBS1"], None, []),
+        (["<absent>", None], "OBS0", ["S8"]), (["<absent>", None], None, []),
+        (["OBS0", 5], "OBS0", ["S8"]), (["OBS0", 5], None, []),
+        (["OBS0", "OBS0"], "OBS0", []), (["OBS0", "OBS0"], None, ["S8"]),
+        (["OBS0", [1]], "OBS0", ["S8"]), (["OBS0", {"a": 1}], None, []),  # a list or a dict among several parents
+        ([[1], [1]], None, ["S8"]), ([[1], [2]], None, []),  # equal lists are one kind, different lists are two
+    ],
+)
+def test_d117_s8_over_several_parents_is_independent_of_their_order(pair: list[Any], child_obs: str | None, codes: list[str]) -> None:
+    real = {"OBS0": _OBS0, "OBS1": _obs1()}
+    resolve = lambda v: real.get(v, v) if isinstance(v, str) and v in real else v  # noqa: E731
+    child_value = _OBS0 if child_obs == "OBS0" else child_obs
+    first = _run_s8([resolve(v) for v in pair], child_value)
+    swapped = _run_s8([resolve(v) for v in reversed(pair)], child_value)
+    assert first == codes == swapped
+
+
+def test_d117_one_and_true_are_one_kind_as_in_1_0_0() -> None:
+    """The kinds are counted with ==, so 1 and True are one kind, as in the set 1.0.0's check._s8 builds."""
+    assert _run_s8([1, True], None) == ["S8"]   # one kind: a null child is S8
+    assert _run_s8([1, True], _OBS0) == ["S8"]  # one non-null kind that is not the child's
+    assert _run_s8([1, 2], None) == []          # two kinds
+    for version_run in (_run_s8,):
+        assert version_run([True], None) == ["S8"] and version_run([False], None) == ["S8"]  # bool: one non-null kind (D-117)
+
+
+def test_d117_1_1_0_has_its_own_s8_and_1_0_0_check_s8_is_unchanged() -> None:
+    assert ic00_v110._s8 is not check._s8
+    # 1.0.0 (frozen, not changed): a list or a dict among the parents' observation_id raises TypeError
+    parent = _root("nvs-kernel", "observation", "1.0.0", seq=1)
+    entry = dict(_stored(parent))
+    entry["observation_id"] = ["OBS0"]
+    env = _env(name="meaning-space-runtime", kind="interpretation", payload={"n": 2}, seq=2, session=_SES, obs=_OBS0,
+               parents=[{"role": "trajectory", "ordered": False, "artifact_ids": [parent["artifact_id"]]}])
+    child = seal(env, {parent["artifact_id"]: _stored(parent)})
+    with pytest.raises(TypeError):
+        check_envelope(child, {parent["artifact_id"]: entry})
+
+
+def test_d117_vectors_for_list_and_dict_are_1_1_0_only() -> None:
+    ids_ = [c["id"] for c in CHECK if "-s8-" in c["id"]]
+    assert len(ids_) == 20 and all(i.startswith("v110-") for i in ids_)

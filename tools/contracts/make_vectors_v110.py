@@ -160,6 +160,48 @@ def check_cases() -> dict[str, Any]:
         for kind_name, value in (("null", None), ("int", 5), ("bool", True), ("list", ["cnt:" + "0" * 64]), ("dict", {"content_id": "x"})):
             bad = {cal["artifact_id"]: {**_stored(cal), "content_id": value}}
             case(f"{tag}-calibration-lookup-content-id-{kind_name}", with_cal(version, ref), ["lookup_incomplete"] if version == "1.1.0" else ["calibration_mismatch"], bad)
+
+    # D-117: S8 in 1.1.0 counts the parents' observation_id kinds by equality (None excluded), so a list or a dict in a
+    # lookup entry does not raise and is one non-null kind. 1.1.0 only: 1.0.0's check._s8 builds a set and raises
+    # TypeError on a list or a dict (1.0.0 is frozen and unchanged, so there is no 1.0.0 vector for them).
+    obs1 = ids.observation_id(_SES, 1)
+    absent = object()
+
+    def s8_case(cid: str, parent_obs: list[Any], child_obs: str | None, codes: list[str]) -> None:
+        parents = [_root("nvs-kernel", "observation", "1.1.0", seq=1, payload={"n": 1, "parent": i}) for i in range(len(parent_obs))]
+        lookup = {}
+        for parent, value in zip(parents, parent_obs, strict=True):
+            entry = _stored(parent)
+            if value is absent:
+                del entry["observation_id"]
+            else:
+                entry["observation_id"] = value
+            lookup[parent["artifact_id"]] = entry
+        env = _env(name="meaning-space-runtime", kind="interpretation", payload={"n": 2}, seq=2, session=_SES, obs=child_obs,
+                   parents=[{"role": "trajectory", "ordered": False, "artifact_ids": sorted(p["artifact_id"] for p in parents)}])
+        env["contract"]["version"] = "1.1.0"
+        case(cid, seal(env, {p["artifact_id"]: _stored(p) for p in parents}), codes, lookup)
+
+    for tag, value in (("list-empty", []), ("list-OBS0", [_OBS0]), ("dict-empty", {}), ("dict-a1", {"a": 1})):
+        s8_case(f"v110-s8-parent-obs-{tag}-child-OBS0", [value], _OBS0, ["S8"])
+        s8_case(f"v110-s8-parent-obs-{tag}-child-null", [value], None, ["S8"])
+    for tag, pair, one_kind in (
+        ("a-OBS0-absent", [_OBS0, absent], True),
+        ("b-OBS0-null", [_OBS0, None], True),
+        ("c-OBS0-OBS1", [_OBS0, obs1], False),
+        ("d-absent-null", [absent, None], False),
+        ("e-OBS0-int", [_OBS0, 5], False),
+        ("f-OBS0-OBS0", [_OBS0, _OBS0], True),
+    ):
+        if tag == "d-absent-null":  # zero kinds: a null child is accepted, any observation_id is S8
+            s8_case(f"v110-s8-parents-{tag}-child-OBS0", pair, _OBS0, ["S8"])
+            s8_case(f"v110-s8-parents-{tag}-child-null", pair, None, [])
+        elif one_kind:  # one kind (OBS0): the child inherits it
+            s8_case(f"v110-s8-parents-{tag}-child-OBS0", pair, _OBS0, [])
+            s8_case(f"v110-s8-parents-{tag}-child-null", pair, None, ["S8"])
+        else:  # several kinds: the child's observation_id must be null
+            s8_case(f"v110-s8-parents-{tag}-child-OBS0", pair, _OBS0, ["S8"])
+            s8_case(f"v110-s8-parents-{tag}-child-null", pair, None, [])
     return {"cases": cases}
 
 
