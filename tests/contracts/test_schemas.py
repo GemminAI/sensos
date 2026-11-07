@@ -104,6 +104,7 @@ def test_lock_matches_files() -> None:
         "msr/archive/0.7.0/calibration.schema.json": "7a702f1ff8305ed808885a46b9b200d75380f66fd45276888867ad1eb93d8c72",
         "msr/archive/0.6.2/geometry-measurement.schema.json": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4",
         "msr/archive/0.7.0/geometry-measurement.schema.json": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a",
+        "msr/archive/0.8.0/geometry-measurement.schema.json": "d9aa7ea59237c4c6f19d33bbac6506ce0983b10ce46a3ee3a94b076b9bd05f6e",
     }
     for rel, digest in archived.items():
         assert hashlib.sha256((CONTRACTS_DIR / rel).read_bytes()).hexdigest() == digest, rel
@@ -189,7 +190,8 @@ def _single() -> dict[str, Any]:
 
 
 def _errors(sample: dict[str, Any]) -> list[Any]:
-    return list(validator("msr/geometry-measurement.schema.json").iter_errors(sample))
+    # these samples are the 0.7.1 shape (no input_scope): the IC-02 0.8.0 rule, kept in the archive
+    return list(validator("msr/archive/0.8.0/geometry-measurement.schema.json").iter_errors(sample))
 
 
 def test_msr_pair_and_single_samples_pass() -> None:

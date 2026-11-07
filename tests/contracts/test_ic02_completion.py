@@ -33,6 +33,7 @@ def test_record_pins_exactly_the_ic02_contract_files() -> None:
 # Files the 0.8.0 change superseded: the record's bytes now live under msr/archive/ (verbatim copies).
 SUPERSEDED = {
     "msr/calibration.schema.json": "msr/archive/0.7.0/calibration.schema.json",
+    "msr/geometry-measurement.schema.json": "msr/archive/0.8.0/geometry-measurement.schema.json",
     "msr/README.md": "msr/archive/0.7.1/README.md",
     "msr/vectors/calibration-parents.json": "msr/archive/0.7.1/calibration-parents.json",
 }

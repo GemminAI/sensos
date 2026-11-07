@@ -1,0 +1,49 @@
+{
+  "contract_id": "IC-02",
+  "version": "0.9.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the IC-02 0.9.0 files (D-129, first-128-rows window). Separate from tests/contracts/contract.lock (IC-00 1.0.0 + IC-02 0.8.0 payload schemas) and contract-v110.lock (IC-00 1.1.0). Update only by an explicit, reviewed contract change.",
+  "payload_schemas": {
+    "msr.geometry-measurement": "0.9.0",
+    "msr.trajectory-window": "0.9.0",
+    "msr.calibration": "0.8.0 (unchanged)"
+  },
+  "files": [
+    {
+      "path": "docs/architecture/contracts/msr/README.md",
+      "sha256": "6b171eb103d46879f82f27ac656fb07c9723f4dad03ce21673479701eb0d7abf"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/geometry-measurement.schema.json",
+      "sha256": "e1f3a54e2f8bf43bc5e931dd1f2ebd74e1bf5b2c3e1ff9be9c6147efd336f4d0"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/trajectory-window.schema.json",
+      "sha256": "332c636de733b173cb4236c07f6e875047b0ca04fad9ae2028b4b4291448f42c"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/vectors/window.json",
+      "sha256": "e8930e74dd15b329eac7fee5acd1322126fcd04f181ea209fce4eab27c26ea11"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/archive/0.8.0/geometry-measurement.schema.json",
+      "sha256": "d9aa7ea59237c4c6f19d33bbac6506ce0983b10ce46a3ee3a94b076b9bd05f6e"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/archive/0.8.0/README.md",
+      "sha256": "d16f04c6ddb904c2a6b7d75372d55b10ca4c3040f78c1bb04d7ed488f5f7c974"
+    },
+    {
+      "path": "docs/architecture/contracts/IC-02/0.9.0/CHANGE.md",
+      "sha256": "6885fbab7ddbea8538c5708ecc2ff8a1b67fd1a96e47ac824925796ce62a56d4"
+    },
+    {
+      "path": "tools/contracts/ic02_window.py",
+      "sha256": "55c2cff0ddccf8e9b96de998d149e53c110ae3cecd652e06fa8f5da47cedc24f"
+    },
+    {
+      "path": "tools/contracts/make_vectors_window.py",
+      "sha256": "4327773ff0723af0afb411ae7fab09cdf62d2a69e829702325d603a5ed0cee09"
+    }
+  ]
+}
