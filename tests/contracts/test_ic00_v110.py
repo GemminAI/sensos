@@ -25,6 +25,7 @@ def _load(name: str) -> dict[str, Any]:
 
 CHECK = _load("check-envelope.json")["cases"]
 PARENTS = _load("parent-versions.json")["cases"]
+UNSPECIFIED = _load("parent-versions-unspecified.json")["cases"]
 
 
 def _codes(violations: list[check.Violation]) -> list[str]:
@@ -64,7 +65,6 @@ def test_a_and_b_differ_only_where_the_lookup_is_untrustworthy() -> None:
             "parent-1.0.0-child-1.1.0-built-on-parent-reread-as-1.1.0",
             "parent-1.1.0-child-1.0.0-built-on-parent-reread-as-1.0.0",
             "parent-unsupported-version-2.0.0",
-            "grandparent-missing-from-ancestor-lookup",
             "parent-key-is-another-artifact",
             "child-S4-with-invalid-parent",
             "unreferenced-invalid-parent-entry",
@@ -77,7 +77,6 @@ def test_b_form_follows_d111_d112_order() -> None:
     by_id = {c["id"]: c for c in PARENTS}
     for cid, codes in (
         ("parent-unsupported-version-2.0.0", ["parent_invalid"]),
-        ("grandparent-missing-from-ancestor-lookup", ["parent_invalid", "parent_unknown"]),
         ("parent-key-is-another-artifact", ["parent_key_mismatch", "parent_unknown"]),  # D-111 (4)
         ("child-unsupported-version-with-invalid-parent", ["unsupported_contract_version"]),
         ("child-schema-error-with-invalid-parent", ["schema"]),
@@ -90,6 +89,16 @@ def test_b_form_follows_d111_d112_order() -> None:
         b = set(c["expect"]["b"]["codes"])
         step2 = {"parent_invalid", "parent_key_mismatch", "parent_unknown"}
         assert not (b & step2 and b - step2), c["id"]  # no step 3 code beside a step 2 code
+
+
+def test_d113_the_grandparent_case_is_outside_the_frozen_vectors() -> None:
+    """D-113: moved, expectations unchanged; 14 frozen cases, 1 unspecified."""
+    assert len(PARENTS) == 14 and len(UNSPECIFIED) == 1
+    (case,) = UNSPECIFIED
+    assert case["id"] == "grandparent-missing-from-ancestor-lookup"
+    assert case["expect"] == {"a": {"codes": []}, "b": {"codes": ["parent_invalid", "parent_unknown"]}}
+    assert case["id"] not in {c["id"] for c in PARENTS}
+    assert _codes(ic00_versions.check_envelope_versioned(case["envelope"], case["lookup"])) == []
 
 
 def test_unspecified_b_form_cases_are_outside_the_frozen_vectors() -> None:

@@ -279,13 +279,21 @@ def parent_cases() -> dict[str, Any]:
     return {"cases": cases}
 
 
+# D-113: excluded from the freeze (D-111 (4) and D-112 conflict: no grandparent content_id, so the
+# parent's artifact_id cannot be computed). Moved, expectations unchanged.
+UNSPECIFIED_IDS = ("grandparent-missing-from-ancestor-lookup",)
+
+
 def generate() -> dict[str, dict[str, Any]]:
+    all_cases = parent_cases()["cases"]
+    frozen = [c for c in all_cases if c["id"] not in UNSPECIFIED_IDS]
+    unspecified = [c for c in all_cases if c["id"] in UNSPECIFIED_IDS]
     return {
         "parent-versions-unspecified.json": {
             "format": "parent-versions/1",
             "status": "not frozen (not in the 1.1.0 FREEZE.md)",
-            "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json.",
-            "cases": [],
+            "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json. D-113: grandparent-missing-from-ancestor-lookup (D-111 (4) and D-112 conflict) is here, with its expectations unchanged.",
+            "cases": unspecified,
         },
         "check-envelope.json": {
             "format": "check-envelope-versioned/1",
@@ -295,7 +303,7 @@ def generate() -> dict[str, dict[str, Any]]:
         "parent-versions.json": {
             "format": "parent-versions/1",
             "rule": "expect.a: check_envelope_versioned(envelope, lookup) (lookup is trusted); expect.b: check_envelope_with_parents(envelope, parents, ancestor_lookup) (the parents are checked with their own version's rule and their content_id is recomputed from their own contract)",
-            **parent_cases(),
+            "cases": frozen,
         },
     }
 
