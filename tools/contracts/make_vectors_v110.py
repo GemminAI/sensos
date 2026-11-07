@@ -74,12 +74,12 @@ def _child(
 def check_cases() -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
 
-    def case(cid: str, env: Any, codes: list[str]) -> None:
+    def case(cid: str, env: Any, codes: list[str], lookup: dict[str, Any] | None = None) -> None:
         cases.append(
             {
                 "id": cid,
                 "envelope": env,
-                "lookup": {},
+                "lookup": lookup or {},
                 "expect": {"codes": codes, "result": "accept" if not codes else "reject"},
             }
         )
@@ -129,6 +129,27 @@ def check_cases() -> dict[str, Any]:
     wrong_id = _root("nvs-kernel", "observation", "1.1.0")
     wrong_id["contract"]["id"] = "IC-99"
     case("v110-wrong-contract-id", wrong_id, ["schema"])
+
+    # D-114: calibration_ref only (no parents, so no parent_unknown). The calibration artifact is in the lookup
+    # only; calibration_ref need not be in parents (IC-00 envelope level; S20 is IC-02's rule).
+    def with_cal(version: str, ref: dict[str, str] | None) -> dict[str, Any]:
+        env = _env(name="meaning-space-runtime", kind="interpretation", payload={"n": 2}, seq=2, session=_SES, obs=None, calibration_ref=ref)
+        env["contract"]["version"] = version
+        return seal(env, {})
+
+    for version in ("1.1.0", "1.0.0"):
+        cal = _root("meaning-space-runtime", "interpretation", version, seq=1, payload={"calibration": 1})
+        cal_lookup = {cal["artifact_id"]: _stored(cal)}
+        ref = {"artifact_id": cal["artifact_id"], "content_id": cal["content_id"]}
+        tag = "v110" if version == "1.1.0" else "v100"
+        case(f"{tag}-calibration-null", with_cal(version, None), [])
+        case(f"{tag}-calibration-ok-not-in-parents", with_cal(version, ref), [], cal_lookup)
+        case(f"{tag}-calibration-unknown-not-in-parents", with_cal(version, ref), ["calibration_unknown"])
+        wrong = {**ref, "content_id": "cnt:" + "9" * 64}
+        case(f"{tag}-calibration-mismatch", with_cal(version, wrong), ["calibration_mismatch"], cal_lookup)
+        incomplete = {cal["artifact_id"]: {k: v for k, v in _stored(cal).items() if k != "content_id"}}
+        # D-114 (1): 1.1.0 separates "entry without content_id" from a mismatch; 1.0.0 reports a mismatch
+        case(f"{tag}-calibration-lookup-incomplete", with_cal(version, ref), ["lookup_incomplete"] if version == "1.1.0" else ["calibration_mismatch"], incomplete)
     return {"cases": cases}
 
 

@@ -50,6 +50,28 @@ def test_parent_versions_b_form(case: dict[str, Any]) -> None:
     assert _codes(got) == case["expect"]["b"]["codes"]
 
 
+def test_d114_calibration_states_are_separate_in_1_1_0() -> None:
+    """D-114 (1)(2): unknown / mismatch / lookup_incomplete, calibration_ref outside parents, null gives none."""
+    by_id = {c["id"]: c for c in CHECK}
+    expected = {
+        "v110-calibration-null": [],
+        "v110-calibration-ok-not-in-parents": [],
+        "v110-calibration-unknown-not-in-parents": ["calibration_unknown"],
+        "v110-calibration-mismatch": ["calibration_mismatch"],
+        "v110-calibration-lookup-incomplete": ["lookup_incomplete"],
+        # 1.0.0 is unchanged: an entry without content_id is a mismatch there
+        "v100-calibration-null": [],
+        "v100-calibration-ok-not-in-parents": [],
+        "v100-calibration-unknown-not-in-parents": ["calibration_unknown"],
+        "v100-calibration-mismatch": ["calibration_mismatch"],
+        "v100-calibration-lookup-incomplete": ["calibration_mismatch"],
+    }
+    for cid, codes in expected.items():
+        assert by_id[cid]["expect"]["codes"] == codes, cid
+        assert "parent_unknown" not in by_id[cid]["expect"]["codes"]
+        assert not by_id[cid]["envelope"]["parents"]
+
+
 def test_the_four_version_pairs_are_independent_cases() -> None:
     pairs = {(c["parent_version"], c["child_version"]) for c in PARENTS if c["id"].startswith("parent-1.")}
     assert pairs == {("1.0.0", "1.0.0"), ("1.0.0", "1.1.0"), ("1.1.0", "1.1.0"), ("1.1.0", "1.0.0")}

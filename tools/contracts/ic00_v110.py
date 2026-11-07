@@ -85,10 +85,13 @@ def check_envelope(envelope: Mapping[str, Any], lookup: Lookup) -> list[Violatio
         out.append(Violation("parent_unknown", a))
     calibration = envelope["calibration_ref"]
     if calibration is not None:
+        # D-114 (1): three separate states. (1.0.0 reports an entry without content_id as a mismatch.)
         stored = lookup.get(calibration["artifact_id"])
         if stored is None:
             out.append(Violation("calibration_unknown", calibration["artifact_id"]))
-        elif stored.get("content_id") != calibration["content_id"]:
+        elif stored.get("content_id") is None:
+            out.append(Violation("lookup_incomplete", f"calibration {calibration['artifact_id']}: stored entry has no content_id"))
+        elif stored["content_id"] != calibration["content_id"]:
             out.append(Violation("calibration_mismatch", calibration["artifact_id"]))
 
     if not unknown and not any("duplicate" in v.message for v in s16):
