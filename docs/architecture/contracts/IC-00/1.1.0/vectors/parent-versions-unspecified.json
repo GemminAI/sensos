@@ -1,0 +1,6 @@
+{
+ "cases": [],
+ "format": "parent-versions/1",
+ "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json.",
+ "status": "not frozen (not in the 1.1.0 FREEZE.md)"
+}

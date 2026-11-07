@@ -207,7 +207,7 @@ def parent_cases() -> dict[str, Any]:
         {parent["artifact_id"]: parent},
         {},
         [],
-        ["S8", "parent_invalid", "parent_unknown"],
+        ["parent_invalid"],
     )
 
     # B: the parents' own parents (ancestor_lookup), a 1.0.0 root -> 1.1.0 parent -> 1.0.0 child
@@ -226,7 +226,7 @@ def parent_cases() -> dict[str, Any]:
         {mid["artifact_id"]: mid},
         {},
         [],
-        ["S8", "parent_invalid", "parent_unknown"],
+        ["parent_invalid", "parent_unknown"],
     )
 
     # B: the key is not the parent's artifact_id
@@ -243,13 +243,50 @@ def parent_cases() -> dict[str, Any]:
         {parent["artifact_id"]: other},
         {},
         [],
-        ["S8", "parent_key_mismatch", "parent_unknown"],
+        ["parent_key_mismatch", "parent_unknown"],
     )
+
+    # D-112 (2)(3)(4). A trusts the lookup, so the parent is invisible to it.
+    bad_parent = _root("nvs-kernel", "observation", "1.0.0")
+    bad_parent["contract"]["version"] = "2.0.0"
+    bad_parent = seal(bad_parent, {})
+    bad_lookup = _stored_map(bad_parent)
+    bad_map = {bad_parent["artifact_id"]: bad_parent}
+
+    # (2) a code in step 1 (version, schema) of the child is returned alone; the parents are not looked at
+    child = _child("meaning-space-runtime", "interpretation", "1.1.0", [bad_parent["artifact_id"]], bad_lookup, seq=2)
+    unsupported_child = copy.deepcopy(child)
+    unsupported_child["contract"]["version"] = "3.0.0"
+    add("child-unsupported-version-with-invalid-parent", "2.0.0", "3.0.0", unsupported_child, bad_lookup, bad_map, {},
+        ["unsupported_contract_version"], ["unsupported_contract_version"])
+    schema_child = copy.deepcopy(child)
+    schema_child["unknown_field"] = 1
+    add("child-schema-error-with-invalid-parent", "2.0.0", "1.1.0", schema_child, bad_lookup, bad_map, {},
+        ["schema"], ["schema"])
+
+    # (3) S4 belongs to step 3: with an invalid parent it is not reported, with valid parents it is
+    s4_child = _child("hext", "interpretation", "1.1.0", [bad_parent["artifact_id"]], bad_lookup, seq=2)
+    add("child-S4-with-invalid-parent", "2.0.0", "1.1.0", s4_child, bad_lookup, bad_map, {}, ["S4"], ["parent_invalid"])
+    good = _root("nvs-kernel", "observation", "1.0.0")
+    good_lookup = _stored_map(good)
+    s4_child = _child("hext", "interpretation", "1.1.0", [good["artifact_id"]], good_lookup, seq=2)
+    add("child-S4-with-valid-parent", "1.0.0", "1.1.0", s4_child, good_lookup, {good["artifact_id"]: good}, {}, ["S4"], ["S4"])
+
+    # (4) an entry of parent_envelopes the child does not refer to is checked too
+    child = _child("meaning-space-runtime", "interpretation", "1.1.0", [good["artifact_id"]], good_lookup, seq=2)
+    add("unreferenced-invalid-parent-entry", "1.0.0", "1.1.0", child, good_lookup,
+        {good["artifact_id"]: good, **bad_map}, {}, [], ["parent_invalid"])
     return {"cases": cases}
 
 
 def generate() -> dict[str, dict[str, Any]]:
     return {
+        "parent-versions-unspecified.json": {
+            "format": "parent-versions/1",
+            "status": "not frozen (not in the 1.1.0 FREEZE.md)",
+            "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json.",
+            "cases": [],
+        },
         "check-envelope.json": {
             "format": "check-envelope-versioned/1",
             "rule": "check_envelope_versioned(envelope, lookup) returns the set of violation codes in expect.codes (empty = accept); the rule is selected by contract.version; an unsupported version is `unsupported_contract_version`; a version that cannot be read is `schema`",

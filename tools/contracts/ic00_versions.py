@@ -33,8 +33,9 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from contracts import check, ic00_v110
-from contracts.check import Violation
-from contracts.ids import Lookup, content_id
+from contracts.check import Violation, _parent_ids
+from contracts.errors import ContractError
+from contracts.ids import Lookup, artifact_id, content_id
 
 RULES: dict[str, Callable[[Mapping[str, Any], Lookup], list[Violation]]] = {
     "1.0.0": check.check_envelope,
@@ -66,40 +67,80 @@ def check_envelope_versioned(envelope: Mapping[str, Any], lookup: Lookup) -> lis
     return RULES[version](envelope, lookup)
 
 
+def _schema_violations(version: str, envelope: Mapping[str, Any]) -> list[Violation] | None:
+    """Step 1 of B for the child: the schema of its own version. None = passes (D-111 (2) (1))."""
+    validator = check._envelope_validator() if version == "1.0.0" else ic00_v110._envelope_validator()
+    errors = sorted(validator.iter_errors(envelope), key=lambda e: list(e.absolute_path))
+    if not errors:
+        return None
+    first = errors[0]
+    return [Violation("schema", f"{'/'.join(str(p) for p in first.absolute_path)}: {first.message}")]
+
+
 def check_envelope_with_parents(
     envelope: Mapping[str, Any],
     parent_envelopes: Mapping[str, Mapping[str, Any]],
     ancestor_lookup: Lookup,
 ) -> list[Violation]:
-    """B: check the parents with their own version's rule, then the child.
+    """B (D-110 (2), D-111, D-112): check the parents with their own version's rule, then the child.
 
-    ``parent_envelopes``: artifact_id -> the parent's envelope (every parent and the
-    calibration artifact the child refers to). ``ancestor_lookup``: artifact_id ->
+    ``parent_envelopes``: artifact_id -> the parent's envelope. ``ancestor_lookup``: artifact_id ->
     {content_id, seq, observation_id} of the parents' own parents (empty for roots).
-    Extra codes: ``parent_invalid`` (the parent fails its own version's rule; the
-    message lists the codes), ``parent_key_mismatch`` (the key is not the parent's
-    artifact_id). A parent that fails is left out of the child's lookup, so the
-    child also reports ``parent_unknown`` for it.
+
+    Order (D-111 (2), D-112 (2)(3)):
+
+    1. version and schema of the child. Any code here is returned alone.
+    2. the parents. Every entry of ``parent_envelopes`` is checked, also an entry the child does
+       not refer to (D-112 (4)). Codes: ``parent_invalid`` (the parent fails its own version's rule,
+       an unsupported version included; the message lists the codes), ``parent_key_mismatch`` (the key
+       is not the artifact_id the parent's envelope computes), ``parent_unknown`` (a parent of the
+       entry is not in ``ancestor_lookup``, or the artifact_id computed by no entry equals a
+       reference of the child; D-112 (1)). Any code here is returned alone.
+    3. the child (S4, S16, S5, S8, the recomputed ids, ...), with the parents' content_id
+       recomputed from each parent's own contract.
+
+    Not specified (D-112; the behaviour here is not frozen): the code when a parent's artifact_id
+    cannot be computed (here: no key and no reference code of its own, its missing parents are
+    reported as ``parent_unknown``); an ``ancestor_lookup`` entry with missing fields; where the
+    child's ``calibration_ref`` is looked up (here: the parents' envelopes only); whether
+    ``calibration_unknown`` for a parent uses ``ancestor_lookup`` (here: it does, through the
+    parent's own check).
     """
     version, violation = contract_version(envelope)
     if violation is not None or version is None:
         return [violation] if violation is not None else []
+    if (schema := _schema_violations(version, envelope)) is not None:
+        return schema
+
     out: list[Violation] = []
     lookup: dict[str, dict[str, Any]] = {}
+    computed_ids: set[str] = set()
     for key in sorted(parent_envelopes):
         parent = parent_envelopes[key]
         found = check_envelope_versioned(parent, ancestor_lookup)
         if found:
             codes = ",".join(sorted({v.code for v in found}))
             out.append(Violation("parent_invalid", f"{key}: {codes}"))
+            for v in found:
+                if v.code == "parent_unknown":
+                    out.append(Violation("parent_unknown", f"{key}: {v.message}"))
+        try:
+            computed = artifact_id(parent, ancestor_lookup)
+            parent_cid = content_id(parent, ancestor_lookup)  # the parent's own contract, as stored
+        except (ContractError, KeyError, TypeError):
             continue
-        if parent["artifact_id"] != key:
+        computed_ids.add(computed)
+        if computed != key:
             out.append(Violation("parent_key_mismatch", key))
-            continue
-        lookup[key] = {
-            "content_id": content_id(parent, ancestor_lookup),  # parent's own contract, as stored
-            "observation_id": parent["observation_id"],
-            "seq": parent["seq"],
-        }
-    out.extend(RULES[version](envelope, lookup))
-    return out
+        if not found:
+            lookup[computed] = {
+                "content_id": parent_cid,
+                "observation_id": parent["observation_id"],
+                "seq": parent["seq"],
+            }
+    for a in _parent_ids(envelope):
+        if a not in computed_ids:
+            out.append(Violation("parent_unknown", a))
+    if out:
+        return out
+    return RULES[version](envelope, lookup)

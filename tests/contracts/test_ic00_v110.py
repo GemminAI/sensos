@@ -66,8 +66,40 @@ def test_a_and_b_differ_only_where_the_lookup_is_untrustworthy() -> None:
             "parent-unsupported-version-2.0.0",
             "grandparent-missing-from-ancestor-lookup",
             "parent-key-is-another-artifact",
+            "child-S4-with-invalid-parent",
+            "unreferenced-invalid-parent-entry",
         ]
     )
+
+
+def test_b_form_follows_d111_d112_order() -> None:
+    """D-111 (2), D-112 (2)(3)(4): a code of the child's step 1 or of step 2 (the parents) is returned alone."""
+    by_id = {c["id"]: c for c in PARENTS}
+    for cid, codes in (
+        ("parent-unsupported-version-2.0.0", ["parent_invalid"]),
+        ("grandparent-missing-from-ancestor-lookup", ["parent_invalid", "parent_unknown"]),
+        ("parent-key-is-another-artifact", ["parent_key_mismatch", "parent_unknown"]),  # D-111 (4)
+        ("child-unsupported-version-with-invalid-parent", ["unsupported_contract_version"]),
+        ("child-schema-error-with-invalid-parent", ["schema"]),
+        ("child-S4-with-invalid-parent", ["parent_invalid"]),
+        ("child-S4-with-valid-parent", ["S4"]),
+        ("unreferenced-invalid-parent-entry", ["parent_invalid"]),
+    ):
+        assert by_id[cid]["expect"]["b"]["codes"] == codes, cid
+    for c in PARENTS:
+        b = set(c["expect"]["b"]["codes"])
+        step2 = {"parent_invalid", "parent_key_mismatch", "parent_unknown"}
+        assert not (b & step2 and b - step2), c["id"]  # no step 3 code beside a step 2 code
+
+
+def test_unspecified_b_form_cases_are_outside_the_frozen_vectors() -> None:
+    doc = _load("parent-versions-unspecified.json")
+    assert doc["status"].startswith("not frozen")
+    assert isinstance(doc["cases"], list)
+    assert not {c["id"] for c in doc["cases"]} & {c["id"] for c in PARENTS}
+    for c in doc["cases"]:
+        got = ic00_versions.check_envelope_with_parents(c["envelope"], c["parents"], c["ancestor_lookup"])
+        assert _codes(got) == c["expect"]["b"]["codes"], c["id"]
 
 
 def test_parent_content_id_is_not_re_read_under_the_childs_version() -> None:
