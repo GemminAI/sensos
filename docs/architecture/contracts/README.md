@@ -2,7 +2,7 @@
 
 **正の設計書**：`~/vaults/20260124/日報/202611/20261106/SensOS 受け渡し契約 設計書 v0.7.2.md`（v0.7.2、ai-draft、Tomo の承認待ち）。
 この README はその要約で、食い違いがあれば設計書が正。`common/` の IC-00（artifact・provenance・uncertainty）は **1.0.0**（凍結の準備中。`FREEZE.md` とタグは独立の確かめの後）。
-`common/blob.schema.json`・`msr/calibration.schema.json` は **0.7.0**、`msr/geometry-measurement.schema.json` は **0.7.1**（いずれも草案）。旧スキーマ（0.6.1・0.6.2・0.7.0）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
+`common/blob.schema.json` は **0.7.0**、`msr/calibration.schema.json` は **0.8.0**（`exponent` を足した）、`msr/geometry-measurement.schema.json` は **0.7.1**（いずれも草案）。旧スキーマ（0.6.1・0.6.2・0.7.0）は `msr/archive/` に残す。`msr/README.md` に系列の定義と判定の式。
 
 ## 0. 目的と原則（§0・§0.1）
 

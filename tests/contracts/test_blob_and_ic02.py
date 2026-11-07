@@ -219,12 +219,17 @@ def test_s38_uncalibrated_and_unknown_calibration() -> None:
 
 def test_s39_unknown_payload_schema_versions_are_refused() -> None:
     envelope, blobs = single_world()
-    assert set(PAYLOAD_SCHEMAS) == {("msr.geometry-measurement", "0.7.1"), ("msr.calibration", "0.7.0")}
+    assert set(PAYLOAD_SCHEMAS) == {
+        ("msr.geometry-measurement", "0.7.1"),
+        ("msr.calibration", "0.8.0"),
+        ("msr.calibration", "0.7.0"),  # old rule, kept; never read as 0.8.0
+    }
     for ident, version in (
         ("msr.geometry-measurement", "0.6.2"),
         ("msr.geometry-measurement", "0.7.0"),  # superseded draft
         ("msr.geometry-measurement", "1.0.0"),  # IC-00's version is not a payload version
         ("msr.calibration", "0.6.1"),
+        ("msr.calibration", "0.8.1"),
         ("nope", "0.7.0"),
     ):
         bad = {**envelope, "payload_schema": {"id": ident, "version": version}}
@@ -232,12 +237,35 @@ def test_s39_unknown_payload_schema_versions_are_refused() -> None:
 
 
 def test_calibration_payload_goes_through_its_schema() -> None:
-    from test_schemas import _cal
+    from test_schemas import _cal, _cal080
 
-    ok = {"payload_schema": {"id": "msr.calibration", "version": "0.7.0"}, "payload": _cal(), "parents": []}
+    ok = {"payload_schema": {"id": "msr.calibration", "version": "0.8.0"}, "payload": _cal080(), "parents": []}
     assert check_payload(ok) == []
-    bad = {**ok, "payload": {**_cal(), "extra": 1}}
+    bad = {**ok, "payload": {**_cal080(), "extra": 1}}
     assert {v.code for v in check_payload(bad)} == {"schema"}
+    old = {"payload_schema": {"id": "msr.calibration", "version": "0.7.0"}, "payload": _cal(), "parents": []}
+    assert check_payload(old) == []  # the old rule is unchanged
+    assert {v.code for v in check_payload({**old, "payload_schema": {"id": "msr.calibration", "version": "0.8.0"}})} == {"schema"}
+
+
+EXPONENT_CASES = json.loads(
+    (VECTORS.parent.parent / "msr/vectors/calibration-exponent.json").read_text(encoding="utf-8")
+)["cases"]
+
+
+@pytest.mark.parametrize("case", EXPONENT_CASES, ids=[c["id"] for c in EXPONENT_CASES])
+def test_calibration_exponent_vectors(case: dict[str, Any]) -> None:
+    found = check_payload({"payload_schema": case["payload_schema"], "payload": case["payload"], "parents": []})
+    assert sorted({v.code for v in found}) == case["expect"]["codes"]
+    assert (not found) == (case["expect"]["result"] == "accept")
+
+
+def test_exponent_range_is_not_checked() -> None:
+    from test_schemas import _cal080
+
+    for exponent in (-1000, -31, -30, -20, 0, 7, 10**30):
+        envelope = {"payload_schema": {"id": "msr.calibration", "version": "0.8.0"}, "payload": {**_cal080(), "exponent": exponent}, "parents": []}
+        assert check_payload(envelope) == [], exponent
 
 
 # ------------------------------------------- 0.7.1: T=1 / T=2, README vs schema

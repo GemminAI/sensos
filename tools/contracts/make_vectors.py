@@ -773,6 +773,7 @@ def calibration_parent_cases() -> dict[str, Any]:
 
     def payload(null_set: list[str], codebook: dict[str, str] | None) -> dict[str, Any]:
         return {
+            "exponent": -30,
             "space_id": "S1", "model_build_id": "m1",
             "method": {"name": "msr-geometry-calibration", "version": "msr-geometry-calibration/1",
                        "quantiles": {"epsilon": 1 << 25, "delta": 1 << 26, "floor": [1 << 25, (1 << 30) - (1 << 25)]}},
@@ -784,7 +785,7 @@ def calibration_parent_cases() -> dict[str, Any]:
 
     def envelope(null_set: list[str], codebook: dict[str, str] | None, parents: list[dict[str, Any]]) -> dict[str, Any]:
         env = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(null_set, codebook), seq=5, session=ses, obs=None, parents=parents)
-        env["payload_schema"] = {"id": "msr.calibration", "version": "0.7.0"}
+        env["payload_schema"] = {"id": "msr.calibration", "version": "0.8.0"}
         return seal(env, {a: {"content_id": c} for a, c in contents.items()})
 
     def role(name: str, artifact_ids: list[str], ordered: bool = False) -> dict[str, Any]:
@@ -808,12 +809,47 @@ def calibration_parent_cases() -> dict[str, Any]:
     case("point1-content-id-is-not-cnt-form", base, {**contents, members[0]: "not-a-content-id"}, "a retrieved content_id is not cnt: + 64 hex (reported by its own code, not as a hash mismatch)")
     case("point1-unrelated-entry-content-id-is-not-cnt-form", base, {**contents, "art:" + "e" * 64: "not-a-content-id"}, "an entry of parent_contents that no parent names also needs a cnt: content_id")
     dup = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(members, None), seq=5, session=ses, obs=None, parents=[role("null_set", members), role("null_set", members)])
-    dup["payload_schema"] = {"id": "msr.calibration", "version": "0.7.0"}
+    dup["payload_schema"] = {"id": "msr.calibration", "version": "0.8.0"}
     case("point3-role-appears-twice", dup, contents, "parents has two null_set roles (not sealed: ids cannot be computed for it)")
     case("point3-codebook-role-without-codebook-ref", envelope(members, None, [role("codebook", [book]), role("null_set", members)]), contents, "parents have a codebook, payload names none")
     case("point4-null-set-is-ordered", envelope(members, None, [role("null_set", members, ordered=True)]), contents)
     case("point4-codebook-is-ordered", envelope(members, ref, [role("codebook", [book], ordered=True), role("null_set", members)]), contents)
     case("point5-null-set-differs-from-parents", envelope(members, None, [role("null_set", members[:2])]), contents, "payload lists 3 artifacts, the parents' null_set has 2")
+    return {"cases": out}
+
+
+# ------------------------------------------------------ calibration exponent (0.8.0)
+
+
+def calibration_exponent_cases() -> dict[str, Any]:
+    """check_payload on a calibration payload: only the presence and the form of ``exponent``
+    are checked in 0.8.0 (no range). 0.7.0 keeps its own rule (no field)."""
+    base: dict[str, Any] = {
+        "space_id": "S1", "model_build_id": "m1",
+        "method": {"name": "msr-geometry-calibration", "version": "msr-geometry-calibration/1",
+                   "quantiles": {"epsilon": 1 << 25, "delta": 1 << 26, "floor": [1 << 25, (1 << 30) - (1 << 25)]}},
+        "null_set": [f"art:{i:064x}" for i in range(2)], "between_alignment": "equal_only",
+        "values": {"noise_floor_lower": 1 << 30, "noise_floor_upper": 2 << 30, "background_mean": 3 << 29,
+                   "epsilon": 1 << 28, "delta": 1 << 20, "w_min": 1, "codebook_ref": None},
+        "sample_config": {"trajectories": 2, "points": 40, "dims": 3},
+    }
+    out: list[dict[str, Any]] = []
+
+    def case(case_id: str, version: str, payload: dict[str, Any], codes: list[str], note: str = "") -> None:
+        out.append({"id": case_id, "note": note, "payload_schema": {"id": "msr.calibration", "version": version}, "payload": payload,
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    for value in (-30, -20):
+        case(f"accept-exponent-{value}", "0.8.0", {"exponent": value, **base}, [], "an integer; the range is not checked")
+    case("reject-exponent-missing", "0.8.0", dict(base), ["schema"], "0.8.0 requires exponent")
+    case("reject-exponent-string", "0.8.0", {"exponent": "-30", **base}, ["schema"])
+    case("reject-exponent-fraction", "0.8.0", {"exponent": -20.5, **base}, ["schema"])
+    case("reject-exponent-integral-float", "0.8.0", {"exponent": -20.0, **base}, ["schema"], "a float is not an integer here, even when integral")
+    case("reject-exponent-bool", "0.8.0", {"exponent": True, **base}, ["schema"])
+    case("reject-exponent-null", "0.8.0", {"exponent": None, **base}, ["schema"])
+    case("reject-0.7.x-payload-declared-0.8.0", "0.8.0", dict(base), ["schema"], "a payload without exponent is never read as 0.8.0")
+    case("accept-0.7.0-old-rule", "0.7.0", dict(base), [], "0.7.0 keeps its own rule (no exponent field, fixed at -30)")
+    case("reject-0.7.0-with-exponent", "0.7.0", {"exponent": -30, **base}, ["schema"], "the old rule has no exponent field")
     return {"cases": out}
 
 
@@ -865,6 +901,11 @@ def generate() -> dict[str, dict[str, Any]]:
             "format": "calibration-parents/1",
             "rule": "check_calibration_parents(envelope, parent_contents): the codes in expect.codes (empty = accept). parent_contents = artifact_id -> content_id of the parents that nvs-runtime fetched from HEKB and confirmed. msr/README.md, section on parent-reference consistency",
             **calibration_parent_cases(),
+        },
+        "msr/vectors/calibration-exponent.json": {
+            "format": "calibration-exponent/1",
+            "rule": "check_payload(envelope) with envelope = {payload_schema: {id: msr.calibration, version}, payload, parents: []}: the codes in expect.codes (empty = accept). 0.8.0 requires `exponent` and checks only that it is a JSON integer (no range); 0.7.0 keeps its own rule. msr/README.md, section on the exponent",
+            **calibration_exponent_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope/1",

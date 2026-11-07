@@ -19,9 +19,11 @@ SCHEMA_PATHS = (
     "msr/calibration.schema.json",
     "msr/geometry-measurement.schema.json",
 )
-# Kept for the record (design Appendix A); self-contained, not used by any gate.
+# Kept for the record (design Appendix A); self-contained. Only the 0.7.0 calibration
+# is still read by the Gate (its own rule, exponent fixed at -30; never read as 0.8.0).
 ARCHIVED_PATHS = (
     "msr/archive/0.6.1/calibration.schema.json",
+    "msr/archive/0.7.0/calibration.schema.json",
     "msr/archive/0.6.2/geometry-measurement.schema.json",
     "msr/archive/0.7.0/geometry-measurement.schema.json",
 )
