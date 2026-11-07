@@ -89,8 +89,10 @@ def check_envelope(envelope: Mapping[str, Any], lookup: Lookup) -> list[Violatio
         stored = lookup.get(calibration["artifact_id"])
         if stored is None:
             out.append(Violation("calibration_unknown", calibration["artifact_id"]))
-        elif stored.get("content_id") is None:
-            out.append(Violation("lookup_incomplete", f"calibration {calibration['artifact_id']}: stored entry has no content_id"))
+        elif not isinstance(stored.get("content_id"), str):
+            # D-115: content_id must exist as a string (a missing key, null or a non-str type is incomplete;
+            # bool, int, list, dict are not str)
+            out.append(Violation("lookup_incomplete", f"calibration {calibration['artifact_id']}: stored content_id is not a string"))
         elif stored["content_id"] != calibration["content_id"]:
             out.append(Violation("calibration_mismatch", calibration["artifact_id"]))
 

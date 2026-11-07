@@ -1,7 +1,7 @@
 # IC-00 1.1.0 — 凍結の記録（下書き）
 
 - **状態：未凍結**（独立検証は合格、D-113）。この記録は下書きで、1.1.0 は凍結していない。1.0.0 との後方互換性の確認（Tomo の 11-07 13:24 の判断）は実施済みで、結果は下の「1.0.0 との後方互換性の確認」に記す。独立検証（D-113）とは別のもの。タグは作っていない。
-- **決定**：D-107（1.1.0 は Minor。`sensos-connector` と `sensos-inference` を登録）、D-108（登録の規則と規則選択、`sensos-connector` の payload の制限は未実装、独立検証、順序）、D-109（順序の読み替え、契約版の適用範囲は IC-00 だけ）、D-110（未対応の版は `unsupported_contract_version`、版をまたぐ親子は許可）、D-111（B 形の入力・優先順位・符号）、D-114（calibration の参照の検査を 3 状態に分ける）、D-113（独立検証の合格、見本 1 件を凍結の対象から除外）、D-112（D-111 の補足。`parent_unknown` は計算した `artifact_id` で判定、①で符号が出たら①だけ、S4・S16・S5 は③、`parent_envelopes` の全項目を②の対象にする）。`OKF/Decisions.md`
+- **決定**：D-107（1.1.0 は Minor。`sensos-connector` と `sensos-inference` を登録）、D-108（登録の規則と規則選択、`sensos-connector` の payload の制限は未実装、独立検証、順序）、D-109（順序の読み替え、契約版の適用範囲は IC-00 だけ）、D-110（未対応の版は `unsupported_contract_version`、版をまたぐ親子は許可）、D-111（B 形の入力・優先順位・符号）、D-115（D-114 の補足。`lookup_incomplete` の範囲）、D-114（calibration の参照の検査を 3 状態に分ける）、D-113（独立検証の合格、見本 1 件を凍結の対象から除外）、D-112（D-111 の補足。`parent_unknown` は計算した `artifact_id` で判定、①で符号が出たら①だけ、S4・S16・S5 は③、`parent_envelopes` の全項目を②の対象にする）。`OKF/Decisions.md`
 - **設計書**：`SensOS 受け渡し契約 設計書 v0.7.2.md`（vault の `日報/202611/20261106/`）。sha256 `f4a865ccf58027c64ed4b9197bc9bd0ebb76fa8f63bd69e1bf7c7a7dd137b911`。設計書の §2.4・S27 に `sensos-connector` はあるが `sensos-inference` は無い（D-101・D-108 (1) が根拠）。設計書の更新は未実施。
 - 下の sha256 は `tests/contracts/test_freeze_v110.py` が実際のファイルと照合する。`contract-v110.lock`（`tests/contracts/`）は 1.1.0 のスキーマの lock で、既存の `contract.lock`（1.0.0）とは別。
 
@@ -29,8 +29,11 @@
 - 3 つの状態を分ける：`calibration_unknown`（`calibration_ref.artifact_id` が `lookup` に無い）／`calibration_mismatch`（項目があり `content_id` がそろっていて、`calibration_ref.content_id` と一致しない）／`lookup_incomplete`（項目はあるが `content_id` が無い、または null）。1.0.0 の `check_envelope` は、`content_id` の無い項目を `calibration_mismatch` にする（変えていない）。1.1.0 だけが分ける。`ic00_v110.py` の修正。A 形・B 形とも同じ経路（B 形の親の検査は変えていない）。
 - `calibration_ref` が `parents` に含まれなくてよいことを確かめた：IC-00 の封筒の定義（設計書 v0.7.2 の 163・165 行、provenance スキーマ、1.0.0 の `check.py` 107〜116 行）は両者を独立に扱う。含めるよう求める S20（762 行）は IC-02 の計測の payload の規則で、IC-00 の検査器の範囲外。
 - 見本の追加（`vectors/check-envelope.json` に 10 件。`parents` は空で `parent_unknown` は並ばない）：`v110-calibration-{null, ok-not-in-parents, unknown-not-in-parents, mismatch, lookup-incomplete}` と、1.0.0 の動作の記録 `v100-calibration-{同じ 5 件}`（`v100-calibration-lookup-incomplete` の期待は `calibration_mismatch`）。既存の 1.1.0 の見本の期待結果は変わらない（既存の見本に `calibration_ref` が非 null のものは無い）。
+- **D-115（D-114 の補足）**：1.1.0 の `lookup_incomplete` は、`calibration_ref.artifact_id` の項目が `lookup` にあるが `content_id` が**文字列として存在しない**とき（キーが無い・null・str 以外の型：int・bool・list・dict など）。`content_id` が文字列で `calibration_ref.content_id` と違うときだけ `calibration_mismatch`。実装は `isinstance(content_id, str)` で判定する（bool は str ではない）。1.0.0 は変えていない（どの場合も `calibration_mismatch`）。D-115 による修正前は、null だけが `lookup_incomplete` で、int・bool・list・dict は `calibration_mismatch` だった。
+- D-115 の見本の追加（`check-envelope.json` に 10 件）：`{v110, v100}-calibration-lookup-content-id-{null, int, bool, list, dict}`（1.1.0 の期待は `lookup_incomplete`、1.0.0 の期待は `calibration_mismatch`）。既存の見本の期待結果は変わらない。
+- **D-115 が決めずに残した点（実装は現状のままで、保証しない。凍結の対象外）**：`content_id` が文字列だが形式（`cnt:` ＋ 64 文字の 16 進）に合わないときの扱い（比較の結果は `calibration_mismatch`。見本は `vectors/check-envelope-unspecified.json` の 2 件）／`lookup` の項目で `content_id` 以外の欄が欠けているときの扱い（`seq` が整数でないときは既存の経路が `lookup_incomplete`）／`calibration_unknown`・`lookup_incomplete` のときの S5 の比較と id の再計算（従来のまま）／B 形での calibration の参照先（D-112 の未規定の点）。
 - B 形の calibration の参照先（D-112 の未規定の点）に依存する見本は、追加していない。
-- D-113 の独立検証と、1.0.0 との後方互換性の確認は、この修正の前に行ったもの。D-114 (3) により、直した後にやり直す（この時点では未実施）。
+- D-113 の独立検証と、1.0.0 との後方互換性の確認は、D-114・D-115 の修正の前に行ったもの。D-114 (3) により、直した後にやり直す（独立検証の再比較は未実施。互換性の試験 `test_ic00_v110_compat.py` は修正後も通過）。
 
 ## 範囲（1.1.0 で足したもの）
 
@@ -57,9 +60,9 @@
 | ファイル | sha256 |
 |---|---|
 | `docs/architecture/contracts/IC-00/1.1.0/artifact.schema.json` | `d1ba7c8ff80700eb6111a81e0b06e3ba0b9367887be8588a7187fdee9bb9e39e` |
-| `tools/contracts/ic00_v110.py` | `397f352795a901f8f8ed740ed9c8bb75a9e7664cee21d7aa17a2812991e60652` |
+| `tools/contracts/ic00_v110.py` | `08bff7d9362d8e1647410bde3871cdd1b660c5e14c138a3b39761ffe4852a651` |
 | `tools/contracts/ic00_versions.py` | `52c1c6c3278ae71e66992604391a760f6901afe1c41f5cd8a068768e7bf5f268` |
-| `docs/architecture/contracts/IC-00/1.1.0/vectors/check-envelope.json` | `4385e6fce5df51dbbe4c14c675a7bcc94f626c2014568605f8e5acb0e1e1ed49` |
+| `docs/architecture/contracts/IC-00/1.1.0/vectors/check-envelope.json` | `f78f6757212753d69d35eda0ddfcc200cff8d7a6d2b0fb6cc7382a5a40db212f` |
 | `docs/architecture/contracts/IC-00/1.1.0/vectors/parent-versions.json` | `3fe7296cfdb07a71298f6f74ee4d084c46866e9bf752d9982e54c1941095050d` |
 
 ## 変更の規則

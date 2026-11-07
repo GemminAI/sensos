@@ -59,6 +59,8 @@ def test_d114_calibration_states_are_separate_in_1_1_0() -> None:
         "v110-calibration-unknown-not-in-parents": ["calibration_unknown"],
         "v110-calibration-mismatch": ["calibration_mismatch"],
         "v110-calibration-lookup-incomplete": ["lookup_incomplete"],
+        **{f"v110-calibration-lookup-content-id-{k}": ["lookup_incomplete"] for k in ("null", "int", "bool", "list", "dict")},  # D-115
+        **{f"v100-calibration-lookup-content-id-{k}": ["calibration_mismatch"] for k in ("null", "int", "bool", "list", "dict")},
         # 1.0.0 is unchanged: an entry without content_id is a mismatch there
         "v100-calibration-null": [],
         "v100-calibration-ok-not-in-parents": [],
@@ -70,6 +72,15 @@ def test_d114_calibration_states_are_separate_in_1_1_0() -> None:
         assert by_id[cid]["expect"]["codes"] == codes, cid
         assert "parent_unknown" not in by_id[cid]["expect"]["codes"]
         assert not by_id[cid]["envelope"]["parents"]
+
+
+def test_d115_undecided_calibration_case_is_outside_the_frozen_vectors() -> None:
+    doc = _load("check-envelope-unspecified.json")
+    assert doc["status"].startswith("not frozen")
+    assert {c["id"] for c in doc["cases"]} == {"v110-calibration-lookup-content-id-bad-format", "v100-calibration-lookup-content-id-bad-format"}
+    assert not {c["id"] for c in doc["cases"]} & {c["id"] for c in CHECK}
+    for c in doc["cases"]:
+        assert _codes(ic00_versions.check_envelope_versioned(c["envelope"], c["lookup"])) == c["expect"]["codes"] == ["calibration_mismatch"]
 
 
 def test_the_four_version_pairs_are_independent_cases() -> None:
