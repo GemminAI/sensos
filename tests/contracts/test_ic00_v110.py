@@ -61,6 +61,9 @@ def test_d114_calibration_states_are_separate_in_1_1_0() -> None:
         "v110-calibration-lookup-incomplete": ["lookup_incomplete"],
         **{f"v110-calibration-lookup-content-id-{k}": ["lookup_incomplete"] for k in ("null", "int", "bool", "list", "dict")},  # D-115
         **{f"v100-calibration-lookup-content-id-{k}": ["calibration_mismatch"] for k in ("null", "int", "bool", "list", "dict")},
+        # D-116 (1): a malformed string is incomplete in 1.1.0 (mismatch in 1.0.0)
+        "v110-calibration-lookup-content-id-bad-format": ["lookup_incomplete"],
+        "v100-calibration-lookup-content-id-bad-format": ["calibration_mismatch"],
         # 1.0.0 is unchanged: an entry without content_id is a mismatch there
         "v100-calibration-null": [],
         "v100-calibration-ok-not-in-parents": [],
@@ -72,15 +75,6 @@ def test_d114_calibration_states_are_separate_in_1_1_0() -> None:
         assert by_id[cid]["expect"]["codes"] == codes, cid
         assert "parent_unknown" not in by_id[cid]["expect"]["codes"]
         assert not by_id[cid]["envelope"]["parents"]
-
-
-def test_d115_undecided_calibration_case_is_outside_the_frozen_vectors() -> None:
-    doc = _load("check-envelope-unspecified.json")
-    assert doc["status"].startswith("not frozen")
-    assert {c["id"] for c in doc["cases"]} == {"v110-calibration-lookup-content-id-bad-format", "v100-calibration-lookup-content-id-bad-format"}
-    assert not {c["id"] for c in doc["cases"]} & {c["id"] for c in CHECK}
-    for c in doc["cases"]:
-        assert _codes(ic00_versions.check_envelope_versioned(c["envelope"], c["lookup"])) == c["expect"]["codes"] == ["calibration_mismatch"]
 
 
 def test_the_four_version_pairs_are_independent_cases() -> None:
@@ -231,3 +225,187 @@ def test_vector_counts_cover_the_decided_cases() -> None:
     ):
         assert needed in ids_
     assert sum(1 for c in CHECK if c["expect"]["codes"] == ["unsupported_contract_version"]) >= 5
+
+
+# ---- D-116 (6): which checks ran and which did not ---------------------------------------------------------
+# Observed from outside: the lookup handed to the checker records every read of an entry and of its fields, and
+# a tampered input makes an id recomputation visible in the codes. Nothing of the implementation is inspected.
+
+from contracts.make_vectors import _env, _stored, seal  # noqa: E402
+from make_vectors_v110 import _OBS0, _SES, _root, _with_cal  # noqa: E402
+
+
+class _Entry(dict):  # type: ignore[type-arg]
+    def __init__(self, data: dict[str, Any], log: list[tuple[str, str]], name: str) -> None:
+        super().__init__(data)
+        self._log, self._name = log, name
+
+    def get(self, key: str, default: Any = None) -> Any:
+        self._log.append((self._name, key))
+        return super().get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        self._log.append((self._name, key))
+        return super().__getitem__(key)
+
+
+class _Lookup(dict):  # type: ignore[type-arg]
+    """Records which entries were fetched by value (`fetch`) and which only probed (`probe`)."""
+
+    def __init__(self, data: dict[str, dict[str, Any]], names: dict[str, str]) -> None:
+        self.log: list[tuple[str, str]] = []
+        super().__init__({k: _Entry(v, self.log, names[k]) for k, v in data.items()})
+        self._names = names
+
+    def __contains__(self, key: object) -> bool:
+        self.log.append((self._names.get(str(key), "?"), "<probe>"))
+        return super().__contains__(key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        self.log.append((self._names.get(key, "?"), "<get>"))
+        return super().get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        self.log.append((self._names.get(key, "?"), "<fetch>"))
+        return super().__getitem__(key)
+
+    def fields_read(self, name: str) -> set[str]:
+        return {f for n, f in self.log if n == name and not f.startswith("<")}
+
+    def fetched(self, name: str) -> bool:
+        return (name, "<fetch>") in self.log
+
+
+def _cal_world(version: str = "1.1.0") -> dict[str, Any]:
+    cal = _root("meaning-space-runtime", "interpretation", version, seq=1, payload={"calibration": 1})
+    ref = {"artifact_id": cal["artifact_id"], "content_id": cal["content_id"]}
+    return {"cal": cal, "ref": ref, "child": _with_cal(version, ref), "stored": _stored(cal), "version": version}
+
+
+def _run_cal(env: Any, entry: dict[str, Any] | None, w: dict[str, Any]) -> tuple[list[str], _Lookup]:
+    data = {} if entry is None else {w["cal"]["artifact_id"]: entry}
+    lookup = _Lookup(data, {w["cal"]["artifact_id"]: "cal"})
+    return _codes(ic00_versions.check_envelope_versioned(env, lookup)), lookup
+
+
+def _tampered(env: dict[str, Any]) -> dict[str, Any]:
+    out = json.loads(json.dumps(env))
+    out["payload"] = {"n": 999}
+    return out
+
+
+def test_d116_calibration_unknown_skips_the_s5_comparison_and_runs_the_id_recomputation() -> None:
+    w = _cal_world()
+    codes, lookup = _run_cal(w["child"], None, w)
+    assert codes == ["calibration_unknown"]
+    assert not lookup.fetched("cal") and not lookup.fields_read("cal")  # no entry: nothing of it is read by S5
+    codes, _ = _run_cal(_tampered(w["child"]), None, w)  # the id recomputation runs without the calibration entry
+    assert codes == ["artifact_id_mismatch", "calibration_unknown", "content_id_mismatch"]
+
+
+@pytest.mark.parametrize("bad", [None, 5, True, ["x"], {"a": 1}, "not-a-content-id", "<absent>"], ids=["null", "int", "bool", "list", "dict", "bad-format", "absent"])
+def test_d116_lookup_incomplete_from_content_id_runs_s5_and_the_id_recomputation(bad: Any) -> None:
+    w = _cal_world()
+    entry = dict(w["stored"])
+    if bad == "<absent>":
+        entry.pop("content_id")
+    else:
+        entry["content_id"] = bad
+    codes, lookup = _run_cal(w["child"], entry, w)
+    assert codes == ["lookup_incomplete"]
+    assert {"content_id", "seq"} <= lookup.fields_read("cal")  # the content_id check and the S5 comparison both read the entry
+    late = dict(entry, seq=5)  # S5 ran: a calibration seq not before the child's is reported
+    assert _run_cal(w["child"], late, w)[0] == ["S5", "lookup_incomplete"]
+    assert _run_cal(_tampered(w["child"]), entry, w)[0] == ["artifact_id_mismatch", "content_id_mismatch", "lookup_incomplete"]  # ids ran
+    # 1.0.0: the same stored content_id is a mismatch there, with the same checks run
+    w0 = _cal_world("1.0.0")
+    e0 = dict(w0["stored"])
+    if bad == "<absent>":
+        e0.pop("content_id")
+    else:
+        e0["content_id"] = bad
+    assert _run_cal(w0["child"], e0, w0)[0] == ["calibration_mismatch"]
+
+
+@pytest.mark.parametrize("seq", ["1", None, True, "<absent>"], ids=["str", "null", "bool", "absent"])
+def test_d116_lookup_incomplete_from_seq_does_not_stop_the_other_checks(seq: Any) -> None:
+    w = _cal_world()
+    entry = dict(w["stored"])
+    if seq == "<absent>":
+        entry.pop("seq")
+    else:
+        entry["seq"] = seq
+    codes, lookup = _run_cal(w["child"], entry, w)
+    assert codes == ["lookup_incomplete"] and {"content_id", "seq"} <= lookup.fields_read("cal")
+    wrong = dict(entry, content_id="cnt:" + "9" * 64)  # the content_id comparison ran too
+    assert _run_cal(w["child"], wrong, w)[0] == ["calibration_mismatch", "lookup_incomplete"]
+    assert _run_cal(_tampered(w["child"]), entry, w)[0] == ["artifact_id_mismatch", "content_id_mismatch", "lookup_incomplete"]
+
+
+def test_d116_calibration_entry_observation_id_is_never_read() -> None:
+    w = _cal_world()
+    for obs in ("<absent>", None, 5):
+        entry = dict(w["stored"])
+        if obs == "<absent>":
+            entry.pop("observation_id")
+        else:
+            entry["observation_id"] = obs
+        codes, lookup = _run_cal(w["child"], entry, w)
+        assert codes == [] and "observation_id" not in lookup.fields_read("cal")
+
+
+def _s8_world(version: str = "1.1.0") -> dict[str, Any]:
+    parent = _root("nvs-kernel", "observation", version, seq=1)  # observation_id OBS0
+
+    def child(obs: str | None) -> dict[str, Any]:
+        env = _env(name="meaning-space-runtime", kind="interpretation", payload={"n": 2}, seq=2, session=_SES, obs=obs,
+                   parents=[{"role": "trajectory", "ordered": False, "artifact_ids": [parent["artifact_id"]]}])
+        env["contract"]["version"] = version
+        return seal(env, {parent["artifact_id"]: _stored(parent)})
+
+    return {"parent": parent, "child": child}
+
+
+@pytest.mark.parametrize("version", ["1.1.0", "1.0.0"])
+@pytest.mark.parametrize(
+    ("parent_obs", "child_obs", "codes"),
+    [
+        ("<absent>", "null", []), ("null", "null", []), ("<absent>", "OBS0", ["S8"]), ("null", "OBS0", ["S8"]),  # D-116 (2): all parents null or missing
+        ("OBS0", "OBS0", []), ("OBS0", "null", ["S8"]),  # one non-null kind
+        (5, "OBS0", ["S8"]), (5, "null", ["S8"]), ("", "OBS0", ["S8"]), ("", "null", ["S8"]),  # int and "" are one non-null kind, unchecked
+    ],
+)
+def test_d116_s8_contract_table(version: str, parent_obs: Any, child_obs: str, codes: list[str]) -> None:
+    w = _s8_world(version)
+    entry = dict(_stored(w["parent"]))
+    if parent_obs == "<absent>":
+        entry.pop("observation_id")
+    else:
+        entry["observation_id"] = {"null": None, "OBS0": _OBS0}.get(parent_obs, parent_obs) if isinstance(parent_obs, str) else parent_obs
+    child = w["child"]({"null": None, "OBS0": _OBS0}[child_obs])
+    got = _codes(ic00_versions.check_envelope_versioned(child, {w["parent"]["artifact_id"]: entry}))
+    assert got == codes  # no lookup_incomplete for a missing observation_id
+    ids_ran = _codes(ic00_versions.check_envelope_versioned(_tampered(child), {w["parent"]["artifact_id"]: entry}))
+    assert {"content_id_mismatch", "artifact_id_mismatch"} <= set(ids_ran)  # the id recomputation does not depend on observation_id
+
+
+def test_d116_b_form_does_not_run_step_3_when_step_2_reports() -> None:
+    w = _s8_world()
+    bad = _root("nvs-kernel", "observation", "1.1.0", seq=1)
+    bad["contract"]["version"] = "2.0.0"
+    bad = seal(bad, {})
+    env = _env(name="meaning-space-runtime", kind="interpretation", payload={"n": 2}, seq=2, session=_SES, obs="obs:" + "7" * 64,
+               calibration_ref={"artifact_id": "art:" + "1" * 64, "content_id": "cnt:" + "2" * 64},
+               parents=[{"role": "trajectory", "ordered": False, "artifact_ids": [bad["artifact_id"]]}])
+    env["contract"]["version"] = "1.1.0"
+    child = seal(env, {bad["artifact_id"]: _stored(bad)})
+    child["content_id"] = "cnt:" + "f" * 64  # step 3 would report: id mismatch, S8, calibration_unknown
+    got = _codes(ic00_versions.check_envelope_with_parents(child, {bad["artifact_id"]: bad}, {}))
+    assert got == ["parent_invalid"]
+    # with a valid parent the same child reaches step 3 (the codes step 3 gives)
+    good = w["parent"]
+    env2 = json.loads(json.dumps(child))
+    env2["parents"][0]["artifact_ids"] = [good["artifact_id"]]
+    env2["content_id"] = "cnt:" + "f" * 64
+    reached = _codes(ic00_versions.check_envelope_with_parents(env2, {good["artifact_id"]: good}, {}))
+    assert {"calibration_unknown", "content_id_mismatch", "S8"} <= set(reached)

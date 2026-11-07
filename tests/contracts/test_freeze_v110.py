@@ -54,7 +54,7 @@ def test_1_1_0_recorded_file_is_unchanged(path: str, digest: str) -> None:
 def test_1_1_0_freeze_states_what_it_is_not() -> None:
     text = FREEZE_110.read_text(encoding="utf-8")
     assert "状態：未凍結" in text
-    for needle in ("D-107", "D-108", "D-109", "D-110", "D-111", "D-112", "D-113", "D-114", "D-115", "未規定", "parent-versions-unspecified.json", "未実装", "S28", "sensos-connector", "IC-06"):
+    for needle in ("D-107", "D-108", "D-109", "D-110", "D-111", "D-112", "D-113", "D-114", "D-115", "D-116", "未規定", "parent-versions-unspecified.json", "未実装", "S28", "sensos-connector", "IC-06"):
         assert needle in text, needle
     assert "状態：検証済み" not in text and "状態：凍結" not in text
 

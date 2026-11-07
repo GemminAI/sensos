@@ -1693,6 +1693,58 @@
     ],
     "result": "reject"
    },
+   "id": "v110-calibration-lookup-content-id-bad-format",
+   "lookup": {
+    "art:da12f548490872c06291e2798d5cf368e4e9eb52a9affda0d057bab5edefcfc2": {
+     "content_id": "not-a-content-id",
+     "observation_id": null,
+     "seq": 1
+    }
+   }
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:e5e1046137fb2e4e0e14e634a2d959504158d034a12b1db82017debbebff171c",
+    "calibration_ref": {
+     "artifact_id": "art:da12f548490872c06291e2798d5cf368e4e9eb52a9affda0d057bab5edefcfc2",
+     "content_id": "cnt:0efa179d85dd7f37788bae385ecf34249bee70536298df4496c6cd0b7b2bbd74"
+    },
+    "content_id": "cnt:53507aa781e6754aed03d03f0e4589941cd852500d01790d5963e3e66366453c",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.1.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "lookup_incomplete"
+    ],
+    "result": "reject"
+   },
    "id": "v110-calibration-lookup-content-id-null",
    "lookup": {
     "art:da12f548490872c06291e2798d5cf368e4e9eb52a9affda0d057bab5edefcfc2": {
@@ -2149,6 +2201,58 @@
    "id": "v100-calibration-lookup-incomplete",
    "lookup": {
     "art:867c68996132217472ec1f5b1eb486bba6c1c37c2a6f598a2b7eec865d7c7f7f": {
+     "observation_id": null,
+     "seq": 1
+    }
+   }
+  },
+  {
+   "envelope": {
+    "artifact_id": "art:c13627d8b94ec1fe54b483b7d8e0dd573b40b551fb0a830a23ff7a9fc2b84f55",
+    "calibration_ref": {
+     "artifact_id": "art:867c68996132217472ec1f5b1eb486bba6c1c37c2a6f598a2b7eec865d7c7f7f",
+     "content_id": "cnt:b98c5235a304878ce75a7873a0b61bc3120bfed09bcb483f8e1fd6ec3c6336c7"
+    },
+    "content_id": "cnt:15a01fcd48fe2553e4b9396ba8fd7ade9fa3e160a9a6fdac8ebc6d4948448ba3",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": null,
+    "observed_at": null,
+    "parents": [],
+    "payload": {
+     "n": 2
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 2,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "codes": [
+     "calibration_mismatch"
+    ],
+    "result": "reject"
+   },
+   "id": "v100-calibration-lookup-content-id-bad-format",
+   "lookup": {
+    "art:867c68996132217472ec1f5b1eb486bba6c1c37c2a6f598a2b7eec865d7c7f7f": {
+     "content_id": "not-a-content-id",
      "observation_id": null,
      "seq": 1
     }

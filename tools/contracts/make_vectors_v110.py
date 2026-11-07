@@ -153,24 +153,14 @@ def check_cases() -> dict[str, Any]:
         incomplete = {cal["artifact_id"]: {k: v for k, v in _stored(cal).items() if k != "content_id"}}
         # D-114 (1): 1.1.0 separates "entry without content_id" from a mismatch; 1.0.0 reports a mismatch
         case(f"{tag}-calibration-lookup-incomplete", with_cal(version, ref), ["lookup_incomplete"] if version == "1.1.0" else ["calibration_mismatch"], incomplete)
+        # D-116 (1): a string that does not have the IC-00 content_id form is incomplete in 1.1.0 (mismatch in 1.0.0)
+        malformed = {cal["artifact_id"]: {**_stored(cal), "content_id": "not-a-content-id"}}
+        case(f"{tag}-calibration-lookup-content-id-bad-format", with_cal(version, ref), ["lookup_incomplete"] if version == "1.1.0" else ["calibration_mismatch"], malformed)
         # D-115: content_id present but not a string (null, int, bool, list, dict): incomplete in 1.1.0, mismatch in 1.0.0
         for kind_name, value in (("null", None), ("int", 5), ("bool", True), ("list", ["cnt:" + "0" * 64]), ("dict", {"content_id": "x"})):
             bad = {cal["artifact_id"]: {**_stored(cal), "content_id": value}}
             case(f"{tag}-calibration-lookup-content-id-{kind_name}", with_cal(version, ref), ["lookup_incomplete"] if version == "1.1.0" else ["calibration_mismatch"], bad)
     return {"cases": cases}
-
-
-def calibration_unspecified_cases() -> list[dict[str, Any]]:
-    """D-115 leaves open a content_id that is a string but not of the form cnt: + 64 hex (the comparison decides)."""
-    cases = []
-    for version in ("1.1.0", "1.0.0"):
-        cal = _root("meaning-space-runtime", "interpretation", version, seq=1, payload={"calibration": 1})
-        ref = {"artifact_id": cal["artifact_id"], "content_id": cal["content_id"]}
-        lookup = {cal["artifact_id"]: {**_stored(cal), "content_id": "not-a-content-id"}}
-        tag = "v110" if version == "1.1.0" else "v100"
-        cases.append({"id": f"{tag}-calibration-lookup-content-id-bad-format", "envelope": _with_cal(version, ref), "lookup": lookup,
-                      "expect": {"codes": ["calibration_mismatch"], "result": "reject"}})
-    return cases
 
 
 def _stored_map(*envs: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -335,12 +325,6 @@ def generate() -> dict[str, dict[str, Any]]:
             "status": "not frozen (not in the 1.1.0 FREEZE.md)",
             "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json. D-113: grandparent-missing-from-ancestor-lookup (D-111 (4) and D-112 conflict) is here, with its expectations unchanged.",
             "cases": unspecified,
-        },
-        "check-envelope-unspecified.json": {
-            "format": "check-envelope-versioned/1",
-            "status": "not frozen (not in the 1.1.0 FREEZE.md)",
-            "rule": "Cases that depend on points D-115 leaves undecided: a lookup content_id that is a string but not of the form cnt: + 64 hex (the comparison with calibration_ref.content_id decides: calibration_mismatch). Same case shape as check-envelope.json.",
-            "cases": calibration_unspecified_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope-versioned/1",

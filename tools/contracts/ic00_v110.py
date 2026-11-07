@@ -19,6 +19,7 @@ onwards). It needs the IC-06 payload schemas.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from functools import lru_cache
 from typing import Any
@@ -28,10 +29,19 @@ from jsonschema import Draft202012Validator
 from contracts.check import Violation, _parent_ids, _s5, _s8, _s16
 from contracts.errors import ContractError
 from contracts.ids import Lookup, artifact_id, content_id
-from contracts.schemas import validator
+from contracts.schemas import load_schema, validator
 
 VERSION = "1.1.0"
 SCHEMA_PATH = "IC-00/1.1.0/artifact.schema.json"
+
+# D-116 (1): the IC-00 content_id form is the existing schema rule (common/provenance.schema.json $defs.contentId,
+# the same pattern as the envelope's content_id); no new expression is written here. jsonschema applies it with re.search.
+_CONTENT_ID_FORM = re.compile(load_schema("common/provenance.schema.json")["$defs"]["contentId"]["pattern"])
+
+
+def _valid_stored_content_id(value: Any) -> bool:
+    return isinstance(value, str) and _CONTENT_ID_FORM.search(value) is not None
+
 
 PRODUCER_KINDS: dict[str, frozenset[str]] = {
     "nvs-kernel": frozenset({"observation"}),
@@ -89,10 +99,10 @@ def check_envelope(envelope: Mapping[str, Any], lookup: Lookup) -> list[Violatio
         stored = lookup.get(calibration["artifact_id"])
         if stored is None:
             out.append(Violation("calibration_unknown", calibration["artifact_id"]))
-        elif not isinstance(stored.get("content_id"), str):
-            # D-115: content_id must exist as a string (a missing key, null or a non-str type is incomplete;
-            # bool, int, list, dict are not str)
-            out.append(Violation("lookup_incomplete", f"calibration {calibration['artifact_id']}: stored content_id is not a string"))
+        elif not _valid_stored_content_id(stored.get("content_id")):
+            # D-115/D-116 (1): the stored content_id must exist as a string of the IC-00 content_id form
+            # (a missing key, null, a non-str type or a malformed string is incomplete).
+            out.append(Violation("lookup_incomplete", f"calibration {calibration['artifact_id']}: stored content_id is missing or malformed"))
         elif stored["content_id"] != calibration["content_id"]:
             out.append(Violation("calibration_mismatch", calibration["artifact_id"]))
 
