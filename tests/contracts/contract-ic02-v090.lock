@@ -10,19 +10,19 @@
   },
   "files": [
     {
-      "path": "docs/architecture/contracts/msr/README.md",
+      "path": "docs/architecture/contracts/msr/archive/0.9.0/README.md",
       "sha256": "6b171eb103d46879f82f27ac656fb07c9723f4dad03ce21673479701eb0d7abf"
     },
     {
-      "path": "docs/architecture/contracts/msr/geometry-measurement.schema.json",
+      "path": "docs/architecture/contracts/msr/archive/0.9.0/geometry-measurement.schema.json",
       "sha256": "e1f3a54e2f8bf43bc5e931dd1f2ebd74e1bf5b2c3e1ff9be9c6147efd336f4d0"
     },
     {
-      "path": "docs/architecture/contracts/msr/trajectory-window.schema.json",
+      "path": "docs/architecture/contracts/msr/archive/0.9.0/trajectory-window.schema.json",
       "sha256": "332c636de733b173cb4236c07f6e875047b0ca04fad9ae2028b4b4291448f42c"
     },
     {
-      "path": "docs/architecture/contracts/msr/vectors/window.json",
+      "path": "docs/architecture/contracts/msr/archive/0.9.0/vectors/window.json",
       "sha256": "e8930e74dd15b329eac7fee5acd1322126fcd04f181ea209fce4eab27c26ea11"
     },
     {
@@ -38,12 +38,9 @@
       "sha256": "6885fbab7ddbea8538c5708ecc2ff8a1b67fd1a96e47ac824925796ce62a56d4"
     },
     {
-      "path": "tools/contracts/ic02_window.py",
-      "sha256": "55c2cff0ddccf8e9b96de998d149e53c110ae3cecd652e06fa8f5da47cedc24f"
-    },
-    {
       "path": "tools/contracts/make_vectors_window.py",
-      "sha256": "4327773ff0723af0afb411ae7fab09cdf62d2a69e829702325d603a5ed0cee09"
+      "sha256": "c846fba172015e5b36ebeacd4ba208201f3229776c1449c85261c98547d0354e"
     }
-  ]
+  ],
+  "superseded_by": "contract-ic02-v0100.lock (IC-02 0.10.0, D-132): the 0.9.0 files moved to msr/archive/0.9.0/ byte for byte (same sha256 as before); tools/contracts/ic02_window.py was extended (0.9.0 behaviour unchanged) and is now locked there."
 }

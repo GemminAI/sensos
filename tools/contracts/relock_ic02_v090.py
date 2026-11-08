@@ -7,9 +7,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 R = "docs/architecture/contracts/"
-FILES = [R + "msr/README.md", R + "msr/geometry-measurement.schema.json", R + "msr/trajectory-window.schema.json", R + "msr/vectors/window.json",
+FILES = [R + "msr/archive/0.9.0/README.md", R + "msr/archive/0.9.0/geometry-measurement.schema.json", R + "msr/archive/0.9.0/trajectory-window.schema.json",
+         R + "msr/archive/0.9.0/vectors/window.json",
          R + "msr/archive/0.8.0/geometry-measurement.schema.json", R + "msr/archive/0.8.0/README.md", R + "IC-02/0.9.0/CHANGE.md",
-         "tools/contracts/ic02_window.py", "tools/contracts/make_vectors_window.py"]
+         "tools/contracts/make_vectors_window.py"]  # ic02_window.py moved to the 0.10.0 lock (extended, 0.9.0 behaviour unchanged)
 
 
 def main() -> None:
