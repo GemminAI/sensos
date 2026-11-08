@@ -199,17 +199,36 @@ def test_ic00_1_0_0_freeze_is_byte_identical_to_c82918f() -> None:
         assert hashlib.sha256(shown.stdout).hexdigest() == digest, path
 
 
-def test_ic00_1_1_0_files_are_byte_identical_to_c0064c8() -> None:
-    freeze = (CONTRACTS_DIR / "IC-00/1.1.0/FREEZE.md").read_text(encoding="utf-8")
-    rows = re.findall(r"^\| `([^`]+)` \| `([0-9a-f]{64})` \|$", freeze, re.M)
-    assert rows
-    for path, _ in rows:
-        shown = subprocess.run(["git", "-C", str(ROOT), "show", f"c0064c8:{path}"], capture_output=True, check=False)
-        if shown.returncode != 0:
+IC00_110_FROZEN_FILES = (
+    "docs/architecture/contracts/IC-00/1.1.0/artifact.schema.json",
+    "tools/contracts/ic00_v110.py",
+    "tools/contracts/ic00_versions.py",
+    "docs/architecture/contracts/IC-00/1.1.0/vectors/check-envelope.json",
+    "docs/architecture/contracts/IC-00/1.1.0/vectors/parent-versions.json",
+)
+IC00_110_FREEZE = "docs/architecture/contracts/IC-00/1.1.0/FREEZE.md"
+
+
+def _git_show(commit: str, path: str) -> bytes | None:
+    shown = subprocess.run(["git", "-C", str(ROOT), "show", f"{commit}:{path}"], capture_output=True, check=False)
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def test_ic00_1_1_0_frozen_files_match_development_baseline_and_freeze_matches_tag() -> None:
+    # (a) the five frozen files are byte-identical to the development baseline c0064c8 (listed here, not read from FREEZE.md)
+    for path in IC00_110_FROZEN_FILES:
+        baseline = _git_show("c0064c8", path)
+        if baseline is None:
             pytest.skip("c0064c8 not in the local checkout")
-        assert (ROOT / path).read_bytes() == shown.stdout, path
-    shown = subprocess.run(["git", "-C", str(ROOT), "show", f"c0064c8:{'docs/architecture/contracts/IC-00/1.1.0/FREEZE.md'}"], capture_output=True, check=False)
-    assert (CONTRACTS_DIR / "IC-00/1.1.0/FREEZE.md").read_bytes() == shown.stdout
+        assert (ROOT / path).read_bytes() == baseline, path
+    # (b) FREEZE.md is the one of the freeze commit 97626ea (the tag contracts/ic00-v1.1.0 points at it)
+    frozen = _git_show("97626ea", IC00_110_FREEZE)
+    if frozen is None:
+        pytest.skip("97626ea not in the local checkout")
+    assert (ROOT / IC00_110_FREEZE).read_bytes() == frozen
+    tag = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "-q", "contracts/ic00-v1.1.0^{commit}"], capture_output=True, text=True, check=False)
+    if tag.returncode == 0:
+        assert tag.stdout.strip().startswith("97626ea")
 
 
 def test_the_validator_for_the_window_schema_resolves_refs() -> None:
