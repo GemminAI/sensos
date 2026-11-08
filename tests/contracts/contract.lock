@@ -1,7 +1,7 @@
 {
   "contract_id": "IC-00",
   "version": "1.0.0",
-  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0 and msr/* 0.7.0 are drafts. `archived` = the superseded 0.6.x payload schemas, kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0 and msr/geometry-measurement 0.7.1 and msr/calibration 0.8.0 are drafts. `archived` = the superseded payload schemas (0.6.x, and the 0.7.0 calibration, which the Gate still reads under its own rule), kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
   "schemas": [
     {
       "path": "common/artifact.schema.json",
@@ -25,13 +25,13 @@
     },
     {
       "path": "msr/calibration.schema.json",
-      "id": "sensos:contracts/msr/calibration/0.7.0",
-      "sha256": "7a702f1ff8305ed808885a46b9b200d75380f66fd45276888867ad1eb93d8c72"
+      "id": "sensos:contracts/msr/calibration/0.8.0",
+      "sha256": "794852390b3ec765fdeeb8c71e9fad75b9e5f3c81f4f26daa769dff6b4955d4f"
     },
     {
       "path": "msr/geometry-measurement.schema.json",
-      "id": "sensos:contracts/msr/geometry-measurement/0.7.0",
-      "sha256": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a"
+      "id": "sensos:contracts/msr/geometry-measurement/0.7.1",
+      "sha256": "d9aa7ea59237c4c6f19d33bbac6506ce0983b10ce46a3ee3a94b076b9bd05f6e"
     }
   ],
   "archived": [
@@ -41,9 +41,19 @@
       "sha256": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58"
     },
     {
+      "path": "msr/archive/0.7.0/calibration.schema.json",
+      "id": "sensos:contracts/msr/calibration/0.7.0",
+      "sha256": "7a702f1ff8305ed808885a46b9b200d75380f66fd45276888867ad1eb93d8c72"
+    },
+    {
       "path": "msr/archive/0.6.2/geometry-measurement.schema.json",
       "id": "sensos:contracts/msr/geometry-measurement/0.6.2",
       "sha256": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4"
+    },
+    {
+      "path": "msr/archive/0.7.0/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.7.0",
+      "sha256": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a"
     }
   ]
 }

@@ -65,9 +65,8 @@ def _ref(name: str, values: list[int]) -> tuple[dict[str, Any], bytes]:
         "order": "C",
         "unit": unit,
         "quantization": copy.deepcopy(QUANT) if real else None,
+        "undefined": "int64_min",  # 0.7.1: every series declares it
     }
-    if U in values:
-        ref["undefined"] = "int64_min"
     return ref, data
 
 
@@ -86,7 +85,7 @@ def single_world() -> tuple[dict[str, Any], dict[str, bytes]]:
     for name, (group, key) in SERIES.items():
         payload["metrics"][group][key] = last[name]
     envelope = {
-        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.0"},
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
         "payload": payload,
         "parents": [{"role": "trajectory", "ordered": False, "artifact_ids": ["art:" + "0" * 64]}],
     }
@@ -128,8 +127,8 @@ def test_s36_undefined_only_where_the_contract_says() -> None:
     assert "S36" in codes(envelope, blobs)
     envelope, blobs = single_world()
     ref = envelope["payload"]["series"]["diversity_cell_entropy"]
-    ref.pop("undefined")  # -2^63 present but not declared
-    assert "S36" in codes(envelope, blobs)
+    ref.pop("undefined")  # 0.7.1: the schema requires the declaration
+    assert "schema" in codes(envelope, blobs)
 
 
 def test_s37_last_element_equals_metrics() -> None:
@@ -184,7 +183,7 @@ def pair_envelope(distance: int, state: str, calibrated: bool = True) -> dict[st
     payload["verdict"]["state"] = state
     payload["calibration"] = CAL if calibrated else None
     return {
-        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.0"},
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
         "payload": payload,
         "parents": [],
     }
@@ -220,11 +219,17 @@ def test_s38_uncalibrated_and_unknown_calibration() -> None:
 
 def test_s39_unknown_payload_schema_versions_are_refused() -> None:
     envelope, blobs = single_world()
-    assert set(PAYLOAD_SCHEMAS) == {("msr.geometry-measurement", "0.7.0"), ("msr.calibration", "0.7.0")}
+    assert set(PAYLOAD_SCHEMAS) == {
+        ("msr.geometry-measurement", "0.7.1"),
+        ("msr.calibration", "0.8.0"),
+        ("msr.calibration", "0.7.0"),  # old rule, kept; never read as 0.8.0
+    }
     for ident, version in (
         ("msr.geometry-measurement", "0.6.2"),
+        ("msr.geometry-measurement", "0.7.0"),  # superseded draft
         ("msr.geometry-measurement", "1.0.0"),  # IC-00's version is not a payload version
         ("msr.calibration", "0.6.1"),
+        ("msr.calibration", "0.8.1"),
         ("nope", "0.7.0"),
     ):
         bad = {**envelope, "payload_schema": {"id": ident, "version": version}}
@@ -232,9 +237,115 @@ def test_s39_unknown_payload_schema_versions_are_refused() -> None:
 
 
 def test_calibration_payload_goes_through_its_schema() -> None:
-    from test_schemas import _cal
+    from test_schemas import _cal, _cal080
 
-    ok = {"payload_schema": {"id": "msr.calibration", "version": "0.7.0"}, "payload": _cal(), "parents": []}
+    ok = {"payload_schema": {"id": "msr.calibration", "version": "0.8.0"}, "payload": _cal080(), "parents": []}
     assert check_payload(ok) == []
-    bad = {**ok, "payload": {**_cal(), "extra": 1}}
+    bad = {**ok, "payload": {**_cal080(), "extra": 1}}
     assert {v.code for v in check_payload(bad)} == {"schema"}
+    old = {"payload_schema": {"id": "msr.calibration", "version": "0.7.0"}, "payload": _cal(), "parents": []}
+    assert check_payload(old) == []  # the old rule is unchanged
+    assert {v.code for v in check_payload({**old, "payload_schema": {"id": "msr.calibration", "version": "0.8.0"}})} == {"schema"}
+
+
+EXPONENT_CASES = json.loads(
+    (VECTORS.parent.parent / "msr/vectors/calibration-exponent.json").read_text(encoding="utf-8")
+)["cases"]
+
+
+@pytest.mark.parametrize("case", EXPONENT_CASES, ids=[c["id"] for c in EXPONENT_CASES])
+def test_calibration_exponent_vectors(case: dict[str, Any]) -> None:
+    found = check_payload({"payload_schema": case["payload_schema"], "payload": case["payload"], "parents": []})
+    assert sorted({v.code for v in found}) == case["expect"]["codes"]
+    assert (not found) == (case["expect"]["result"] == "accept")
+
+
+def test_exponent_range_is_not_checked() -> None:
+    from test_schemas import _cal080
+
+    for exponent in (-1000, -31, -30, -20, 0, 7, 10**30):
+        envelope = {"payload_schema": {"id": "msr.calibration", "version": "0.8.0"}, "payload": {**_cal080(), "exponent": exponent}, "parents": []}
+        assert check_payload(envelope) == [], exponent
+
+
+# ------------------------------------------- 0.7.1: T=1 / T=2, README vs schema
+
+SERIES_VECTORS = json.loads((VECTORS.parent.parent / "msr/vectors/series.json").read_text(encoding="utf-8"))["cases"]
+
+
+@pytest.mark.parametrize("case", SERIES_VECTORS, ids=[c["id"] for c in SERIES_VECTORS])
+def test_series_vectors(case: dict[str, Any]) -> None:
+    envelope = {
+        "payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"},
+        "payload": case["payload"],
+        "parents": case["parents"],
+    }
+    blobs = {uri: bytes.fromhex(h) for uri, h in case["blobs"].items()}
+    assert sorted({v.code for v in check_payload(envelope, {}, blobs)}) == case["expect"]["codes"]
+
+
+def test_series_vectors_cover_t1_and_t2_with_and_without_delta() -> None:
+    ids = {c["id"] for c in SERIES_VECTORS if c["expect"]["result"] == "accept"}
+    assert ids == {"accept-T1-no-delta", "accept-T1-delta", "accept-T2-no-delta", "accept-T2-delta"}
+    t1 = next(c for c in SERIES_VECTORS if c["id"] == "accept-T1-delta")["payload"]["metrics"]["displacement"]
+    assert t1 == {"count": 0, "mean": None, "median": None, "longest_sub_delta_run": None}
+
+
+def test_only_declared_series_may_declare_undefined(monkeypatch: pytest.MonkeyPatch) -> None:
+    envelope, blobs = single_world()
+    assert check_payload(envelope, {}, blobs) == []
+    monkeypatch.setattr("contracts.ic02.CAN_BE_UNDEFINED", frozenset(SERIES) - {"displacement_mean"})
+    found = check_payload(envelope, {}, blobs)
+    assert [v.code for v in found] == ["S36"] and "displacement_mean" in found[0].message
+
+
+def test_readme_table_is_a_copy_of_the_schema() -> None:
+    import re
+
+    from contracts.schemas import CONTRACTS_DIR, load_schema
+
+    readme = (CONTRACTS_DIR / "msr/README.md").read_text(encoding="utf-8")
+    rows = {}
+    for line in readme.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 6 and cells[0].strip("`") in SERIES:
+            kind, unit = re.fullmatch(r"(実数|個数)・`([^`]+)`", cells[2]).groups()  # type: ignore[union-attr]
+            rows[cells[0].strip("`")] = (kind, unit, cells[5])
+    assert set(rows) == set(SERIES)
+    schema = load_schema("msr/geometry-measurement.schema.json")["$defs"]["single"]["properties"]["series"]["properties"]
+    for name, (kind, unit, undefined) in rows.items():
+        extra = schema[name]["allOf"][1]
+        assert extra["properties"]["unit"] == {"const": unit}, name
+        assert (extra["properties"]["quantization"] == {"type": "null"}) == (kind == "個数"), name
+        assert undefined == "常に" and extra["required"] == ["undefined"], name
+
+
+# ------------------------------------- calibration: parent-reference consistency
+
+PARENT_CASES = json.loads(
+    (VECTORS.parent.parent / "msr/vectors/calibration-parents.json").read_text(encoding="utf-8")
+)["cases"]
+POINT_CODES = {
+    "point1": {"parent_unknown", "parent_content_id_form"},
+    "point2": {"codebook_content_mismatch"},
+    "point3": {"role_set_mismatch", "role_duplicate"},
+    "point4": {"null_set_ordered", "codebook_ordered"},
+    "point5": {"null_set_mismatch"},
+}
+
+
+@pytest.mark.parametrize("case", PARENT_CASES, ids=[c["id"] for c in PARENT_CASES])
+def test_calibration_parent_vectors(case: dict[str, Any]) -> None:
+    found = check_payload(case["envelope"], None, None, case["parent_contents"])
+    assert sorted({v.code for v in found}) == case["expect"]["codes"]
+    # the payload is schema-valid either way: the checks above are the five points only
+    assert check_payload(case["envelope"]) == []
+
+
+def test_calibration_parent_vectors_cover_each_point_once_or_more() -> None:
+    accepts = [c for c in PARENT_CASES if c["expect"]["result"] == "accept"]
+    assert (len(accepts), len(PARENT_CASES) - len(accepts)) == (2, 10)
+    for point, codes in POINT_CODES.items():
+        mine = [c for c in PARENT_CASES if c["id"].startswith(point)]
+        assert mine and all(len(c["expect"]["codes"]) == 1 for c in mine), point
+        assert {c["expect"]["codes"][0] for c in mine} == codes, point

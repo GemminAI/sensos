@@ -23,12 +23,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from contracts import ids  # noqa: E402
 from contracts.blob import check_blob  # noqa: E402
+from contracts.gate import check_payload  # noqa: E402
+from contracts.ic02 import SERIES, check_calibration_parents  # noqa: E402
 from contracts.check import check_envelope  # noqa: E402
 from contracts.errors import ContractError  # noqa: E402
 from contracts.jcs import jcs  # noqa: E402
 from contracts.quantize import INT64_RANGE, quantize  # noqa: E402
 
-VECTORS = Path(__file__).resolve().parents[2] / "docs/architecture/contracts/common/vectors"
+CONTRACTS = Path(__file__).resolve().parents[2] / "docs/architecture/contracts"
+VECTORS = CONTRACTS / "common/vectors"
 SHA = "a" * 64
 
 
@@ -667,12 +670,200 @@ def blob_cases() -> dict[str, Any]:
     return {"cases": out}
 
 
+# ------------------------------------------------------------------ series
+
+_U = INT64_RANGE[0]
+_UNITS = {
+    "displacement_mean": "distance", "displacement_median": "distance",
+    "displacement_longest_sub_delta_run": "steps", "recurrence_pair_fraction": "fraction",
+    "recurrence_return_count": "returns", "recurrence_return_rate": "returns_per_point",
+    "diversity_cell_entropy": "nats", "diversity_participation_ratio": "dimensionless",
+    "persistence_longest_stay": "points", "persistence_dominant_cell_share": "fraction",
+}
+_COUNTS = {"displacement_longest_sub_delta_run", "recurrence_return_count", "persistence_longest_stay"}
+_QUANT = {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1}
+
+
+def _series_payload(length: int, delta: int | None, values: dict[str, list[int]], metrics_last: dict[str, int | None]) -> tuple[dict[str, Any], dict[str, bytes]]:
+    blobs: dict[str, bytes] = {}
+    series: dict[str, Any] = {}
+    for name in SERIES:
+        data = _ints(values[name])
+        digest = sha256_hex(data)
+        series[name] = {
+            "uri": "blob:sha256:" + digest, "sha256": digest,
+            "media_type": "application/vnd.sensos.ndarray-raw", "dtype": "int64",
+            "shape": [length], "byte_order": "little", "order": "C",
+            "quantization": None if name in _COUNTS else copy.deepcopy(_QUANT),
+            "unit": _UNITS[name], "undefined": "int64_min",
+        }
+        blobs[series[name]["uri"]] = data
+    group = {g: {k: metrics_last[n] for n, (gg, k) in SERIES.items() if gg == g} for g in ("displacement", "recurrence", "diversity", "persistence")}
+    group["displacement"]["count"] = max(length - 1, 0)
+    payload = {
+        "mode": "single", "space_id": "S1", "source": "T-hid", "layer": 12,
+        "input_ref": {"sha256": SHA, "model_build_id": "m1", "policy": {"name": "last-token", "sha256": SHA}, "length": length, "dimension": 3},
+        "calibration": None,
+        "thresholds": {"epsilon": None, "delta": delta, "w_min": None, "source": {"epsilon": None, "delta": None if delta is None else "explicit", "w_min": None}},
+        "metrics": group,
+        "series": series,
+        "verdict": {"state": None, "reason": "shift verdict applies to trajectory pairs (SPEC-MSR-001 v2 \u00a73.2)"},
+    }
+    return payload, blobs
+
+
+def series_cases() -> dict[str, Any]:
+    out: list[dict[str, Any]] = []
+    step = 3 << 30  # one step of length 3.0
+
+    def build(length: int, delta: int | None) -> tuple[dict[str, Any], dict[str, bytes]]:
+        values = {n: [_U] * length for n in SERIES}
+        last: dict[str, int | None] = {n: None for n in SERIES}
+        if length == 2:
+            for n in ("displacement_mean", "displacement_median"):
+                values[n] = [_U, step]
+                last[n] = step
+            values["diversity_participation_ratio"] = [_U, 1 << 30]
+            last["diversity_participation_ratio"] = 1 << 30
+            if delta is not None:
+                values["displacement_longest_sub_delta_run"] = [_U, 0]
+                last["displacement_longest_sub_delta_run"] = 0
+        return _series_payload(length, delta, values, last)
+
+    def case(case_id: str, payload: dict[str, Any], blobs: dict[str, bytes], note: str = "") -> None:
+        envelope = {"payload_schema": {"id": "msr.geometry-measurement", "version": "0.7.1"}, "payload": payload,
+                    "parents": [{"role": "trajectory", "ordered": False, "artifact_ids": ["art:" + "0" * 64]}]}
+        codes = sorted({v.code for v in check_payload(envelope, {}, blobs)})
+        out.append({"id": case_id, "note": note, "payload": payload, "parents": envelope["parents"],
+                    "blobs": {u: d.hex() for u, d in blobs.items()},
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    for length in (1, 2):
+        for delta in (None, 1 << 29):
+            tag = f"T{length}-{'delta' if delta is not None else 'no-delta'}"
+            payload, blobs = build(length, delta)
+            case("accept-" + tag, payload, blobs, "T=1: no displacement interval, so count 0 and mean/median/run are null" if length == 1 else "")
+    p, b = build(1, None)
+    p["metrics"]["displacement"]["mean"] = 0
+    case("S37-T1-mean-is-0-but-series-has-no-value", p, b)
+    p, b = build(1, None)
+    p["series"]["displacement_mean"] = _series_payload(1, None, {**{n: [_U] for n in SERIES}, "displacement_mean": [0]}, {n: None for n in SERIES})[0]["series"]["displacement_mean"]
+    case("S36-T1-series-t0-has-a-value", p, {**b, **_series_payload(1, None, {**{n: [_U] for n in SERIES}, "displacement_mean": [0]}, {n: None for n in SERIES})[1]})
+    p, b = build(2, 1 << 29)
+    p["metrics"]["displacement"]["longest_sub_delta_run"] = None
+    case("S37-T2-run-null-but-series-has-0", p, b)
+    p, b = build(2, None)
+    del p["series"]["displacement_median"]["undefined"]
+    case("schema-undefined-declaration-missing", p, b, "0.7.1: every series declares undefined")
+    p, b = build(2, None)
+    p["series"]["displacement_median"]["undefined"] = "nan"
+    case("schema-undefined-declaration-wrong-value", p, b)
+    return {"cases": out}
+
+
+# ------------------------------------------------------ calibration parents
+
+
+def calibration_parent_cases() -> dict[str, Any]:
+    ses = ids.session_id_experiment("sha256:" + "d" * 64, "item-001", "baseline", 0, 7)
+    members = [f"art:{i:064x}" for i in (1, 2, 3)]
+    contents = {a: f"cnt:{i + 100:064x}" for i, a in enumerate(members, start=1)}
+    book = "art:" + "b" * 64
+    contents[book] = "cnt:" + "c" * 64
+
+    def payload(null_set: list[str], codebook: dict[str, str] | None) -> dict[str, Any]:
+        return {
+            "exponent": -30,
+            "space_id": "S1", "model_build_id": "m1",
+            "method": {"name": "msr-geometry-calibration", "version": "msr-geometry-calibration/1",
+                       "quantiles": {"epsilon": 1 << 25, "delta": 1 << 26, "floor": [1 << 25, (1 << 30) - (1 << 25)]}},
+            "null_set": null_set, "between_alignment": "equal_only",
+            "values": {"noise_floor_lower": 1 << 30, "noise_floor_upper": 2 << 30, "background_mean": 3 << 29,
+                       "epsilon": 1 << 28, "delta": 1 << 20, "w_min": 1, "codebook_ref": codebook},
+            "sample_config": {"trajectories": len(null_set), "points": 40, "dims": 3},
+        }
+
+    def envelope(null_set: list[str], codebook: dict[str, str] | None, parents: list[dict[str, Any]]) -> dict[str, Any]:
+        env = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(null_set, codebook), seq=5, session=ses, obs=None, parents=parents)
+        env["payload_schema"] = {"id": "msr.calibration", "version": "0.8.0"}
+        return seal(env, {a: {"content_id": c} for a, c in contents.items()})
+
+    def role(name: str, artifact_ids: list[str], ordered: bool = False) -> dict[str, Any]:
+        return {"role": name, "ordered": ordered, "artifact_ids": artifact_ids}
+
+    ref = {"artifact_id": book, "content_id": contents[book]}
+    out: list[dict[str, Any]] = []
+
+    def case(case_id: str, env: dict[str, Any], pc: dict[str, str], note: str = "") -> None:
+        codes = sorted({v.code for v in check_calibration_parents(env, pc)})
+        out.append({"id": case_id, "note": note, "envelope": env, "parent_contents": pc,
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    base = envelope(members, None, [role("null_set", members)])
+    case("accept-null-set-only", base, contents)
+    with_book = envelope(members, ref, [role("codebook", [book]), role("null_set", members)])
+    case("accept-with-codebook", with_book, contents)
+    case("point1-parent-not-retrieved", base, {k: v for k, v in contents.items() if k != members[1]}, "a null_set parent is not among the retrieved parents")
+    case("point2-codebook-content-id-differs", with_book, {**contents, book: "cnt:" + "9" * 64}, "the stored codebook's content_id is not codebook_ref's")
+    case("point3-codebook-ref-without-codebook-role", envelope(members, ref, [role("null_set", members)]), contents, "payload names a codebook, parents have none")
+    case("point1-content-id-is-not-cnt-form", base, {**contents, members[0]: "not-a-content-id"}, "a retrieved content_id is not cnt: + 64 hex (reported by its own code, not as a hash mismatch)")
+    case("point1-unrelated-entry-content-id-is-not-cnt-form", base, {**contents, "art:" + "e" * 64: "not-a-content-id"}, "an entry of parent_contents that no parent names also needs a cnt: content_id")
+    dup = _env(name="meaning-space-runtime", kind="interpretation", payload=payload(members, None), seq=5, session=ses, obs=None, parents=[role("null_set", members), role("null_set", members)])
+    dup["payload_schema"] = {"id": "msr.calibration", "version": "0.8.0"}
+    case("point3-role-appears-twice", dup, contents, "parents has two null_set roles (not sealed: ids cannot be computed for it)")
+    case("point3-codebook-role-without-codebook-ref", envelope(members, None, [role("codebook", [book]), role("null_set", members)]), contents, "parents have a codebook, payload names none")
+    case("point4-null-set-is-ordered", envelope(members, None, [role("null_set", members, ordered=True)]), contents)
+    case("point4-codebook-is-ordered", envelope(members, ref, [role("codebook", [book], ordered=True), role("null_set", members)]), contents)
+    case("point5-null-set-differs-from-parents", envelope(members, None, [role("null_set", members[:2])]), contents, "payload lists 3 artifacts, the parents' null_set has 2")
+    return {"cases": out}
+
+
+# ------------------------------------------------------ calibration exponent (0.8.0)
+
+
+def calibration_exponent_cases() -> dict[str, Any]:
+    """check_payload on a calibration payload: only the presence and the form of ``exponent``
+    are checked in 0.8.0 (no range). 0.7.0 keeps its own rule (no field)."""
+    base: dict[str, Any] = {
+        "space_id": "S1", "model_build_id": "m1",
+        "method": {"name": "msr-geometry-calibration", "version": "msr-geometry-calibration/1",
+                   "quantiles": {"epsilon": 1 << 25, "delta": 1 << 26, "floor": [1 << 25, (1 << 30) - (1 << 25)]}},
+        "null_set": [f"art:{i:064x}" for i in range(2)], "between_alignment": "equal_only",
+        "values": {"noise_floor_lower": 1 << 30, "noise_floor_upper": 2 << 30, "background_mean": 3 << 29,
+                   "epsilon": 1 << 28, "delta": 1 << 20, "w_min": 1, "codebook_ref": None},
+        "sample_config": {"trajectories": 2, "points": 40, "dims": 3},
+    }
+    out: list[dict[str, Any]] = []
+
+    def case(case_id: str, version: str, payload: dict[str, Any], codes: list[str], note: str = "") -> None:
+        out.append({"id": case_id, "note": note, "payload_schema": {"id": "msr.calibration", "version": version}, "payload": payload,
+                    "expect": {"result": "reject" if codes else "accept", "codes": codes}})
+
+    for value in (-30, -20):
+        case(f"accept-exponent-{value}", "0.8.0", {"exponent": value, **base}, [], "an integer; the range is not checked")
+    case("reject-exponent-missing", "0.8.0", dict(base), ["schema"], "0.8.0 requires exponent")
+    case("reject-exponent-string", "0.8.0", {"exponent": "-30", **base}, ["schema"])
+    case("reject-exponent-fraction", "0.8.0", {"exponent": -20.5, **base}, ["schema"])
+    case("reject-exponent-integral-float", "0.8.0", {"exponent": -20.0, **base}, ["schema"], "a float is not an integer here, even when integral")
+    case("reject-exponent-bool", "0.8.0", {"exponent": True, **base}, ["schema"])
+    case("reject-exponent-null", "0.8.0", {"exponent": None, **base}, ["schema"])
+    case("reject-0.7.x-payload-declared-0.8.0", "0.8.0", dict(base), ["schema"], "a payload without exponent is never read as 0.8.0")
+    case("accept-0.7.0-old-rule", "0.7.0", dict(base), [], "0.7.0 keeps its own rule (no exponent field, fixed at -30)")
+    case("reject-0.7.0-with-exponent", "0.7.0", {"exponent": -30, **base}, ["schema"], "the old rule has no exponent field")
+    return {"cases": out}
+
+
 # --------------------------------------------------------------------- main
 
 
+def vector_path(name: str) -> Path:
+    """``msr/...`` names live next to the msr contract, the rest under common/vectors."""
+    return CONTRACTS / name if name.startswith("msr/") else VECTORS / name
+
+
 def _dump(name: str, doc: dict[str, Any]) -> None:
-    (VECTORS / name).parent.mkdir(parents=True, exist_ok=True)
-    (VECTORS / name).write_text(json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
+    vector_path(name).parent.mkdir(parents=True, exist_ok=True)
+    vector_path(name).write_text(json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n", encoding="utf-8")
 
 
 def generate() -> dict[str, dict[str, Any]]:
@@ -700,6 +891,21 @@ def generate() -> dict[str, dict[str, Any]]:
             "format": "blob-refs/1",
             "rule": "check_blob(ref, data): ref must match common/blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes: S34 uri hex != sha256; S24 / S25 sha256 or length of an int / float Blob; S36 -2^63 without undefined: int64_min; count_negative a negative value in a count Blob (quantization null)",
             **blob_cases(),
+        },
+        "msr/vectors/series.json": {
+            "format": "ic02-series/1",
+            "rule": "check_payload(envelope) with envelope = {payload_schema: msr.geometry-measurement 0.7.1, payload, parents}, blobs = uri -> bytes (hex here): the codes in expect.codes (empty = accept). T=1 and T=2, each without and with delta",
+            **series_cases(),
+        },
+        "msr/vectors/calibration-parents.json": {
+            "format": "calibration-parents/1",
+            "rule": "check_calibration_parents(envelope, parent_contents): the codes in expect.codes (empty = accept). parent_contents = artifact_id -> content_id of the parents that nvs-runtime fetched from HEKB and confirmed. msr/README.md, section on parent-reference consistency",
+            **calibration_parent_cases(),
+        },
+        "msr/vectors/calibration-exponent.json": {
+            "format": "calibration-exponent/1",
+            "rule": "check_payload(envelope) with envelope = {payload_schema: {id: msr.calibration, version}, payload, parents: []}: the codes in expect.codes (empty = accept). 0.8.0 requires `exponent` and checks only that it is a JSON integer (no range); 0.7.0 keeps its own rule. msr/README.md, section on the exponent",
+            **calibration_exponent_cases(),
         },
         "check-envelope.json": {
             "format": "check-envelope/1",
