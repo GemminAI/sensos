@@ -1,4 +1,4 @@
-"""IC-00 1.1.0 FREEZE record (draft; status: not frozen, before independent verification).
+"""IC-00 1.1.0 FREEZE record (status: frozen, 2026-11-08).
 
 Parallel to ``test_freeze.py`` (1.0.0), which is untouched. Reused from it: the row format and
 the sha256 check. Written separately for 1.1.0: the file, the scope, the status needles, the version
@@ -53,10 +53,10 @@ def test_1_1_0_recorded_file_is_unchanged(path: str, digest: str) -> None:
 
 def test_1_1_0_freeze_states_what_it_is_not() -> None:
     text = FREEZE_110.read_text(encoding="utf-8")
-    assert "状態：未凍結" in text
-    for needle in ("D-107", "D-108", "D-109", "D-110", "D-111", "D-112", "D-113", "D-114", "D-115", "D-116", "未規定", "parent-versions-unspecified.json", "未実装", "S28", "sensos-connector", "IC-06"):
+    assert "状態：凍結" in text and "2026-11-08" in text
+    for needle in ("D-107", "D-108", "D-109", "D-110", "D-111", "D-112", "D-113", "D-114", "D-115", "D-116", "D-117", "D-122", "a5d4e17b38c581bfdd659850744d2bdc8e5b37498406e76a62a88f6852c44520", "未規定", "parent-versions-unspecified.json", "未実装", "S28", "sensos-connector", "IC-06"):
         assert needle in text, needle
-    assert "状態：検証済み" not in text and "状態：凍結" not in text
+    assert "状態：検証済み" not in text and "状態：未凍結" not in text.split("## 以下は凍結に至る経緯の記録")[0]
 
 
 def test_1_1_0_schema_carries_the_1_1_0_version() -> None:
