@@ -1,7 +1,7 @@
 {
   "contract_id": "IC-00",
   "version": "1.0.0",
-  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0, msr/geometry-measurement 0.9.0 and msr/calibration 0.8.0 are drafts. `archived` = the superseded payload schemas (0.6.x, the 0.7.0 calibration and the 0.7.1 geometry-measurement of IC-02 0.8.0, which the Gate still reads under their own rules), kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0, msr/geometry-measurement 0.10.0 and msr/calibration 0.8.0 are drafts. `archived` = the superseded payload schemas (0.6.x, the 0.7.0 calibration the 0.7.1 geometry-measurement of IC-02 0.8.0 and the 0.9.0 geometry-measurement of IC-02 0.9.0, which the Gate still reads under their own rules), kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
   "schemas": [
     {
       "path": "common/artifact.schema.json",
@@ -30,8 +30,8 @@
     },
     {
       "path": "msr/geometry-measurement.schema.json",
-      "id": "sensos:contracts/msr/geometry-measurement/0.9.0",
-      "sha256": "e1f3a54e2f8bf43bc5e931dd1f2ebd74e1bf5b2c3e1ff9be9c6147efd336f4d0"
+      "id": "sensos:contracts/msr/geometry-measurement/0.10.0",
+      "sha256": "4a2d269bcff5a2977bec044d9006b75e0627e1dadc1054dd49f40e69987f4614"
     }
   ],
   "archived": [
@@ -59,6 +59,11 @@
       "path": "msr/archive/0.8.0/geometry-measurement.schema.json",
       "id": "sensos:contracts/msr/geometry-measurement/0.7.1",
       "sha256": "d9aa7ea59237c4c6f19d33bbac6506ce0983b10ce46a3ee3a94b076b9bd05f6e"
+    },
+    {
+      "path": "msr/archive/0.9.0/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.9.0",
+      "sha256": "e1f3a54e2f8bf43bc5e931dd1f2ebd74e1bf5b2c3e1ff9be9c6147efd336f4d0"
     }
   ]
 }

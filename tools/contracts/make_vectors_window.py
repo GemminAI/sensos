@@ -1,4 +1,4 @@
-"""Generate the IC-02 0.9.0 window vectors (docs/architecture/contracts/msr/vectors/window.json).
+"""Generate the IC-02 0.9.0 window vectors (docs/architecture/contracts/msr/archive/0.9.0/vectors/window.json; moved there by 0.10.0).
 
 Run:  python tools/contracts/make_vectors_window.py  (from the repository root)
 
@@ -36,7 +36,7 @@ from contracts.ic02 import SERIES  # noqa: E402
 from contracts.make_vectors import SHA, _env, _series_payload, _stored, seal  # noqa: E402
 from contracts.quantize import INT64_RANGE  # noqa: E402
 
-OUT = Path(__file__).resolve().parents[2] / "docs/architecture/contracts/msr/vectors/window.json"
+OUT = Path(__file__).resolve().parents[2] / "docs/architecture/contracts/msr/archive/0.9.0/vectors/window.json"
 U = INT64_RANGE[0]
 L = 128
 D = 3

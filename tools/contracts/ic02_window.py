@@ -1,4 +1,4 @@
-"""IC-02 0.9.0: the first-128-rows window (D-129) -- checks that a schema cannot express.
+"""IC-02 0.9.0 / 0.10.0: the window (D-129 first 128 rows; D-132 position and length) -- checks that a schema cannot express.
 
 Two payloads are involved (``msr/README.md``, "window"):
 
@@ -6,9 +6,13 @@ Two payloads are involved (``msr/README.md``, "window"):
 * ``msr.geometry-measurement`` 0.9.0, ``mode: single`` -- ``input_scope`` says whether
   the measured input is a ``full`` trajectory or this ``window``. ``check_scope``.
 
-Fixed in this implementation (single place; the schemas carry the same constants):
-start 0, length 128, rule ``prefix_rows``, policy name ``first-128-rows/1``.
-Position and length as parameters are a future extension (README), not here.
+Two versions are read, each under its own rule (never one as the other):
+
+* 0.9.0 (``msr/archive/0.9.0``): fixed start 0, length 128, rule ``prefix_rows`` (the constants below).
+* 0.10.0 (D-132): ``window.rule`` is ``prefix_rows`` (start 0) or ``rows`` (start >= 0, length >= 1); the window's
+  start and length are read from the payload. Positions (head, middle, tail ...) are not narrowed by the contract.
+  Extra codes for 0.10.0 only: ``window_range``, ``window_token_range``, ``window_space_position``,
+  ``pair_window_length``.
 
 Codes (named, not S-numbers; the schema step reports ``schema`` alone, as everywhere):
 
@@ -19,15 +23,22 @@ Codes (named, not S-numbers; the schema step reports ``schema`` alone, as everyw
 ``window_parents``      parents are not exactly one role ``source_trajectory`` (one
                         artifact, ``ordered: false``)
 ``window_policy``       ``policy.sha256`` is not the sha256 of ``policy.name``
-``window_shape``        a Blob's ``shape`` or byte length is not 128 rows
-                        (``[128, dimension]`` / ``[128]``), or ``token_index`` is not
-                        strictly increasing
+``window_shape``        a Blob's ``shape`` or byte length is not the window's length in rows
+                        (``[length, dimension]`` / ``[length]``; 128 in 0.9.0), or ``token_index``
+                        is not strictly increasing
 ``window_sha256``       ``window.content_sha256`` differs from ``points.sha256``, or a
                         Blob's bytes differ from its ``sha256`` / ``uri``
 ``window_nonfinite``    a NaN or an infinity among the points
 ``window_origin``       the stored parent says otherwise (trajectory_id, length, position)
 ``window_origin_unreadable`` the stored parent lacks the fields read from it
 ``parent_unknown``      the referenced parent is not in ``stored``
+``window_range``        (0.10.0) ``start + length`` exceeds ``origin.length`` (the window leaves the original)
+``window_token_range``  (0.10.0) a ``token_index`` entry is outside ``[0, origin.length)`` (NOT DETERMINED by D-132's
+                        wording; see ``msr/vectors/window-rows-undetermined.json``)
+``window_space_position`` (0.10.0) another stored window in the same ``space_id`` has a different ``start`` or ``length``
+                        (D-132: the space is separated by position; how a collision is detected is this implementation's)
+``pair_window_length``  (0.10.0 pair) the two window parents have different lengths: ``equal_only`` cannot compare them
+                        (``common_prefix`` is not adopted, D-120)
 ``window_length``       (measurement) ``input_ref.length`` is not the scope's length
 ``window_parent``       (measurement) ``parents`` has no single role ``trajectory``
 ``window_not_window``   (measurement) scope says ``window`` but the parent is no window
@@ -35,12 +46,12 @@ Codes (named, not S-numbers; the schema step reports ``schema`` alone, as everyw
 ``full_length_mismatch`` (measurement) scope says ``full`` but ``input_ref.length`` is not the
                         stored parent's ``length`` (a prefix measured without saying so)
 ``window_mismatch``     (measurement) the window parent differs from the scope or from
-                        the measurement's own fields
+                        the measurement's own fields (0.10.0: also ``rule``)
 ======================= ===========================================================
 
 A reader that holds the original RAW rows can additionally check that the window
-is really their first 128 rows (``prefix_matches``); the Gate cannot, because the
-RAW rows are held by reference, not in the artifact (README).
+is really their rows ``[start, start + length)`` (``prefix_matches`` for the 0.9.0 first 128, ``rows_match`` for any start);
+the Gate cannot, because the RAW rows are held by reference, not in the artifact (README).
 """
 
 from __future__ import annotations
@@ -54,6 +65,9 @@ from typing import Any
 from contracts.check import Violation
 
 WINDOW_RULE = "prefix_rows"
+ROWS_RULE = "rows"
+V090 = "0.9.0"
+V0100 = "0.10.0"
 WINDOW_START = 0
 WINDOW_LENGTH = 128
 WINDOW_POLICY = "first-128-rows/1"
@@ -71,6 +85,14 @@ def _one_parent(envelope: Mapping[str, Any], role: str) -> str | None:
     return entries[0]["artifact_ids"][0]  # type: ignore[no-any-return]
 
 
+def _params(envelope: Mapping[str, Any]) -> tuple[str, int, int]:
+    """(rule, start, length) the window declares. 0.9.0 is the fixed first-128-rows window; 0.10.0 reads the payload."""
+    if envelope["payload_schema"]["version"] == V090:
+        return WINDOW_RULE, WINDOW_START, WINDOW_LENGTH
+    w = envelope["payload"]["window"]
+    return w["rule"], w["start"], w["length"]
+
+
 def check_window(
     envelope: Mapping[str, Any],
     stored: Mapping[str, Any],
@@ -78,6 +100,7 @@ def check_window(
 ) -> list[Violation]:
     """``envelope`` has passed the payload schema. ``stored``: artifact_id -> ``{"envelope": ...}``."""
     p = envelope["payload"]
+    _rule, start, L = _params(envelope)
     out: list[Violation] = []
     if envelope["kind"] != WINDOW_KIND:
         out.append(Violation("window_kind", f"kind {envelope['kind']!r} (a window is an {WINDOW_KIND})"))
@@ -93,8 +116,8 @@ def check_window(
         out.append(Violation("window_policy", "policy.sha256 is not the sha256 of policy.name"))
 
     points, tix = p["points"], p["token_index"]
-    if points["shape"] != [WINDOW_LENGTH, p["dimension"]]:
-        out.append(Violation("window_shape", f"points.shape {points['shape']} != [{WINDOW_LENGTH}, {p['dimension']}]"))
+    if points["shape"] != [L, p["dimension"]]:
+        out.append(Violation("window_shape", f"points.shape {points['shape']} != [{L}, {p['dimension']}]"))
     if p["window"]["content_sha256"] != points["sha256"]:
         out.append(Violation("window_sha256", "window.content_sha256 differs from points.sha256"))
     for name, ref in (("points", points), ("token_index", tix)):
@@ -104,8 +127,8 @@ def check_window(
     if data is not None:
         if hashlib.sha256(data).hexdigest() != points["sha256"]:
             out.append(Violation("window_sha256", "points bytes differ from points.sha256 (the window's content)"))
-        if len(data) != WINDOW_LENGTH * p["dimension"] * 4:
-            out.append(Violation("window_shape", f"points has {len(data)} bytes, not {WINDOW_LENGTH} x {p['dimension']} x 4"))
+        if len(data) != L * p["dimension"] * 4:
+            out.append(Violation("window_shape", f"points has {len(data)} bytes, not {L} x {p['dimension']} x 4"))
         else:
             values = struct.unpack(f"<{len(data) // 4}f", data)
             if not all(math.isfinite(v) for v in values):
@@ -114,10 +137,10 @@ def check_window(
     if raw is not None:
         if hashlib.sha256(raw).hexdigest() != tix["sha256"]:
             out.append(Violation("window_sha256", "token_index bytes differ from token_index.sha256"))
-        if len(raw) != 8 * WINDOW_LENGTH:
-            out.append(Violation("window_shape", f"token_index has {len(raw)} bytes, not {8 * WINDOW_LENGTH}"))
+        if len(raw) != 8 * L:
+            out.append(Violation("window_shape", f"token_index has {len(raw)} bytes, not {8 * L}"))
         else:
-            ti = struct.unpack(f"<{WINDOW_LENGTH}q", raw)
+            ti = struct.unpack(f"<{L}q", raw)
             if any(b <= a for a, b in zip(ti, ti[1:], strict=False)):
                 out.append(Violation("window_shape", "token_index is not strictly increasing"))
 
@@ -127,6 +150,32 @@ def check_window(
             out.append(Violation("parent_unknown", parent))
         else:
             out.extend(_origin_agrees(p["origin"], held["envelope"]["payload"]))
+    if envelope["payload_schema"]["version"] == V0100:
+        out.extend(_check_rows_range(envelope, stored, raw, start, L))
+    return out
+
+
+def _check_rows_range(envelope: Mapping[str, Any], stored: Mapping[str, Any], token_blob: bytes | None, start: int, length: int) -> list[Violation]:
+    """0.10.0 only (D-132): the window lies inside the original; token_index range; one position per space."""
+    p = envelope["payload"]
+    out: list[Violation] = []
+    origin_length = p["origin"]["length"]
+    if start + length > origin_length:
+        out.append(Violation("window_range", f"start {start} + length {length} = {start + length} > origin.length {origin_length}"))
+    if token_blob is not None and len(token_blob) == 8 * length:
+        ti = struct.unpack(f"<{length}q", token_blob)
+        if min(ti) < 0 or max(ti) >= origin_length:
+            out.append(Violation("window_token_range", f"token_index [{min(ti)}, {max(ti)}] is outside [0, {origin_length})"))
+    for aid, held in stored.items():
+        other = held["envelope"]
+        if aid == envelope.get("artifact_id") or other.get("payload_schema", {}).get("id") != WINDOW_SCHEMA:
+            continue
+        if other.get("space_id") != envelope["space_id"] or envelope["space_id"] is None:
+            continue
+        _r, o_start, o_length = _params(other)
+        if (o_start, o_length) != (start, length):
+            out.append(Violation("window_space_position", f"space_id is shared with {aid}, which has start {o_start} length {o_length}"))
+            break
     return out
 
 
@@ -148,7 +197,7 @@ def check_scope(
     envelope: Mapping[str, Any],
     stored: Mapping[str, Any],
 ) -> list[Violation]:
-    """``input_scope`` of a 0.9.0 ``single`` measurement against its ``trajectory`` parent."""
+    """``input_scope`` of a 0.9.0 / 0.10.0 ``single`` measurement against its ``trajectory`` parent."""
     p = envelope["payload"]
     scope = p["input_scope"]
     parent = _one_parent_role(envelope["parents"], "trajectory")
@@ -188,6 +237,8 @@ def check_scope(
         "source": w["source"] == p["source"],
         "space_id": held_env["space_id"] == p["space_id"],
     }
+    if envelope["payload_schema"]["version"] == V0100:
+        same["rule"] = w["window"]["rule"] == scope["rule"]  # 0.9.0: the schema fixes the rule, so there is nothing to compare
     out.extend(Violation("window_mismatch", f"{k} differs between the window and the measurement") for k, ok in same.items() if not ok)
     return out
 
@@ -197,6 +248,28 @@ def _one_parent_role(parents: Sequence[Mapping[str, Any]], role: str) -> str | N
     if len(entries) != 1 or len(entries[0]["artifact_ids"]) != 1:
         return None
     return entries[0]["artifact_ids"][0]  # type: ignore[no-any-return]
+
+
+def check_pair_windows(envelope: Mapping[str, Any], stored: Mapping[str, Any]) -> list[Violation]:
+    """0.10.0 ``pair``: if both parents (roles ``left`` and ``right``) are stored windows, their lengths must be equal.
+
+    ``equal_only`` is the only alignment adopted; ``common_prefix`` is not (D-120), so windows of different lengths
+    cannot be compared. Parents that are not stored windows are not judged here (as in 0.9.0)."""
+    lengths = []
+    for role in ("left", "right"):
+        aid = _one_parent_role(envelope["parents"], role)
+        held = stored.get(aid) if aid is not None else None
+        if held is not None and held["envelope"]["payload_schema"]["id"] == WINDOW_SCHEMA:
+            lengths.append(_params(held["envelope"])[2])
+    if len(lengths) == 2 and lengths[0] != lengths[1]:
+        return [Violation("pair_window_length", f"window lengths {lengths[0]} != {lengths[1]}: equal_only cannot compare them (no common_prefix, D-120)")]
+    return []
+
+
+def rows_match(window_points: bytes, source_rows: bytes, dimension: int, start: int, length: int) -> bool:
+    """For a reader that holds the RAW rows (float32 LE, row-major): is the window their rows ``[start, start + length)``?"""
+    a = start * dimension * 4
+    return len(source_rows) >= a + length * dimension * 4 and window_points == source_rows[a : a + length * dimension * 4]
 
 
 def prefix_matches(window_points: bytes, source_rows: bytes, dimension: int) -> bool:

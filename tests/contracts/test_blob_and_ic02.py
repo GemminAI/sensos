@@ -220,8 +220,10 @@ def test_s38_uncalibrated_and_unknown_calibration() -> None:
 def test_s39_unknown_payload_schema_versions_are_refused() -> None:
     envelope, blobs = single_world()
     assert set(PAYLOAD_SCHEMAS) == {
-        ("msr.geometry-measurement", "0.9.0"),
+        ("msr.geometry-measurement", "0.10.0"),
+        ("msr.geometry-measurement", "0.9.0"),  # IC-02 0.9.0 rule, kept (msr/archive/0.9.0)
         ("msr.geometry-measurement", "0.7.1"),  # IC-02 0.8.0 rule, kept (msr/archive/0.8.0)
+        ("msr.trajectory-window", "0.10.0"),
         ("msr.trajectory-window", "0.9.0"),
         ("msr.calibration", "0.8.0"),
         ("msr.calibration", "0.7.0"),  # old rule, kept; never read as 0.8.0

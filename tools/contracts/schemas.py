@@ -21,7 +21,9 @@ SCHEMA_PATHS = (
 )
 # IC-02 0.9.0 additions (D-129). Kept apart from SCHEMA_PATHS so the schemas the IC-02 0.8.0 tests are
 # parametrized over keep their number; tests/contracts/test_ic02_window.py applies the same lint to these.
-IC02_V090_PATHS = ("msr/trajectory-window.schema.json",)
+IC02_V090_PATHS = ("msr/archive/0.9.0/trajectory-window.schema.json", "msr/archive/0.9.0/geometry-measurement.schema.json")
+# IC-02 0.10.0 (D-132): the window with a position and a length. The 0.9.0 schemas moved to msr/archive/0.9.0/ unchanged.
+IC02_V0100_PATHS = ("msr/trajectory-window.schema.json",)
 # Kept for the record (design Appendix A); self-contained. Only the 0.7.0 calibration
 # is still read by the Gate (its own rule, exponent fixed at -30; never read as 0.8.0).
 ARCHIVED_PATHS = (
@@ -40,7 +42,7 @@ def load_schema(relpath: str) -> dict[str, Any]:
 
 def registry() -> Registry[Any]:
     reg: Registry[Any] = Registry()
-    for rel in (*SCHEMA_PATHS, *IC02_V090_PATHS, *ARCHIVED_PATHS):
+    for rel in (*SCHEMA_PATHS, *IC02_V090_PATHS, *IC02_V0100_PATHS, *ARCHIVED_PATHS):
         schema = load_schema(rel)
         reg = reg.with_resource(schema["$id"], Resource.from_contents(schema, DRAFT202012))
     return reg

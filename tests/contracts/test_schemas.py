@@ -105,6 +105,7 @@ def test_lock_matches_files() -> None:
         "msr/archive/0.6.2/geometry-measurement.schema.json": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4",
         "msr/archive/0.7.0/geometry-measurement.schema.json": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a",
         "msr/archive/0.8.0/geometry-measurement.schema.json": "d9aa7ea59237c4c6f19d33bbac6506ce0983b10ce46a3ee3a94b076b9bd05f6e",
+        "msr/archive/0.9.0/geometry-measurement.schema.json": "e1f3a54e2f8bf43bc5e931dd1f2ebd74e1bf5b2c3e1ff9be9c6147efd336f4d0",
     }
     for rel, digest in archived.items():
         assert hashlib.sha256((CONTRACTS_DIR / rel).read_bytes()).hexdigest() == digest, rel

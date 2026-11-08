@@ -1,4 +1,4 @@
-"""IC-02 0.9.0 (D-129): the first-128-rows window.
+"""IC-02 0.9.0 (D-129): the first-128-rows window. Read by the 0.10.0 Gate under its own rule (the 0.9.0 files live in msr/archive/0.9.0/).
 
 New tests only; no existing test file is parametrized over anything added here (the window schema is
 kept out of ``SCHEMA_PATHS`` for that reason, so this file applies the same lint to it).
@@ -18,11 +18,12 @@ import pytest
 from contracts import ic02_window as W
 from contracts.gate import PAYLOAD_SCHEMAS, check_payload
 from contracts.ic00_versions import check_envelope_versioned
-from contracts.schemas import CONTRACTS_DIR, IC02_V090_PATHS, load_schema, validator
+from contracts.schemas import CONTRACTS_DIR, load_schema, validator
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[2]
-VEC = json.loads((CONTRACTS_DIR / "msr/vectors/window.json").read_text(encoding="utf-8"))
+A090 = "msr/archive/0.9.0/"
+VEC = json.loads((CONTRACTS_DIR / A090 / "vectors/window.json").read_text(encoding="utf-8"))
 BLOBS = {u: bytes.fromhex(h) for u, h in VEC["blobs"].items()}
 CASES = {c["id"]: c for c in VEC["cases"]}
 LOCK = json.loads((Path(__file__).with_name("contract-ic02-v090.lock")).read_text(encoding="utf-8"))
@@ -75,21 +76,21 @@ def test_vectors_regenerate_byte_identically(tmp_path: Path) -> None:
 # ------------------------------------------------------------------ rules the vectors do not fix by themselves
 
 def test_constants_agree_between_code_and_schemas() -> None:
-    win = load_schema("msr/trajectory-window.schema.json")["properties"]
+    win = load_schema(A090 + "trajectory-window.schema.json")["properties"]
     assert win["window"]["properties"]["start"] == {"const": W.WINDOW_START}
     assert win["window"]["properties"]["length"] == {"const": W.WINDOW_LENGTH}
     assert win["window"]["properties"]["rule"] == {"const": W.WINDOW_RULE}
     assert win["policy"]["properties"]["name"] == {"const": W.WINDOW_POLICY}
     assert win["points"]["properties"]["shape"]["prefixItems"][0] == {"const": W.WINDOW_LENGTH}
-    scope = load_schema("msr/geometry-measurement.schema.json")["$defs"]["inputScope"]["oneOf"][1]["properties"]
+    scope = load_schema(A090 + "geometry-measurement.schema.json")["$defs"]["inputScope"]["oneOf"][1]["properties"]
     assert (scope["start"], scope["length"], scope["rule"]) == ({"const": 0}, {"const": 128}, {"const": "prefix_rows"})
 
 
 def test_known_payload_versions_include_the_window_and_both_geometry_rules() -> None:
-    assert PAYLOAD_SCHEMAS[("msr.trajectory-window", "0.9.0")] == "msr/trajectory-window.schema.json"
-    assert PAYLOAD_SCHEMAS[("msr.geometry-measurement", "0.9.0")] == "msr/geometry-measurement.schema.json"
+    assert PAYLOAD_SCHEMAS[("msr.trajectory-window", "0.9.0")] == A090 + "trajectory-window.schema.json"
+    assert PAYLOAD_SCHEMAS[("msr.geometry-measurement", "0.9.0")] == A090 + "geometry-measurement.schema.json"
     assert PAYLOAD_SCHEMAS[("msr.geometry-measurement", "0.7.1")] == "msr/archive/0.8.0/geometry-measurement.schema.json"
-    for ident, version in (("msr.trajectory-window", "0.8.0"), ("msr.trajectory-window", "1.0.0"), ("msr.geometry-measurement", "0.8.0")):
+    for ident, version in (("msr.trajectory-window", "0.8.0"), ("msr.trajectory-window", "1.0.0"), ("msr.trajectory-window", "0.10.1"), ("msr.geometry-measurement", "0.8.0")):
         env = {**copy.deepcopy(CASES["accept-window-first-128"]["envelope"]), "payload_schema": {"id": ident, "version": version}}
         assert {v.code for v in check_payload(env, {}, {})} == {"S39"}
 
@@ -122,7 +123,7 @@ def test_prefix_matches_for_a_reader_holding_the_raw_rows() -> None:
 
 # ------------------------------------------------------------------ the new schema gets the lint the others get
 
-@pytest.mark.parametrize("rel", IC02_V090_PATHS)
+@pytest.mark.parametrize("rel", [A090 + "trajectory-window.schema.json"])
 def test_window_schema_is_valid_and_linted(rel: str) -> None:
     schema = load_schema(rel)
     Draft202012Validator.check_schema(schema)
@@ -148,7 +149,7 @@ def test_window_schema_is_valid_and_linted(rel: str) -> None:
 
 def test_geometry_090_is_the_0_8_0_schema_plus_input_scope_only() -> None:
     old = load_schema("msr/archive/0.8.0/geometry-measurement.schema.json")
-    new = load_schema("msr/geometry-measurement.schema.json")
+    new = load_schema(A090 + "geometry-measurement.schema.json")
     assert old["$id"].endswith("/0.7.1") and new["$id"].endswith("/0.9.0")
     # pair is untouched; single differs only by input_scope (property, required) and one if/then
     assert old["$defs"]["pair"] == new["$defs"]["pair"]
@@ -177,7 +178,7 @@ def test_file_matches_the_ic02_0_9_0_lock(entry: dict[str, str]) -> None:
 
 
 def test_readme_states_fixed_window_and_future_parameters_separately() -> None:
-    text = (CONTRACTS_DIR / "msr/README.md").read_text(encoding="utf-8")
+    text = (CONTRACTS_DIR / A090 / "README.md").read_text(encoding="utf-8")
     fixed = text.index("### 今回の実装（固定）")
     future = text.index("### 将来の拡張（今回の実装ではない）")
     assert fixed < future
@@ -232,7 +233,7 @@ def test_ic00_1_1_0_frozen_files_match_development_baseline_and_freeze_matches_t
 
 
 def test_the_validator_for_the_window_schema_resolves_refs() -> None:
-    v = validator("msr/trajectory-window.schema.json")
+    v = validator(A090 + "trajectory-window.schema.json")
     case = CASES["accept-window-first-128"]["envelope"]["payload"]
     assert list(v.iter_errors(case)) == []
     bad = copy.deepcopy(case)

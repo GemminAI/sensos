@@ -17,17 +17,20 @@ from jsonschema import Draft202012Validator
 
 from contracts.check import Violation
 from contracts.ic02 import check_calibration_parents, check_geometry
-from contracts.ic02_window import check_scope, check_window
+from contracts.ic02_window import check_pair_windows, check_scope, check_window
 from contracts.schemas import validator
 
 # (payload_schema.id, payload_schema.version) -> schema path. The version is the
 # version in the schema's $id (design 2.6); it is not IC-00's contract.version.
 PAYLOAD_SCHEMAS: dict[tuple[str, str], str] = {
-    ("msr.geometry-measurement", "0.9.0"): "msr/geometry-measurement.schema.json",
+    ("msr.geometry-measurement", "0.10.0"): "msr/geometry-measurement.schema.json",
+    # IC-02 0.9.0 rule (fixed first-128-rows window), moved to archive/0.9.0 unchanged; still read under its own rule.
+    ("msr.geometry-measurement", "0.9.0"): "msr/archive/0.9.0/geometry-measurement.schema.json",
     # IC-02 0.8.0 rule, unchanged (no ``input_scope``). A 0.7.1 payload is read by this schema and the
     # same ``check_geometry``; it is never read as 0.9.0 and never asked for a window.
     ("msr.geometry-measurement", "0.7.1"): "msr/archive/0.8.0/geometry-measurement.schema.json",
-    ("msr.trajectory-window", "0.9.0"): "msr/trajectory-window.schema.json",
+    ("msr.trajectory-window", "0.10.0"): "msr/trajectory-window.schema.json",
+    ("msr.trajectory-window", "0.9.0"): "msr/archive/0.9.0/trajectory-window.schema.json",
     ("msr.calibration", "0.8.0"): "msr/calibration.schema.json",
     # old rule, unchanged (no ``exponent`` field, fixed at -30). Never interpreted as 0.8.0;
     # how old data moves to 0.8.0 is a separate decision and is not implemented here.
@@ -68,8 +71,10 @@ def check_payload(
         return check_window(envelope, stored or {}, blobs or {})
     if declared["id"] == "msr.geometry-measurement":
         found = check_geometry(envelope, stored or {}, blobs or {})
-        if declared["version"] == "0.9.0" and envelope["payload"]["mode"] == "single":
+        if declared["version"] in ("0.9.0", "0.10.0") and envelope["payload"]["mode"] == "single":
             found += check_scope(envelope, stored or {})
+        if declared["version"] == "0.10.0" and envelope["payload"]["mode"] == "pair":
+            found += check_pair_windows(envelope, stored or {})
         return found
     if declared["id"] == "msr.calibration" and parent_contents is not None:
         return check_calibration_parents(envelope, parent_contents)

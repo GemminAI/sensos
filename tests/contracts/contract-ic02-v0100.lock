@@ -1,0 +1,52 @@
+{
+  "contract_id": "IC-02",
+  "version": "0.10.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the IC-02 0.10.0 files (D-132, the window with a position and a length). The 0.9.0 files are in contract-ic02-v090.lock (they moved to msr/archive/0.9.0/ byte for byte). Update only by an explicit, reviewed contract change.",
+  "payload_schemas": {
+    "msr.geometry-measurement": "0.10.0",
+    "msr.trajectory-window": "0.10.0",
+    "msr.calibration": "0.8.0 (unchanged)"
+  },
+  "not_locked": [
+    "docs/architecture/contracts/msr/vectors/window-rows-undetermined.json"
+  ],
+  "files": [
+    {
+      "path": "docs/architecture/contracts/msr/README.md",
+      "sha256": "46a239f60a5b918a40251abfba4d992bcefe4887aa11d92d7391832659ce2e98"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/geometry-measurement.schema.json",
+      "sha256": "4a2d269bcff5a2977bec044d9006b75e0627e1dadc1054dd49f40e69987f4614"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/trajectory-window.schema.json",
+      "sha256": "2e358529ae0e550f9e6e1bebdc600fc19cb16f44a873f01685d66f4eac324f1f"
+    },
+    {
+      "path": "docs/architecture/contracts/msr/vectors/window-rows.json",
+      "sha256": "1400b8984378115feaaf5b6e6f82176655a86556b3cb28cd659f5bcee815f0f1"
+    },
+    {
+      "path": "docs/architecture/contracts/IC-02/0.10.0/CHANGE.md",
+      "sha256": "4ae7cc4141e22705616540d46b20affdbd3444aa1706ec1fc788188bbbb7d5e8"
+    },
+    {
+      "path": "tools/contracts/ic02_window.py",
+      "sha256": "1e3262a3cf00ee8dfc1702d413f93d24ee3c0fe9767f0c3e777126193ee18e84"
+    },
+    {
+      "path": "tools/contracts/gate.py",
+      "sha256": "b72a8695a1f7f96aa365f0d66c40c6f4b318af8ad6c89e94099f81139d365084"
+    },
+    {
+      "path": "tools/contracts/schemas.py",
+      "sha256": "36b63eb54bc59b59a208058369f2eb81a3aaddfeaa5da11ec71f79263b9691c6"
+    },
+    {
+      "path": "tools/contracts/make_vectors_window_rows.py",
+      "sha256": "5d678dca79b987a45b5ff1a41c592a3ee631cc63effbb25f38c17c9f6ffea546"
+    }
+  ]
+}
