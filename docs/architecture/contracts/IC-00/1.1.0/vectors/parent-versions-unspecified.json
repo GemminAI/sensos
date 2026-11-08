@@ -1,0 +1,115 @@
+{
+ "cases": [
+  {
+   "ancestor_lookup": {},
+   "child_version": "1.0.0",
+   "envelope": {
+    "artifact_id": "art:8d7a5d05edf3b7d6a3334efe68f26ecedacad84e9a24ec83649815b9f3ad7a9a",
+    "calibration_ref": null,
+    "content_id": "cnt:5a9ef06b6b1918074bc0af0e6516744aa7899ed8e2144ff9c630dde131aac3bc",
+    "contract": {
+     "id": "IC-00",
+     "version": "1.0.0"
+    },
+    "event_span": null,
+    "extensions": {},
+    "kind": "interpretation",
+    "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+    "observed_at": null,
+    "parents": [
+     {
+      "artifact_ids": [
+       "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c"
+      ],
+      "ordered": false,
+      "role": "trajectory"
+     }
+    ],
+    "payload": {
+     "n": 3
+    },
+    "payload_schema": {
+     "id": "test.payload",
+     "version": "1.0.0"
+    },
+    "policy_refs": [],
+    "produced_at": "2026-11-06T00:00:00Z",
+    "producer": {
+     "build": "build-1",
+     "name": "meaning-space-runtime",
+     "version": "1.0.0"
+    },
+    "rule_refs": [],
+    "seq": 3,
+    "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+    "space_id": "S1"
+   },
+   "expect": {
+    "a": {
+     "codes": []
+    },
+    "b": {
+     "codes": [
+      "parent_invalid",
+      "parent_unknown"
+     ]
+    }
+   },
+   "id": "grandparent-missing-from-ancestor-lookup",
+   "lookup": {
+    "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c": {
+     "content_id": "cnt:3fd6104d18e12b3c59f2a1417f7cad19e460e5d4e80647570648f2fc8075de9f",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "seq": 2
+    }
+   },
+   "parent_version": "1.1.0",
+   "parents": {
+    "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c": {
+     "artifact_id": "art:2d7475fd53b70e24fa92e7d2e5a6d6421c1706d24b5a8d90b1d96feccd374d7c",
+     "calibration_ref": null,
+     "content_id": "cnt:3fd6104d18e12b3c59f2a1417f7cad19e460e5d4e80647570648f2fc8075de9f",
+     "contract": {
+      "id": "IC-00",
+      "version": "1.1.0"
+     },
+     "event_span": null,
+     "extensions": {},
+     "kind": "interpretation",
+     "observation_id": "obs:37772cec6e4e122d64a392440421bd0ebab99605df6511518e387350110e2dca",
+     "observed_at": null,
+     "parents": [
+      {
+       "artifact_ids": [
+        "art:afff568b5121968cffde6ff851a76cdc49da9295f4c5f0f8da4088f22f4417c6"
+       ],
+       "ordered": false,
+       "role": "trajectory"
+      }
+     ],
+     "payload": {
+      "n": 2
+     },
+     "payload_schema": {
+      "id": "test.payload",
+      "version": "1.0.0"
+     },
+     "policy_refs": [],
+     "produced_at": "2026-11-06T00:00:00Z",
+     "producer": {
+      "build": "build-1",
+      "name": "nvs-runtime",
+      "version": "1.0.0"
+     },
+     "rule_refs": [],
+     "seq": 2,
+     "session_id": "ses:2cb8c125b14a883980a0d4c5d8d70737aa75b8fbde1ec7e44ca98bce653eac61",
+     "space_id": "S1"
+    }
+   }
+  }
+ ],
+ "format": "parent-versions/1",
+ "rule": "B-form cases that depend on points D-112 leaves unspecified: the code when a parent's artifact_id cannot be computed; an ancestor_lookup entry with missing fields; where the child's calibration_ref is looked up (parents' envelopes only, or also ancestor_lookup); whether calibration_unknown for a parent uses ancestor_lookup. Same case shape as parent-versions.json. D-113: grandparent-missing-from-ancestor-lookup (D-111 (4) and D-112 conflict) is here, with its expectations unchanged.",
+ "status": "not frozen (not in the 1.1.0 FREEZE.md)"
+}

@@ -1,0 +1,20 @@
+{
+  "contract_id": "IC-00",
+  "version": "1.1.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the IC-00 1.1.0 schema (D-107..D-110). Separate from tests/contracts/contract.lock, which stays IC-00 1.0.0 (test_schemas.py checks it). `reuses_frozen_1_0_0`: the 1.0.0 schema the 1.1.0 schema $refs, unchanged. Draft: not frozen, before independent verification.",
+  "schemas": [
+    {
+      "path": "IC-00/1.1.0/artifact.schema.json",
+      "id": "sensos:contracts/IC-00/artifact/1.1.0",
+      "sha256": "d1ba7c8ff80700eb6111a81e0b06e3ba0b9367887be8588a7187fdee9bb9e39e"
+    }
+  ],
+  "reuses_frozen_1_0_0": [
+    {
+      "path": "common/provenance.schema.json",
+      "id": "sensos:contracts/common/provenance/1.0.0",
+      "sha256": "dcde3f691b52241d5e347df94a36b6793d07d779ad5a990a1e3f7ae3a4a4dbea"
+    }
+  ]
+}
