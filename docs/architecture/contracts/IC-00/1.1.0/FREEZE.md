@@ -1,9 +1,75 @@
-# IC-00 1.1.0 — 凍結の記録（下書き）
+# IC-00 1.1.0 — 凍結の記録
 
-- **状態：未凍結**（独立検証は合格、D-113）。この記録は下書きで、1.1.0 は凍結していない。1.0.0 との後方互換性の確認（Tomo の 11-07 13:24 の判断）は実施済みで、結果は下の「1.0.0 との後方互換性の確認」に記す。独立検証（D-113）とは別のもの。タグは作っていない。
-- **決定**：D-107（1.1.0 は Minor。`sensos-connector` と `sensos-inference` を登録）、D-108（登録の規則と規則選択、`sensos-connector` の payload の制限は未実装、独立検証、順序）、D-109（順序の読み替え、契約版の適用範囲は IC-00 だけ）、D-110（未対応の版は `unsupported_contract_version`、版をまたぐ親子は許可）、D-111（B 形の入力・優先順位・符号）、D-117（D-116 の補足。1.1.0 の S8 は list・dict で例外を出さず、等価比較で種類を数える）、D-116（D-115 の補足。形式に合わない `content_id` と、各欄の読み方の契約）、D-115（D-114 の補足。`lookup_incomplete` の範囲）、D-114（calibration の参照の検査を 3 状態に分ける）、D-113（独立検証の合格、見本 1 件を凍結の対象から除外）、D-112（D-111 の補足。`parent_unknown` は計算した `artifact_id` で判定、①で符号が出たら①だけ、S4・S16・S5 は③、`parent_envelopes` の全項目を②の対象にする）。`OKF/Decisions.md`
-- **設計書**：`SensOS 受け渡し契約 設計書 v0.7.2.md`（vault の `日報/202611/20261106/`）。sha256 `f4a865ccf58027c64ed4b9197bc9bd0ebb76fa8f63bd69e1bf7c7a7dd137b911`。設計書の §2.4・S27 に `sensos-connector` はあるが `sensos-inference` は無い（D-101・D-108 (1) が根拠）。設計書の更新は未実施。
+- **状態：凍結**。日付 2026-11-08（Tomo の判断、11-08）。対象は `feature/contracts-ic00-v110` の、この FREEZE.md を含むコミット。コミット後の値（コミット ID とタグ）は、下の「タグ」に記す（この文書には自分自身のコミット ID を書けない）。下の「凍結の対象に入れないもの」は、凍結しても挙動を保証しない。
+- **決定**：D-131（凍結の判断、2026-11-08。独立検証の合格（628 件で符号の集合が一致、食い違い 0）、未規定 15 件・「実行された検査・抑制された検査」の一致・S28 以降を凍結の対象に入れない、1.2.0 に回すもの、凍結（IC-00 1.1.0）と IC-02 0.9.0 の統合は別の判断）、D-122（IC-00 の版の切り分け。1.1.0 = D-107・D-108 を含む既存の拡張と D-117 までの修正。1.2.0 = meaning-mapper の observation、`capability:nig-interpretation` など新しい部門の接続に必要な拡張。新しい producer の追加を 1.1.0 に混ぜない）、D-107（1.1.0 は Minor。`sensos-connector` と `sensos-inference` を登録）、D-108（登録の規則と規則選択、`sensos-connector` の payload の制限は未実装、独立検証、順序）、D-109（順序の読み替え、契約版の適用範囲は IC-00 だけ）、D-110（未対応の版は `unsupported_contract_version`、版をまたぐ親子は許可）、D-111（B 形の入力・優先順位・符号）、D-117（D-116 の補足。1.1.0 の S8 は list・dict で例外を出さず、等価比較で種類を数える）、D-116（D-115 の補足。形式に合わない `content_id` と、各欄の読み方の契約）、D-115（D-114 の補足。`lookup_incomplete` の範囲）、D-114（calibration の参照の検査を 3 状態に分ける）、D-113（独立検証の合格、見本 1 件を凍結の対象から除外）、D-112（D-111 の補足。`parent_unknown` は計算した `artifact_id` で判定、①で符号が出たら①だけ、S4・S16・S5 は③、`parent_envelopes` の全項目を②の対象にする）。`OKF/Decisions.md`
+- **設計書**：`SensOS 受け渡し契約 設計書 v0.7.4.md`（vault の `日報/202611/20261107/`。sensos には入れない）。sha256 `a5d4e17b38c581bfdd659850744d2bdc8e5b37498406e76a62a88f6852c44520`（Tomo の指示の値。Claude が vault のファイルで再計算し、一致を確認した、2026-11-08）。設計書の §2.4・S27 に `sensos-connector` はあるが `sensos-inference` は無い（D-101・D-108 (1) が根拠）。以前の下書きは v0.7.2（sha256 `f4a865ccf58027c64ed4b9197bc9bd0ebb76fa8f63bd69e1bf7c7a7dd137b911`）を参照していた。
 - 下の sha256 は `tests/contracts/test_freeze_v110.py` が実際のファイルと照合する。`contract-v110.lock`（`tests/contracts/`）は 1.1.0 のスキーマの lock で、既存の `contract.lock`（1.0.0）とは別。
+
+## 凍結の対象
+
+- 1.1.0 のファイルと sha256：下の「sha256」の表（5 ファイル）。`tests/contracts/test_freeze_v110.py` が実際のファイルと照合する。
+- 見本：`vectors/check-envelope.json` 77 件、`vectors/parent-versions.json` 14 件（計 91 件）。
+- 範囲：規則選択（`contract.version`）、`sensos-connector`・`sensos-inference` の登録、版をまたぐ親子（A 形・B 形）、calibration の参照の 3 状態（D-114〜D-116）、1.1.0 の S8（D-117）。
+
+## 独立検証（D-108 (4)・D-113、D-114〜D-117 の後のやり直し）
+
+- **確認役**（実装を読まない）の見本を c0064c8 の `check_envelope_versioned`（A 形）と `check_envelope_with_parents`（B 形）に通した（2026-11-08）。**A 形 544 件・B 形 84 件の計 628 件で、符号の集合が一致。食い違い 0**。範囲別（タグは重複して付く）：A 形 D-108=54、D-110=63、D-114=14、D-115=50、D-116=415、D-117=232（すべて一致）。B 形 D-108=3、D-110=10、D-111=84、D-112=84、D-116=12、D-117=15（すべて一致）。例外で落ちた件は 0。
+- **実行役**の見本 107 回の突き合わせも、食い違い 0（Tomo の報告による。この文書の作成時に再実行していない）。
+- 確認役の見本の sha256（`~/Projects/experiments/ic00-v110-verify2-20261107/work/MANIFEST.md` の記録。突き合わせの前に実ファイルと一致を確認した）：
+
+| 見本 | 件数 | sha256 |
+|---|---|---|
+| `work/vectors/check-envelope-A.json` | 544 | `e9549f7274a880906847a6872cf26708204e2d2ff4be231a98d30e590ccf03e4` |
+| `work/vectors/check-envelope-B.json` | 84 | `2bff85f658a4878355e73001de9a47e7a8f0ebb93bd6cad21688698d3bab9dba` |
+| `work/vectors/check-envelope-unspecified.json` | 15 | `ad78b8fea0dcae8304d59d1806c8378cea06533e7111ccac085f377c8ce3421a` |
+
+- 下の「凍結の対象に入れないもの」(a)(b) のとおり、比べたのは符号の集合だけ。
+
+## 1.0.0 との後方互換性（凍結前の再確認、2026-11-08）
+
+- 1.0.0 の試験 292 件（`test_blob_and_ic02` 48、`test_freeze` 20、`test_schemas` 59、`test_units` 8、`test_vectors` 157）がすべて通過。
+- `IC-00/1.0.0/FREEZE.md` の表の 15 ファイルの sha256 が、c82918f の記録、c82918f のファイル、現在のファイルの 3 つで一致。食い違い 0。
+- 1.1.0 の互換性の試験（`test_ic00_v110_compat.py`、60 件）も通過。
+
+## 凍結の対象に入れないもの（挙動を保証しない。次の版で決める）
+
+a. **未規定の 15 件**（確認役の `check-envelope-unspecified.json`）。D-113 と同じ扱い。決定の文言では期待が決まらない。下は c0064c8 の出力の観測で、一致・不一致の判定ではない。
+
+| 見本 ID | 形 | 実装の出力（符号の集合） |
+|---|---|---|
+| `u-s8-equality-int1-vs-true` | A | S8 |
+| `u-s8-equality-int0-vs-false` | A | S8 |
+| `u-s8-equality-list1-vs-listtrue` | A | S8 |
+| `u-parent-item-content_id-missing` | A | lookup_incomplete |
+| `u-parent-item-content_id-null` | A | artifact_id_mismatch, content_id_mismatch |
+| `u-parent-item-content_id-int` | A | artifact_id_mismatch, content_id_mismatch |
+| `u-parent-item-content_id-badformat` | A | artifact_id_mismatch, content_id_mismatch |
+| `u-parent-item-content_id-list` | A | artifact_id_mismatch, content_id_mismatch |
+| `u-cal-lookup-content_id-trailing-newline` | A | calibration_mismatch |
+| `u-unknown-parent-child-obs-nonnull` | A | S8, parent_unknown |
+| `u-duplicate-parent-id-unordered-role` | A | S16 |
+| `u-cal-lookup-seq-float-integral` | A | lookup_incomplete |
+| `u-B-parent-observation_id-key-missing` | B | parent_invalid, parent_unknown |
+| `u-B-ancestor_lookup-entry-without-content_id` | B | parent_invalid, parent_unknown |
+| `u-B-ancestor_lookup-entry-without-seq` | B | parent_invalid |
+
+b. **「実行された検査・抑制された検査」の期待の一致**。実装は違反の一覧だけを返し、どの検査が実行・抑制されたかを返さない。確認役の見本 628 件の `expect.executed`・`expect.suppressed` は比べていない（比べられない件数：A 形 544、B 形 84）。
+c. **`sensos-connector` の payload の制限（S28 以降）**：未実装（上の D-108 (3)。IC-06 の payload スキーマができるまで実装しない）。
+
+## 次の版（1.2.0）に回すもの
+
+- `1` と `true` の同一視（D-117 の等価比較の読み。現状は Python の `==` で同じ種類として数える。未規定 `u-s8-equality-*` を参照）。
+- 新しい producer role（meaning-mapper の observation、`capability:nig-interpretation`）。
+- IC-04 の recall-event の扱い。
+
+## タグ
+
+- タグ名：`contracts/ic00-v1.1.0`（注釈つき、ローカルのみ）。この FREEZE.md を含むコミットに付ける。コミット ID はタグの対象として、タグのメッセージと作業の報告に記す。
+- push していない。PR #6 の head の更新とタグの push は、別途 Tomo の OK を得てから行う。
+
+## 以下は凍結に至る経緯の記録（各時点の記述。現在の状態は上の節が優先する）
+
+- 以下の「未凍結」「下書き」「独立検証は未実施」「タグは作っていない」は当時の記述。独立検証（D-114〜D-117 の後のやり直し）は上の「独立検証」のとおり 2026-11-08 に実施済みで、凍結した。
 
 ## 1.0.0 との関係
 
@@ -58,7 +124,7 @@
 - 親子の版の検査（B）の入力・優先順位・符号は D-111・D-112 に従う。
 - **B 形で未規定の点（D-112。実装は現状のままで、凍結の対象に入れない）**：(a) 親の `artifact_id` を計算できないときの符号（実装は、その親から `parent_key_mismatch` を出さず、親の親が無いことを `parent_unknown` として出す）、(b) `ancestor_lookup` の項目に欠けがあるときの扱い、(c) 子の `calibration_ref` の参照先を親から作った lookup だけで引くか（実装は親の封筒だけで引く）、(d) 親に対する `calibration_unknown` の判定に `ancestor_lookup` を使うか（実装は使う）。この 4 点に依存する B 形の見本は、`vectors/parent-versions-unspecified.json` に分ける（凍結の対象外）。
 
-## sha256（下書きの記録）
+## sha256
 
 | ファイル | sha256 |
 |---|---|
@@ -70,4 +136,4 @@
 
 ## 変更の規則
 
-1.1.0 の凍結後は、`IC-00/1.0.0/FREEZE.md` の「変更の規則」（設計書 §2.5）と同じ。この下書きの段階では、記録のファイルを変えたら、上の sha256 を更新する。
+1.1.0 の凍結後は、`IC-00/1.0.0/FREEZE.md` の「変更の規則」（設計書 §2.5）と同じ。凍結したので、記録のファイルは変えない。
