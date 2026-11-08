@@ -1,0 +1,49 @@
+{
+  "contract_id": "IC-00",
+  "version": "1.0.0",
+  "note": "sha256 of each contract schema file in docs/architecture/contracts/. IC-00 (common/artifact, provenance, uncertainty) is 1.0.0 (design v0.7.1 2.5; frozen: see IC-00/1.0.0/FREEZE.md). common/blob 0.7.0 and msr/* 0.7.0 are drafts. `archived` = the superseded 0.6.x payload schemas, kept verbatim (design Appendix A). Update only by an explicit, reviewed contract change.",
+  "schemas": [
+    {
+      "path": "common/artifact.schema.json",
+      "id": "sensos:contracts/common/artifact/1.0.0",
+      "sha256": "16f715bcd8e65e5c07085160c4b91b565f8564eeea00ac8fcd9162d17dabc8e2"
+    },
+    {
+      "path": "common/provenance.schema.json",
+      "id": "sensos:contracts/common/provenance/1.0.0",
+      "sha256": "dcde3f691b52241d5e347df94a36b6793d07d779ad5a990a1e3f7ae3a4a4dbea"
+    },
+    {
+      "path": "common/uncertainty.schema.json",
+      "id": "sensos:contracts/common/uncertainty/1.0.0",
+      "sha256": "8ce4a7a2f52e9913eacf180d07b08a63b7cc574024b39c3aa0323dca1448a517"
+    },
+    {
+      "path": "common/blob.schema.json",
+      "id": "sensos:contracts/common/blob/0.7.0",
+      "sha256": "f17c53bba3b8df0b7755717dd02951c20285aaaf0e13eceb4877ed8925d6a952"
+    },
+    {
+      "path": "msr/calibration.schema.json",
+      "id": "sensos:contracts/msr/calibration/0.7.0",
+      "sha256": "7a702f1ff8305ed808885a46b9b200d75380f66fd45276888867ad1eb93d8c72"
+    },
+    {
+      "path": "msr/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.7.0",
+      "sha256": "ce96a21095fae83603b73eb0933a7605535455eb335c20fdd0882178e8c1339a"
+    }
+  ],
+  "archived": [
+    {
+      "path": "msr/archive/0.6.1/calibration.schema.json",
+      "id": "sensos:contracts/msr/calibration/0.6.1",
+      "sha256": "47e5bc48e736f774b21a5f61b400ab203bd776cc0db0538024a35fd32cc24d58"
+    },
+    {
+      "path": "msr/archive/0.6.2/geometry-measurement.schema.json",
+      "id": "sensos:contracts/msr/geometry-measurement/0.6.2",
+      "sha256": "b5e96c646d3937123e00398f6a479f6823e0f551e5dc6e37f095d92d8d513ca4"
+    }
+  ]
+}
