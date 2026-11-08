@@ -52,9 +52,9 @@ def test_undetermined_case_records_the_implementations_behaviour(cid: str) -> No
 
 def test_counts() -> None:
     acc = [c for c in DET["cases"] if c["expect"]["result"] == "accept"]
-    assert (len(DET["cases"]), len(acc)) == (55, 20)
+    assert (len(DET["cases"]), len(acc)) == (61, 22)
     uacc = [c for c in UND["cases"] if c["expect"]["result"] == "accept"]
-    assert (len(UND["cases"]), len(uacc)) == (8, 4)
+    assert (len(UND["cases"]), len(uacc)) == (2, 2)
     assert not set(DET_CASES) & set(UND_CASES)
 
 
@@ -62,6 +62,7 @@ def test_every_determined_case_cites_the_decision_wording() -> None:
     for c in DET["cases"]:
         assert c["derives_from"], c["id"]
         assert all(d.startswith("D-1") for d in c["derives_from"]), c["id"]
+        assert not c["id"].startswith("undetermined"), c["id"]
         assert "tag" not in c, c["id"]
 
 
@@ -110,15 +111,19 @@ def test_the_pair_check_names_the_length_and_does_not_adopt_common_prefix() -> N
         assert DET_CASES[cid]["expect"]["payload"] == ["pair_window_length"]
 
 
-def test_windows_of_different_positions_in_separate_spaces_are_accepted_together_but_sharing_one_is_undetermined() -> None:
+def test_windows_of_different_positions_in_separate_spaces_are_accepted_together_and_sharing_one_is_rejected() -> None:
     assert DET_CASES["accept-windows-of-one-original-in-separate-spaces"]["expect"]["result"] == "accept"
-    assert "window_space_position" not in {code for c in DET["cases"] for code in c["expect"]["payload"]}
-    assert UND_CASES["undetermined-space-shared-by-two-positions"]["expect"]["payload"] == ["window_space_position"]
+    assert DET_CASES["reject-space-shared-by-two-positions"]["expect"]["payload"] == ["window_space_position"]
 
 
-def test_the_codes_the_decisions_do_not_define_appear_only_in_the_undetermined_file() -> None:
-    assert "window_token_range" not in {code for c in DET["cases"] for code in c["expect"]["payload"]}
-    assert "window_token_range" in {code for c in UND["cases"] for code in c["expect"]["payload"]}
+def test_d133_points_are_determined_and_the_undetermined_file_holds_only_what_d133_leaves_open() -> None:
+    for cid in ("reject-token-index-beyond-origin-length", "reject-token-index-negative", "reject-rows-longer-than-origin", "accept-policy-name-free-form",
+                "accept-prefix-rows-length-64", "reject-space-shared-by-two-positions", "accept-0.10.0-measurement-over-a-0.9.0-window"):
+        assert any(d.startswith("D-133") for d in DET_CASES[cid]["derives_from"]), cid
+    assert DET_CASES["reject-rows-longer-than-origin"]["expect"]["payload"] == ["window_range", "window_token_range"]
+    assert set(UND_CASES) == {"undetermined-token-index-offset-from-row-numbers", "undetermined-pair-of-equal-length-windows-at-different-positions"}
+    assert any(d.startswith("D-133 (6)") for d in UND_CASES["undetermined-pair-of-equal-length-windows-at-different-positions"]["derives_from"])
+    assert "accept-pair-of-equal-length-windows-at-different-positions" not in DET_CASES
 
 
 def test_vectors_regenerate_byte_identically(tmp_path: Path) -> None:
@@ -193,6 +198,6 @@ def test_rows_match_for_a_reader_holding_the_raw_rows() -> None:
 
 def test_readme_documents_0_10_0_and_the_undetermined_list() -> None:
     text = (CONTRACTS_DIR / "msr/README.md").read_text(encoding="utf-8")
-    for needle in ("IC-02 0.10.0", "D-132", "window_range", "pair_window_length", "未規定", "archive/0.9.0/"):
+    for needle in ("IC-02 0.10.0", "D-132", "window_range", "pair_window_length", "未規定", "D-133", "archive/0.9.0/"):
         assert needle in text, needle
     assert (CONTRACTS_DIR / "IC-02/0.10.0/CHANGE.md").is_file()

@@ -33,10 +33,10 @@ Codes (named, not S-numbers; the schema step reports ``schema`` alone, as everyw
 ``window_origin_unreadable`` the stored parent lacks the fields read from it
 ``parent_unknown``      the referenced parent is not in ``stored``
 ``window_range``        (0.10.0) ``start + length`` exceeds ``origin.length`` (the window leaves the original)
-``window_token_range``  (0.10.0) a ``token_index`` entry is outside ``[0, origin.length)`` (NOT DETERMINED by D-132's
-                        wording; see ``msr/vectors/window-rows-undetermined.json``)
+``window_token_range``  (0.10.0) a ``token_index`` entry is outside ``[0, origin.length)`` (D-133 (1): outside
+                        [0, origin.length) is rejected)
 ``window_space_position`` (0.10.0) another stored window in the same ``space_id`` has a different ``start`` or ``length``
-                        (D-132: the space is separated by position; how a collision is detected is this implementation's)
+                        (D-132 (4), D-133 (4): the space is separated by position; (start, length) are compared)
 ``pair_window_length``  (0.10.0 pair) the two window parents have different lengths: ``equal_only`` cannot compare them
                         (``common_prefix`` is not adopted, D-120)
 ``window_length``       (measurement) ``input_ref.length`` is not the scope's length

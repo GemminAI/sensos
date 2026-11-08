@@ -87,9 +87,9 @@ Blob の参照の型（`intBlob`・`floatBlob`）は `../common/blob.schema.json
 |---|---|
 | `window.rule` | `rows`（`start` 行目から `length` 行、連続）、または `prefix_rows`（`start = 0` の特別な場合。0.9.0 の窓の表現を残したもの） |
 | `window.start` | 整数、0 以上（`prefix_rows` は 0 のみ） |
-| `window.length` | 整数、1 以上。**128 に固定しない**。位置ごとに変えてもよい |
+| `window.length` | 整数、1 以上。**128 に固定しない**(`prefix_rows` も任意の長さ。D-133 (2))。位置ごとに変えてもよい |
 | 位置の候補 | 契約は**狭めない**（先頭・中ほど・末尾など、`start`・`length` が範囲内なら何でもよい。D-132 (5)） |
-| `policy.name` | 空でない文字列（`policy.sha256` は名前の UTF-8 の sha256）。作り方の名前の例：`first-128-rows/1`、`rows-86+128/1`。形式は契約で決めない |
+| `policy.name` | 空でない文字列（`policy.sha256` は名前の UTF-8 の sha256）。作り方の名前の例：`first-128-rows/1`、`rows-86+128/1`。形式は自由な文字列のまま(D-133 (3)) |
 
 - `prefix_rows`（`start = 0`）と `rows`（`start = 0`）は**同じ行を指す**。`window.rule` の宣言だけが違い、Gate の判定は同じ（見本 `accept-equivalence-*`）。
 - 0.9.0 の窓の成果物（`rule: prefix_rows`、`start: 0`、`length: 128`）は 0.9.0 の版のまま読める。0.10.0 の窓として読み替えない。
@@ -101,12 +101,12 @@ Blob の参照の型（`intBlob`・`floatBlob`）は `../common/blob.schema.json
 
 | 項目 | 内容 |
 |---|---|
-| 封筒の `space_id` | null でない。**窓の空間は位置で分ける**（D-132 (4)）。校正の空間は `row_rule` に位置（`start`・`length`）を含めて分けるので、位置ごとの校正は**別の空間**。同じ `space_id` を、位置（`start`・`length`）の違う窓が使うと拒否する（`window_space_position`。衝突の検出の仕方はこの実装の選択。未規定の見本に置く）。計測の `space_id` は窓のものと同じ |
+| 封筒の `space_id` | null でない。**窓の空間は位置で分ける**（D-132 (4)）。校正の空間は `row_rule` に位置（`start`・`length`）を含めて分けるので、位置ごとの校正は**別の空間**。同じ `space_id` を、位置（`start`・`length`）の違う窓が使うと拒否する（`window_space_position`。D-133 (4)：`(start, length)` を比べて拒否する）。計測の `space_id` は窓のものと同じ |
 | `payload.window` | `rule`・`start`・`length`・`content_sha256`（窓の中身の sha256）。**元の行 `[start, start + length)` を指す** |
 | `payload.points` | 窓の `length` 行の Blob（binary32・LE・行優先・量子化なし、`shape: [length, dimension]`）。`content_sha256` ＝ `points.sha256`。行数が `window.length` と違えば `window_shape` |
 | `payload.token_index` | 窓の `length` 行のトークン番号（int64、`shape: [length]`、厳密に増える） |
 
-- **Gate が確かめるもの（0.10.0 で足したもの）**：`start + length <= origin.length`（`window_range`）、`token_index` の各値が `[0, origin.length)` に入ること（`window_token_range`。**範囲の定義は D-132 が書いていないので、見本は未規定に置く**）、空間と位置の対応（`window_space_position`）。ほかは 0.9.0 の検査（行数は固定の 128 でなく `window.length`）。
+- **Gate が確かめるもの（0.10.0 で足したもの）**：`start + length <= origin.length`（`window_range`）、`token_index` の各値が `[0, origin.length)` に入ること（`window_token_range`。D-133 (1)：`[0, origin.length)` の外は拒否。トークン番号と行番号の対応は決めていない）、空間と位置の対応（`window_space_position`）。ほかは 0.9.0 の検査（行数は固定の 128 でなく `window.length`）。
 - **Gate が確かめられないもの**：窓が元の RAW の行 `[start, start + length)` そのものであること（RAW は参照で持つため）。RAW の行を持つ読み手は `rows_match`（`tools/contracts/ic02_window.py`。先頭 128 行の 0.9.0 は `prefix_matches`）で確かめる。
 - 符号の一覧は `tools/contracts/ic02_window.py` の冒頭。
 
@@ -116,25 +116,29 @@ Blob の参照の型（`intBlob`・`floatBlob`）は `../common/blob.schema.json
 
 | `input_scope` | 意味 | 親の役割 `trajectory` |
 |---|---|---|
-| `{"kind": "window", "rule", "start", "length", "source_trajectory_id", "content_sha256"}` | 窓の成果物を入力にした計測。`rule`・`start`・`length` は窓の成果物と同じ値（整数、`start >= 0`、`length >= 1`、`prefix_rows` は `start = 0`）。`input_ref.length == scope.length` | 窓の成果物 1 件（0.9.0 の窓でもよい） |
+| `{"kind": "window", "rule", "start", "length", "source_trajectory_id", "content_sha256"}` | 窓の成果物を入力にした計測。`rule`・`start`・`length` は窓の成果物と同じ値（整数、`start >= 0`、`length >= 1`、`prefix_rows` は `start = 0`）。`input_ref.length == scope.length` | 窓の成果物 1 件（0.9.0 の窓、つまり `start = 0` の `prefix_rows` でもよい。D-133 (5)） |
 | `{"kind": "full"}` | 窓なしの全長の入力（0.9.0 と同じ） | 窓でない軌跡の成果物 1 件 |
 
 `check_scope` は 0.9.0 の検査に加えて、`rule` の一致（`window_mismatch`）と、`input_ref.length == scope.length`（0.9.0 はスキーマの定数 128 が保証していたもの。0.10.0 は Gate が `window_length` で言う）を確かめる。
 
 ### ペア（`mode: pair`、0.10.0）
 
-- **長さの異なる窓どうしは `equal_only` で比べられない**（`common_prefix` は採らない。D-120）。`left`・`right` の親が保存された窓で、`window.length` が違えば `pair_window_length` で拒否する。位置（`start`）が違っても長さが同じなら比べられる（位置の違う窓の比較は `x` の空間の問題で、契約の外）。
+- **長さの異なる窓どうしは `equal_only` で比べられない**（`common_prefix` は採らない。D-120）。`left`・`right` の親が保存された窓で、`window.length` が違えば `pair_window_length` で拒否する。位置（`start`）の違う窓の比較（`equal_only` は長さだけを見る）は**未規定のまま**（D-133 (6)）。窓位置の実験では同じ位置どうしだけを比べる。
 - 親が窓でない、または保存されていない場合は 0.9.0 と同じく、ここでは判定しない。
 - `pair` に `input_scope` を足すことは今回もしない。
 
-### 未規定（決定の文言だけでは決まらないもの）
+### 確定（D-133、11-08 20:16）と未規定
 
-`vectors/window-rows-undetermined.json`（lock・凍結の対象外）に、この実装の挙動を記録した。決定が出たら確定側（`window-rows.json`）へ移すか、実装を直す。
-- `token_index` の範囲の定義（下限・上限、行番号との対応）。
-- `prefix_rows` の `length` を 128 以外にしてよいか（この実装は受理）。
-- `policy.name` の形式（この実装は自由）。
-- 空間の衝突の検出方法（`window_space_position`）。
-- 0.10.0 の計測が 0.9.0 の窓を親にできるか（この実装は受理）。
+D-133 で次の 5 点を、実装の挙動のとおり確定した（見本は `vectors/window-rows.json`、各件の `derives_from` に D-133 の番号）。
+1. `token_index` の範囲は `[0, origin.length)` の外を拒否（`window_token_range`）。窓が元より長い場合は `window_range` と `window_token_range` の両方が出る。
+2. `prefix_rows` の長さは 128 に固定せず、任意の `length`（1 以上）を許す。
+3. `policy.name` の形式は自由な文字列のまま。
+4. 同じ `space_id` を位置の違う窓が使うと、`(start, length)` を比べて拒否（`window_space_position`）。
+5. 0.10.0 の計測は 0.9.0 の窓（`start = 0` の `prefix_rows`）を親にできる。
+
+**未規定のまま残すもの**（`vectors/window-rows-undetermined.json`、lock・凍結の対象外）：
+- (6) 位置の違う窓どうしの比較（`equal_only` は長さだけを見る）。窓位置の実験では同じ位置どうしだけを比べる。
+- トークン番号と行番号の対応（窓の行が元の何番目のトークンか）。範囲の内側なら拒否しない、までが決まっている。
 
 ### 今回の変更ではないもの
 

@@ -5,9 +5,9 @@ Run:  python tools/contracts/make_vectors_window_rows.py  (from the repository r
 Two files, written together:
 
 * ``msr/vectors/window-rows.json``              -- DETERMINED cases: every expectation follows from the wording of a decision
-  (D-129, D-120, D-132 items 1-6). Frozen with the 0.10.0 lock.
-* ``msr/vectors/window-rows-undetermined.json`` -- cases the decisions' wording does NOT settle (tag ``未規定``). They record what
-  this implementation does so a later decision can accept or change it. NOT in the lock, NOT part of the freeze.
+  (D-129, D-120, D-132 items 1-6, D-133 items 1-5). Frozen with the 0.10.0 lock.
+* ``msr/vectors/window-rows-undetermined.json`` -- cases the decisions' wording does NOT settle (tag ``未規定``): after D-133, the pair of windows at different
+  positions (D-133 (6)) and the token-number/row-number correspondence. They record what this implementation does. NOT in the lock, NOT part of the freeze.
 
 Every expected code is written by hand below, with the decision text it comes from in ``derives_from``; the generator then runs the
 implementation and refuses to write when one case disagrees. It reuses the builders of ``make_vectors_window.py`` (0.9.0).
@@ -47,6 +47,12 @@ D129_ORIGIN = "D-129 (msr/README.md 窓の成果物): origin は保存されて�
 D129_SHAPE = "D-129 (msr/README.md 窓の成果物): points は窓の行数 x dimension の binary32、token_index は行数の int64 (厳密に増える)"
 D129_POLICY = "D-129 (msr/README.md): policy.sha256 は policy.name の UTF-8 の sha256"
 D129_SCOPE = "D-129 (msr/README.md 計測): input_scope が窓を宣言し、親の窓と一致する。input_ref.length は scope.length"
+D133_1 = "D-133 (1): token_index の範囲は [0, origin.length) の外を拒否する"
+D133_2 = "D-133 (2): prefix_rows の長さは 128 に固定せず、任意の length (1 以上) を許す"
+D133_3 = "D-133 (3): policy.name の形式は自由な文字列のまま"
+D133_4 = "D-133 (4): 同じ space_id を位置の違う窓が使うと (start, length) を比べて拒否する (window_space_position)"
+D133_5 = "D-133 (5): 0.10.0 の計測は 0.9.0 の窓 (start=0 の prefix_rows) を親にできる"
+D133_6 = "D-133 (6): 位置の違う窓の比較 (equal_only は長さだけを見る) は未規定のまま。窓位置の実験では同じ位置どうしだけを比べる"
 D132_8 = "D-132 (8): 見本の項目 (正常系・境界・start 負・length 0・型違い・prefix_rows との等価・0.9.0 の窓の読み込み・space_id の分離・親参照の整合)"
 
 HEAD_SPACE, MID_SPACE, TAIL_SPACE = "SW-head", "SW-mid", "SW-tail"
@@ -254,37 +260,34 @@ def main() -> None:
         env = mv.measurement(payload, par, {**lk, **lw}, version=V, space_id="S-pair")
         case(into, cid, "measurement", env, {**st, **{a: {"envelope": e} for a, e in ((left["artifact_id"], left), (right["artifact_id"], right))}}, lw, [], codes, derives, note, why)
 
-    pair(confirmed, "accept-pair-of-equal-length-windows-at-different-positions", HEAD, MID, [], [D132_3B, D132_5], "128 rows head vs 128 rows middle: equal length, equal_only", pair_payload(128, 128))
     pair(confirmed, "reject-pair-of-windows-of-different-lengths-equal-only", HEAD, W64, ["pair_window_length"], [D132_3B], "128 rows vs 64 rows cannot be compared with equal_only", pair_payload(128, 64))
     pair(confirmed, "reject-pair-of-windows-of-different-lengths-common-prefix", HEAD, W64, ["pair_window_length"], [D132_3B],
          "common_prefix (extension mode x-common_prefix) is not adopted (D-120): still rejected", pair_payload(128, 64, "x-common_prefix"))
 
-    # ============================================================ UNDETERMINED (未規定): kept apart, not frozen
-    UND_TOKEN = "D-132 (3) は「token_index の範囲」を検査するとだけ書き、範囲の定義 (値の下限・上限、行番号との対応) を書いていない"
+    # ============================================================ D-133 (11-08 20:16): the five points the implementation chose are now determined
     ti_hi = list(range(290, 290 + 128))
-    win(undetermined, "undetermined-token-index-beyond-origin-length", payload_of("rows", 172, 128, token=ti_hi), ["window_token_range"], [D132_3],
-        "token_index 290..417 while origin.length is 300: rejected here as outside [0, origin.length)", space=TAIL_SPACE, why=UND_TOKEN)
-    win(undetermined, "undetermined-token-index-negative", payload_of("rows", 0, 128, token=list(range(-3, 125))), ["window_token_range"], [D132_3],
-        "a negative token number", space=HEAD_SPACE, why=UND_TOKEN)
-    win(undetermined, "undetermined-token-index-offset-from-row-numbers", payload_of("rows", 86, 128, token=list(range(7, 7 + 128))), [], [D132_3],
-        "token_index 7..134 for the rows starting at row 86: accepted here (the token number need not equal the row number; 0.9.0 said the same for the head)",
-        space=MID_SPACE, why=UND_TOKEN)
-    win(undetermined, "undetermined-rows-longer-than-origin", payload_of("rows", 0, 128, origin_length=100, tid=TID100), ["window_range", "window_token_range"], [D132_3A, D132_3],
-        "length 128 > origin.length 100: window_range, and (128 strictly increasing token numbers cannot fit in [0, 100)) window_token_range too", space=HEAD_SPACE, origin=ORIG100, why=UND_TOKEN)
-    p = payload_of("rows", 86, 128, name="my-middle-window")
-    win(undetermined, "undetermined-policy-name-free-form", p, [], [D129_POLICY],
-        "policy.name is any non-empty string whose sha256 is policy.sha256 (the examples first-N-rows/1 and rows-S+N/1 are conventions, not rules)", space=MID_SPACE,
-        why="どの決定も policy.name の形式を定めていない。0.9.0 は定数 first-128-rows/1 だった")
-    win(undetermined, "undetermined-prefix-rows-length-64", payload_of("prefix_rows", 0, 64), [], [D132_1],
-        "prefix_rows with a length other than 128 is accepted here", space="SW-0+64",
-        why="D-132 (1) は prefix_rows を「start=0 の特別な場合として残す」と書くが、length を 128 のままにするか広げるかは書いていない")
-    win(undetermined, "undetermined-space-shared-by-two-positions", payload_of("rows", 172, 128), ["window_space_position"], [D132_4],
-        "a window whose space_id is already used by a stored window of another position (start/length) is rejected here", space=HEAD_SPACE,
-        extra_stored={HEAD["artifact_id"]: {"envelope": HEAD}},
-        why="D-132 (4) は空間を位置で分けると書くが、窓の payload は row_rule を持たない。衝突の検出を (start, length) の宣言の比較で行い window_space_position で拒否するのは、この実装の選択")
-    meas(undetermined, "undetermined-0.10.0-measurement-over-a-0.9.0-window", mv.single_payload(128, scope_of({"payload": g090, "artifact_id": ""}), env090), [],
-         [D132_6], "a 0.10.0 measurement whose scope (prefix_rows, 0, 128) matches a 0.9.0 window parent is accepted here", env090,
-         why="D-132 (6) は両版を受け付けると書くが、0.10.0 の計測が 0.9.0 の窓を親にできるかは書いていない")
+    win(confirmed, "reject-token-index-beyond-origin-length", payload_of("rows", 172, 128, token=ti_hi), ["window_token_range"], [D133_1],
+        "token_index 290..417 while origin.length is 300: outside [0, origin.length)", space=TAIL_SPACE)
+    win(confirmed, "reject-token-index-negative", payload_of("rows", 0, 128, token=list(range(-3, 125))), ["window_token_range"], [D133_1], "a negative token number", space=HEAD_SPACE)
+    win(confirmed, "reject-rows-longer-than-origin", payload_of("rows", 0, 128, origin_length=100, tid=TID100), ["window_range", "window_token_range"], [D133_1, D132_3A],
+        "length 128 > origin.length 100: window_range (D-132 (3)); 128 strictly increasing token numbers cannot fit in [0, 100), so D-133 (1) rejects them too: the code set is both",
+        space=HEAD_SPACE, origin=ORIG100)
+    win(confirmed, "accept-policy-name-free-form", payload_of("rows", 86, 128, name="my-middle-window"), [], [D133_3],
+        "policy.name is any non-empty string whose sha256 is policy.sha256 (first-N-rows/1 and rows-S+N/1 are conventions, not rules)", space=MID_SPACE)
+    win(confirmed, "accept-prefix-rows-length-64", payload_of("prefix_rows", 0, 64), [], [D133_2], "prefix_rows is not fixed at 128: any length >= 1", space="SW-0+64")
+    win(confirmed, "reject-space-shared-by-two-positions", payload_of("rows", 172, 128), ["window_space_position"], [D133_4],
+        "a window whose space_id is already used by a stored window of another position (start, length) is rejected", space=HEAD_SPACE,
+        extra_stored={HEAD["artifact_id"]: {"envelope": HEAD}})
+    meas(confirmed, "accept-0.10.0-measurement-over-a-0.9.0-window", mv.single_payload(128, scope_of({"payload": g090, "artifact_id": ""}), env090), [],
+         [D133_5], "a 0.10.0 measurement whose scope (prefix_rows, 0, 128) matches a 0.9.0 window parent (start 0)", env090)
+
+    # ============================================================ UNDETERMINED (未規定): kept apart, not frozen (D-133 (6) and one more)
+    win(undetermined, "undetermined-token-index-offset-from-row-numbers", payload_of("rows", 86, 128, token=list(range(7, 7 + 128))), [], [D133_1],
+        "token_index 7..134 for the rows starting at row 86: accepted here (inside [0, origin.length); the token number need not equal the row number; 0.9.0 said the same for the head)",
+        space=MID_SPACE, why="D-133 (1) は範囲 [0, origin.length) の外の拒否だけを決め、トークン番号と行番号の対応 (窓の行が元の何番目のトークンか) は決めていない")
+    pair(undetermined, "undetermined-pair-of-equal-length-windows-at-different-positions", HEAD, MID, [], [D133_6],
+         "128 rows head vs 128 rows middle: equal length, equal_only accepts here (equal_only looks at the length only)", pair_payload(128, 128),
+         why="D-133 (6): 位置の違う窓の比較 (equal_only は長さだけを見る) は未規定。窓位置の実験では同じ位置どうしだけを比べる")
 
     # ============================================================ write
     def doc(cases: list[dict[str, Any]], fmt: str, extra: dict[str, Any]) -> dict[str, Any]:

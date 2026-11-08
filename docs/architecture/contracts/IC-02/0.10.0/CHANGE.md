@@ -6,6 +6,7 @@
 - **移したもの（書き換えず `git mv`、sha256 は移す前と同じ）**：0.9.0 の `geometry-measurement.schema.json`・`trajectory-window.schema.json`・`vectors/window.json` と、0.9.0 時点の `msr/README.md`（写し）を `msr/archive/0.9.0/` へ。先例は 0.7.1 → 0.8.0 → 0.9.0。
 - **変えていないもの**：IC-00 1.0.0 の凍結 15 ファイルと 1.1.0 の 5 ファイル（sha256 を確認）、`archive/0.8.0/` 以前、`IC-02/0.9.0/CHANGE.md`、`vectors/window.json` の内容（47 件・受理 6）。
 - **0.9.0 の既存ファイルのうち、やむを得ず触ったもの**：`tools/contracts/ic02_window.py`（版を見て分岐する形に拡張。0.9.0 の出力は変えない＝0.9.0 の見本 47 件が同じ結果で通る）、`make_vectors_window.py`（出力先を archive へ）、`relock_ic02_v090.py`・`contract-ic02-v090.lock`（パスの更新。`ic02_window.py` は 0.10.0 の lock へ移した）、`test_ic02_window.py`（パスの更新）。
-- **契約の本文**：`msr/README.md` の「窓」の節。見本：`msr/vectors/window-rows.json`（確定。各件に `derives_from`）と `msr/vectors/window-rows-undetermined.json`（未規定。凍結しない）。生成：`tools/contracts/make_vectors_window_rows.py`（期待は手書き、食い違えば生成を止める）。
+- **D-133（11-08 20:16）**：未規定だった 5 点（`token_index` の範囲、`prefix_rows` の長さ、`policy.name`、空間の衝突、0.10.0 の計測が 0.9.0 の窓を親にできること）を実装のとおり確定。見本 7 件を確定側へ移した。(6) 位置の違う窓の比較は未規定のまま（見本 1 件を確定側から未規定側へ移した）。トークン番号と行番号の対応も未規定（見本 1 件）。
+- **契約の本文**：`msr/README.md` の「窓」の節。見本：`msr/vectors/window-rows.json`（確定 61 件。各件に `derives_from`）と `msr/vectors/window-rows-undetermined.json`（未規定 2 件。凍結しない）。生成：`tools/contracts/make_vectors_window_rows.py`（期待は手書き、食い違えば生成を止める）。
 - **sha256 の記録**：`tests/contracts/contract-ic02-v0100.lock`（確定の見本・スキーマ・README・生成器・Gate）、`tests/contracts/contract.lock`（スキーマ。0.9.0 の計測は `archived` へ）。
 - **次**：MSR と nvs-runtime の対応は別の PR。

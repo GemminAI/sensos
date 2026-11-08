@@ -14,7 +14,7 @@
   "files": [
     {
       "path": "docs/architecture/contracts/msr/README.md",
-      "sha256": "46a239f60a5b918a40251abfba4d992bcefe4887aa11d92d7391832659ce2e98"
+      "sha256": "a8bf5bc63af6ec7c4e6156c0e70e319f4632564697ef13bc81040101b5007792"
     },
     {
       "path": "docs/architecture/contracts/msr/geometry-measurement.schema.json",
@@ -26,15 +26,15 @@
     },
     {
       "path": "docs/architecture/contracts/msr/vectors/window-rows.json",
-      "sha256": "1400b8984378115feaaf5b6e6f82176655a86556b3cb28cd659f5bcee815f0f1"
+      "sha256": "494d57a0f98e8ce8aa45eaa9d21bff299e440c23a3afb93e26cd987553bdd232"
     },
     {
       "path": "docs/architecture/contracts/IC-02/0.10.0/CHANGE.md",
-      "sha256": "4ae7cc4141e22705616540d46b20affdbd3444aa1706ec1fc788188bbbb7d5e8"
+      "sha256": "0d5da14cfdbf93522ad48191862d9e852709e24c7372db52074e3da3832a8b1d"
     },
     {
       "path": "tools/contracts/ic02_window.py",
-      "sha256": "1e3262a3cf00ee8dfc1702d413f93d24ee3c0fe9767f0c3e777126193ee18e84"
+      "sha256": "1ee7ae142f0332b957a9db8043c5369488398ea3fa387f7930414edf67a79362"
     },
     {
       "path": "tools/contracts/gate.py",
@@ -46,7 +46,7 @@
     },
     {
       "path": "tools/contracts/make_vectors_window_rows.py",
-      "sha256": "5d678dca79b987a45b5ff1a41c592a3ee631cc63effbb25f38c17c9f6ffea546"
+      "sha256": "756d5911dd6db96789e766788db67846b472693dd84199f123167616419fd880"
     }
   ]
 }
