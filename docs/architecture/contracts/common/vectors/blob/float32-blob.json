@@ -1,0 +1,959 @@
+{
+ "cases": [
+  {
+   "data_hex": "0000803f",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-normal-positive",
+   "note": "bits 0x3f800000. +1.0",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c"
+   }
+  },
+  {
+   "data_hex": "000080bf",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-normal-negative",
+   "note": "bits 0xbf800000. -1.0",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "c68830a25204a09f8e77aada6bc5807f607cccaaa0ebb2a7122d317584478a8b",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:c68830a25204a09f8e77aada6bc5807f607cccaaa0ebb2a7122d317584478a8b"
+   }
+  },
+  {
+   "data_hex": "00004000",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-subnormal-positive",
+   "note": "bits 0x00400000. positive subnormal (mantissa MSB)",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "413432a2e4977ca133f00f95e74dcb2af10220ee4bcf9c47ac33ed88a7d7bffa",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:413432a2e4977ca133f00f95e74dcb2af10220ee4bcf9c47ac33ed88a7d7bffa"
+   }
+  },
+  {
+   "data_hex": "00004080",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-subnormal-negative",
+   "note": "bits 0x80400000. negative subnormal",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "c1cc284a7aedaa01b5ddc2c77aa131f5fb94ef493bab2c76d1d1fa84305cbd14",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:c1cc284a7aedaa01b5ddc2c77aa131f5fb94ef493bab2c76d1d1fa84305cbd14"
+   }
+  },
+  {
+   "data_hex": "01000000",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-min-subnormal",
+   "note": "bits 0x00000001. smallest positive subnormal 2^-149",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "67abdd721024f0ff4e0b3f4c2fc13bc5bad42d0b7851d456d88d203d15aaa450",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:67abdd721024f0ff4e0b3f4c2fc13bc5bad42d0b7851d456d88d203d15aaa450"
+   }
+  },
+  {
+   "data_hex": "ffff7f00",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-max-subnormal",
+   "note": "bits 0x007fffff. largest subnormal",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "f0719ff82cddcf65532f157a47f8c9850dce7c81e6b58698b24adfc2866157db",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:f0719ff82cddcf65532f157a47f8c9850dce7c81e6b58698b24adfc2866157db"
+   }
+  },
+  {
+   "data_hex": "00008000",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-min-normal",
+   "note": "bits 0x00800000. smallest positive normal 2^-126",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "3f4f8d0598e76a99ccb6af56a6f28d2eb3dd1cdcaa479bd907909d2bc9d52cf4",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:3f4f8d0598e76a99ccb6af56a6f28d2eb3dd1cdcaa479bd907909d2bc9d52cf4"
+   }
+  },
+  {
+   "data_hex": "ffff7f7f",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-max-finite",
+   "note": "bits 0x7f7fffff. largest finite",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "6048235e823ffe3c303299c2d9ad4cbd9e5ec680a5dc19c9c4eb97538ea6498f",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:6048235e823ffe3c303299c2d9ad4cbd9e5ec680a5dc19c9c4eb97538ea6498f"
+   }
+  },
+  {
+   "data_hex": "ffff7fff",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-max-finite-negative",
+   "note": "bits 0xff7fffff. most negative finite",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "abc4c4e7eee2ce04c6be04358adf5b3d0958255a80f712a8b6d4f4fdda588276",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:abc4c4e7eee2ce04c6be04358adf5b3d0958255a80f712a8b6d4f4fdda588276"
+   }
+  },
+  {
+   "data_hex": "00000000",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-plus-zero",
+   "note": "bits 0x00000000. +0",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+   }
+  },
+  {
+   "data_hex": "00000080",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-minus-zero",
+   "note": "bits 0x80000000. -0: another bit pattern, so another sha256 than +0 (kept, not normalised)",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "6d58692645c9d1cfaf13541cbd258f86193ef63c2f1d38f6bbca9617372d7bd6",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:6d58692645c9d1cfaf13541cbd258f86193ef63c2f1d38f6bbca9617372d7bd6"
+   }
+  },
+  {
+   "data_hex": "0000000000000080",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-both-zeros",
+   "note": "[+0, -0]: both zeros kept in order",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "e6ad6c9a3a3b7658c35bacf6553fcb8ffe34387534a648fe18f875b8f7a86ddb",
+    "shape": [
+     2
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:e6ad6c9a3a3b7658c35bacf6553fcb8ffe34387534a648fe18f875b8f7a86ddb"
+   }
+  },
+  {
+   "data_hex": "0000803f0100803f0200803f0300803f0400803f0500803f",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-shape-2x3",
+   "note": "shape [2,3] = 6 elements = 24 bytes",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "5a5833048967eb9e14ed44bb0a8630f904fc131a4953a9c2c8b129c19af1ff82",
+    "shape": [
+     2,
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:5a5833048967eb9e14ed44bb0a8630f904fc131a4953a9c2c8b129c19af1ff82"
+   }
+  },
+  {
+   "data_hex": "0000c07f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-quiet-positive",
+   "note": "bits 0x7fc00000. canonical quiet NaN",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "ef1eaf26cea96eb18f8fa3137abdf23f52852a855c22ae6f169d21a379dcd739",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:ef1eaf26cea96eb18f8fa3137abdf23f52852a855c22ae6f169d21a379dcd739"
+   }
+  },
+  {
+   "data_hex": "0000c0ff",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-quiet-negative",
+   "note": "bits 0xffc00000. negative quiet NaN",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "220f6486a64647048e47148fa01e7c8c125225c63e70ef346449de02ffa4d0f5",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:220f6486a64647048e47148fa01e7c8c125225c63e70ef346449de02ffa4d0f5"
+   }
+  },
+  {
+   "data_hex": "0000a07f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-signaling-positive",
+   "note": "bits 0x7fa00000. signaling NaN (quiet bit clear, payload set)",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "2f9db54f9202bc27b294acd14fa028db6b9904e3019c7ebcef876b3fcc2e9234",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:2f9db54f9202bc27b294acd14fa028db6b9904e3019c7ebcef876b3fcc2e9234"
+   }
+  },
+  {
+   "data_hex": "0000a0ff",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-signaling-negative",
+   "note": "bits 0xffa00000. negative signaling NaN",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "2c1bea54c0aa88f736be6adac039464ab11d366d457294d8c680e3b88acc5fa2",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:2c1bea54c0aa88f736be6adac039464ab11d366d457294d8c680e3b88acc5fa2"
+   }
+  },
+  {
+   "data_hex": "0100807f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-lsb-only-positive",
+   "note": "bits 0x7f800001. only the lowest mantissa bit set",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "742ba9773da40ba268dfe2061d64317df961d06fe9e35a6289640b2e1b21e830",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:742ba9773da40ba268dfe2061d64317df961d06fe9e35a6289640b2e1b21e830"
+   }
+  },
+  {
+   "data_hex": "010080ff",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-lsb-only-negative",
+   "note": "bits 0xff800001. negative, only the lowest mantissa bit set",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "736defd351926ec67dff06b0639e7798f6cf218e98f4b7ec0bd6fa221171d51e",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:736defd351926ec67dff06b0639e7798f6cf218e98f4b7ec0bd6fa221171d51e"
+   }
+  },
+  {
+   "data_hex": "ffffff7f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-all-ones-positive",
+   "note": "bits 0x7fffffff. all mantissa bits set",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "a2c70538651a7e9296b097e8c3dfc1b195a945802ffe45aa471868fba6f1042e",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:a2c70538651a7e9296b097e8c3dfc1b195a945802ffe45aa471868fba6f1042e"
+   }
+  },
+  {
+   "data_hex": "ffffffff",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-all-ones-negative",
+   "note": "bits 0xffffffff. all bits set",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+   }
+  },
+  {
+   "data_hex": "0000807f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-plus-inf",
+   "note": "bits 0x7f800000. +Inf",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "d7173dd8a9e81deded3f2e4719ef149effbd21afd81da9d10ed50b5dff69a708",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:d7173dd8a9e81deded3f2e4719ef149effbd21afd81da9d10ed50b5dff69a708"
+   }
+  },
+  {
+   "data_hex": "000080ff",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-minus-inf",
+   "note": "bits 0xff800000. -Inf",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "d9265d7acb11b75517ee713afcd928260e65557829bab071f03d67ee93edb8ea",
+    "shape": [
+     1
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:d9265d7acb11b75517ee713afcd928260e65557829bab071f03d67ee93edb8ea"
+   }
+  },
+  {
+   "data_hex": "0000803f0000c07f0000803f",
+   "expect": {
+    "codes": [
+     "S44"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-nan-among-finite",
+   "note": "one NaN in the middle of finite values",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "ceb7b0a953a64c81ea34aa1b745c6ab0217494def46e990a5776ae4cdcf3d938",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:ceb7b0a953a64c81ea34aa1b745c6ab0217494def46e990a5776ae4cdcf3d938"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-shape-matches-length",
+   "note": "3 elements, 12 bytes",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "S43"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-shape-too-small",
+   "note": "shape says 8 bytes, 12 given",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     2
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "S43"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-shape-too-large",
+   "note": "shape says 16 bytes, 12 given",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     4
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "S43"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-shape-2d-mismatch",
+   "note": "shape [2,2] = 16 bytes, 12 given",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     2,
+     2
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f000080",
+   "expect": {
+    "codes": [
+     "S43"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-truncated-bytes",
+   "note": "11 bytes cannot be a multiple of 4",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "9fd29eb0805f1ad78fe9a0a1c3277a4ba56dd2abd06373ea3df3dc37c4893af4",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:9fd29eb0805f1ad78fe9a0a1c3277a4ba56dd2abd06373ea3df3dc37c4893af4"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f00000040",
+   "expect": {
+    "codes": [
+     "S42"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-sha256-differs-from-bytes",
+   "note": "right length, other bytes",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "S34"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-uri-hex-differs",
+   "note": "uri hex != sha256",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:0000000000000000000000000000000000000000000000000000000000000000"
+   }
+  },
+  {
+   "expect": {
+    "codes": [],
+    "result": "accept"
+   },
+   "id": "accept-reference-only",
+   "note": "reference without bytes: only the schema and S34 can be checked",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-extra-undefined",
+   "note": "`undefined` is not a float32 Blob field",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "undefined": "int64_min",
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-extra-quantization",
+   "note": "`quantization` is not a float32 Blob field",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "quantization": {
+     "quantum": {
+      "base": 2,
+      "exponent": -30
+     },
+     "rounding": "ties-to-even",
+     "tolerance_quanta": 1
+    },
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-extra-comparison",
+   "note": "`comparison` is not a float32 Blob field",
+   "ref": {
+    "byte_order": "little",
+    "comparison": {
+     "bound": {
+      "base": 2,
+      "exponent": -20
+     },
+     "rule": "absolute_error"
+    },
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-dtype-float64",
+   "note": "float64 is another contract",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float64",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-dtype-int64",
+   "note": "dtype is fixed to float32",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "int64",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-big-endian",
+   "note": "",
+   "ref": {
+    "byte_order": "big",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-fortran-order",
+   "note": "",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "F",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-zero-in-shape",
+   "note": "each dimension >= 1",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     0,
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-file-uri",
+   "note": "no place in the address",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "unit": "dimensionless",
+    "uri": "file:///tmp/x"
+   }
+  },
+  {
+   "data_hex": "0000803f0000803f0000803f",
+   "expect": {
+    "codes": [
+     "schema"
+    ],
+    "result": "reject"
+   },
+   "id": "reject-schema-missing-unit",
+   "note": "",
+   "ref": {
+    "byte_order": "little",
+    "dtype": "float32",
+    "media_type": "application/vnd.sensos.ndarray-raw",
+    "order": "C",
+    "sha256": "8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1",
+    "shape": [
+     3
+    ],
+    "uri": "blob:sha256:8a31a40ecac0ceb4d87b30bd156ca7a547e8e33dc071454b765fbc777d1c34a1"
+   }
+  }
+ ],
+ "format": "float32-blob/1",
+ "rule": "check_float32_blob(ref, data): ref must match common/float32-blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes (provisional numbers): S34 uri hex != sha256; S42 sha256 differs from the bytes; S43 length != prod(shape) x 4; S44 a NaN or +-Inf bit pattern (exponent bits all ones). Draft 0.1.0 (D-100). Words are little-endian binary32 bit patterns, given in the id/note as 0x........"
+}

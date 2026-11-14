@@ -59,3 +59,43 @@ def check_blob(ref: Mapping[str, Any], data: bytes | None) -> list[Violation]:
         if ref["quantization"] is None and any(v < 0 for v in values if v != INT64_MIN or not declared):
             out.append(Violation("count_negative", "negative value in a count Blob"))
     return out
+
+
+# --------------------------------------------------------------- float32 Blob (D-100)
+
+_F32_VALIDATOR: Draft202012Validator | None = None
+
+
+def is_non_finite_f32(word: int) -> bool:
+    """binary32 bits: exponent all ones = NaN (any mantissa != 0, either sign) or +-Inf."""
+    return (word >> 23) & 0xFF == 0xFF
+
+
+def check_float32_blob(ref: Mapping[str, Any], data: bytes | None) -> list[Violation]:
+    """``common/float32-blob.schema.json`` and the checks on the bytes (no float conversion).
+
+    Codes (provisional numbers): ``schema`` (alone), ``S34`` (uri hex != sha256), ``S42``
+    (sha256 differs from the bytes), ``S43`` (length != prod(shape) x 4), ``S44`` (a NaN or
+    +-Inf bit pattern).
+    """
+    global _F32_VALIDATOR
+    if _F32_VALIDATOR is None:
+        _F32_VALIDATOR = validator("common/float32-blob.schema.json")
+    errors = sorted(_F32_VALIDATOR.iter_errors(ref), key=lambda e: list(e.absolute_path))
+    if errors:
+        first = errors[0]
+        return [Violation("schema", f"{'/'.join(str(p) for p in first.absolute_path)}: {first.message}")]
+    out: list[Violation] = []
+    if ref["uri"] != "blob:sha256:" + ref["sha256"]:
+        out.append(Violation("S34", "uri hex differs from sha256"))
+    if data is None:
+        return out
+    if hashlib.sha256(data).hexdigest() != ref["sha256"]:
+        out.append(Violation("S42", "sha256 differs from the bytes"))
+    if len(data) != math.prod(ref["shape"]) * 4:
+        out.append(Violation("S43", "length differs from shape x 4"))
+        return out
+    words = struct.unpack(f"<{len(data) // 4}I", data)
+    if any(is_non_finite_f32(w) for w in words):
+        out.append(Violation("S44", "NaN or Inf bit pattern"))
+    return out
