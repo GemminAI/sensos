@@ -262,6 +262,9 @@ class CaptureResult:
     tokenizer_sha256: str | None = None
     special_tokens_in: list[list[int]] | None = None
     weights_sha256: str | None = None
+    # The stop ids the capture loop used, ascending. ``None`` = not reported (a failed capture, or a
+    # result made before this field existed): never read it as "known to be empty".
+    eos_ids: list[int] | None = None
     mlx_version: str | None = None
     mlx_lm_version: str | None = None
     device: str | None = None
@@ -379,6 +382,7 @@ class Llama31MLXCaptureProvider(Llama31MLXProvider):
             finish_reason=finish,
             failure_kind=kind,
             error=None if kind is None else f"generation ended without EOS ({kind})",
+            eos_ids=sorted(eos),
             generate_seconds=seconds,
             **base,
         )
