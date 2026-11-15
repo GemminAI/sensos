@@ -145,3 +145,18 @@ def test_gate_payload_schemas_has_no_hidden_trajectory() -> None:
     # and calling the old entry with a hidden-trajectory envelope is still S39 (gate.py was not extended)
     old = gate.check_payload(envelope_of(payload_of(MLP)), None, BLOBS)
     assert [v.code for v in old] == ["S39"]
+
+
+@pytest.mark.parametrize(
+    "case", WINDOW["cases"][:3], ids=[c["id"] for c in WINDOW["cases"][:3]]
+)
+def test_contract_facts_is_ignored_by_the_msr_delegation(case: dict[str, Any]) -> None:
+    envelope, stored, blobs = _window(case)
+    assert check_nvs_payload(
+        envelope, stored, blobs, contract_facts={"anything": "not even valid"}
+    ) == gate.check_payload(envelope, stored, blobs)
+
+
+def test_contract_facts_reaches_the_hidden_trajectory_checker() -> None:
+    with pytest.raises(Exception, match="gate_internal_error"):
+        check_nvs_payload(envelope_of(payload_of(MLP)), None, BLOBS, contract_facts={})

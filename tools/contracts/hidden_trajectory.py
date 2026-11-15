@@ -5,8 +5,11 @@
 put through HT-01 .. HT-17 and HT-19, **all of them, without stopping at the first failure**. The result
 carries the violations and the checks that could not be made (UNVERIFIABLE, 4.4).
 
-HT-18 (the binding to the RawObservationContract v2) is U5-5. Here it only reports that it was not made:
-``contract_binding`` / ``contract_absent`` (``contract_ref`` is null) or ``contract_not_supplied``.
+HT-18 (the binding to the RawObservationContract v2, 18a .. 18g) needs ``contract_facts`` (``contract_facts.py``,
+verified by nvs-runtime; the Gate never reads the contract document). Without ``contract_facts`` it reports
+UNVERIFIABLE ``contract_binding`` / ``contract_not_supplied``; with ``contract_ref`` null,
+``contract_binding`` / ``contract_absent``. 18g (``facts.synthetic`` must be false, ``E_TRAJ_SYNTHETIC``) is made
+whenever ``contract_facts`` is given, also when ``contract_ref`` is null (DC-U5-6): synthetic data must not pass.
 
 Not here: the envelope itself (L1, ``ic00_versions.check_envelope_versioned``, which gives ``S4`` for a
 producer that may not make the kind), the window checks (HT-20, U5-6), and the choice of checker by
@@ -32,7 +35,8 @@ from typing import Any, Final, NamedTuple
 from contracts import ic00_v110
 from contracts.blob import check_blob, check_float32_blob
 from contracts.check import Violation, _s8
-from contracts.hid_space import SpaceInputError, hid_space
+from contracts.contract_facts import validate_contract_facts
+from contracts.hid_space import SpaceInputError, hid_space, hid_space_id
 from contracts.hidden_trajectory_registry import hidden_trajectory_validator
 
 SCHEMA_PATH: Final = "nvs/hidden-trajectory.schema.json"
@@ -59,6 +63,8 @@ E_RAW_REF: Final = "E_TRAJ_RAW_REF"
 E_POLICY: Final = "E_TRAJ_POLICY"
 E_UNKNOWNS: Final = "E_TRAJ_UNKNOWNS"
 E_TOKEN_INDEX: Final = "E_TRAJ_TOKEN_INDEX"
+E_CONTRACT: Final = "E_TRAJ_CONTRACT"
+E_SYNTHETIC: Final = "E_TRAJ_SYNTHETIC"
 
 # ----------------------------------------------------------------------- the UNVERIFIABLE catalogue (4.4)
 # The source of truth is here, next to the checker (DC-7). One row per (payload_schema, check, reason).
@@ -74,7 +80,7 @@ UNVERIFIABLE_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     (PAYLOAD_SCHEMA_ID, "token_index_bytes", BLOB_NOT_SUPPLIED),
     (PAYLOAD_SCHEMA_ID, "contract_binding", CONTRACT_NOT_SUPPLIED),
     (PAYLOAD_SCHEMA_ID, "contract_binding", CONTRACT_ABSENT),
-    (PAYLOAD_SCHEMA_ID, "contract_binding.<field>", CONTRACT_FIELD_UNKNOWN),  # U5-5
+    (PAYLOAD_SCHEMA_ID, "contract_binding.<field>", CONTRACT_FIELD_UNKNOWN),
     ("msr.trajectory-window", "window_rows", RAW_NOT_IN_ARTIFACT),  # IC-02
     ("msr.trajectory-window", "window_space_derivation", RULE_NOT_DERIVABLE),  # U5-6
 )
@@ -169,18 +175,142 @@ def _schema_violation(payload: Any) -> list[Violation]:
 # ------------------------------------------------------------------------------------------- the checks
 
 
+def _compare(
+    field: str,
+    mine: Any,
+    theirs: Any,
+    where: str,
+    out: list[Violation],
+    unverifiable: list[Unverifiable],
+) -> None:
+    """One 18a-18f comparison. ``"unknown"`` on either side: UNVERIFIABLE; two real values that differ: FAIL.
+    The type is part of the value (``True`` is not ``1``)."""
+    if mine == "unknown" or theirs == "unknown":
+        unverifiable.append(
+            Unverifiable(f"contract_binding.{field}", CONTRACT_FIELD_UNKNOWN)
+        )
+    elif type(mine) is not type(theirs) or mine != theirs:
+        out.append(
+            Violation(E_CONTRACT, f"{where}: payload {mine!r} != contract {theirs!r}")
+        )
+
+
+def _check_contract(
+    envelope: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    facts: Mapping[str, Any],
+    out: list[Violation],
+    unverifiable: list[Unverifiable],
+) -> None:
+    """18a .. 18f (18g is made by the caller). ``facts`` has the shape ``nvs.contract-facts/1``."""
+    ref, contract = payload["contract_ref"], facts["contract"]
+
+    def same(field: str, mine: Any, theirs: Any, where: str) -> None:
+        _compare(field, mine, theirs, where, out, unverifiable)
+
+    # 18a
+    for key in ("name", "version", "contract_sha256"):
+        if type(ref[key]) is not type(contract[key]) or ref[key] != contract[key]:
+            out.append(
+                Violation(
+                    E_CONTRACT,
+                    f"18a contract_ref.{key} {ref[key]!r} != contract {contract[key]!r}",
+                )
+            )
+    # 18b
+    point = payload["point"]
+    position = facts["positions"].get(point)
+    binding, mine = facts["binding"], payload["binding"]
+    if position is None:
+        out.append(
+            Violation(
+                E_CONTRACT, f"18b point {point!r} is not among the contract's positions"
+            )
+        )
+    else:
+        # 18c
+        same(
+            "trajectory_id",
+            payload["raw_ref"]["trajectory_id"],
+            position["trajectory_id"],
+            "18c trajectory_id",
+        )
+        same("row_rule", payload["row_rule"], position["row_rule"], "18c row_rule")
+        same("dimension", payload["dimension"], position["dimension"], "18c dimension")
+        same(
+            "final_norm_applied",
+            payload["final_norm_applied"],
+            position["final_norm_applied"],
+            "18c final_norm_applied",
+        )
+        same(
+            "stored_range.steps",
+            payload["length"],
+            position["stored_range"]["steps"],
+            "18c stored_range.steps != length",
+        )
+        first = position["stored_range"]["first_row_pos"]
+        same(
+            "stored_range.first_row_pos",
+            mine["n_in"] - 1,
+            first,
+            "18c stored_range.first_row_pos != n_in - 1",
+        )
+        # 18e
+        try:
+            expected = hid_space_id(position["space"])
+        except SpaceInputError as exc:
+            out.append(
+                Violation(
+                    E_CONTRACT,
+                    f"18e the contract's space cannot be computed: {exc.message}",
+                )
+            )
+        else:
+            if envelope.get("space_id") != expected:
+                out.append(
+                    Violation(
+                        E_CONTRACT,
+                        f"18e space_id {envelope.get('space_id')!r} != the contract's {expected!r}",
+                    )
+                )
+    # 18d
+    for key in ("alignment", "n_in", "n_gen", "finish_reason"):
+        same(key, mine[key], binding[key], f"18d binding.{key}")
+    # 18f
+    provenance = payload["capture_provenance"]
+    same(
+        "weights_sha256",
+        provenance["weights_sha256"],
+        facts["origin"]["weights_sha256"],
+        "18f weights_sha256",
+    )
+    for key in (
+        "tokenizer_sha256",
+        "chat_template_sha256",
+        "prompt_ids_sha256",
+        "gen_token_ids_sha256",
+    ):
+        same(key, provenance[key], binding[key], f"18f {key}")
+
+
 def check_hidden_trajectory(
     envelope: Mapping[str, Any],
     stored: Mapping[str, Any] | None = None,
     blobs: Mapping[str, bytes] | None = None,
     *,
     registry: Mapping[str, Mapping[str, str]] | None = None,
+    contract_facts: Mapping[str, Any] | None = None,
 ) -> HiddenTrajectoryResult:
     """Schema first (alone if it fails); then HT-01 .. HT-17 and HT-19, all of them.
 
     ``stored``: artifact_id -> ``{"envelope": ...}`` (as in ``gate.check_payload``). ``blobs``: Blob uri ->
     bytes. ``registry`` is for tests; it defaults to ``hid_row_rules.json``.
     """
+    if contract_facts is not None:
+        validate_contract_facts(
+            contract_facts
+        )  # a wrong shape raises ContractFactsError (caller's error)
     payload = envelope.get("payload")
     bad = _schema_violation(payload)
     if bad:
@@ -388,15 +518,18 @@ def check_hidden_trajectory(
             v for v in check_float32_blob(points, data) if v.code != "S34"
         )  # S34 is HT-13's
 
-    # HT-18 is U5-5: only say that it was not made
-    unverifiable.append(
-        Unverifiable(
-            "contract_binding",
-            CONTRACT_ABSENT
-            if payload["contract_ref"] is None
-            else CONTRACT_NOT_SUPPLIED,
+    # HT-18 (the binding to the contract v2). 18g is made whenever facts are given.
+    if contract_facts is not None and contract_facts["synthetic"] is True:
+        fail(
+            E_SYNTHETIC,
+            "contract_facts.synthetic is true: synthetic data must not enter the chain",
         )
-    )
+    if payload["contract_ref"] is None:
+        unverifiable.append(Unverifiable("contract_binding", CONTRACT_ABSENT))
+    elif contract_facts is None:
+        unverifiable.append(Unverifiable("contract_binding", CONTRACT_NOT_SUPPLIED))
+    else:
+        _check_contract(envelope, payload, contract_facts, out, unverifiable)
 
     # HT-19
     known: list[Mapping[str, Any]] = []
