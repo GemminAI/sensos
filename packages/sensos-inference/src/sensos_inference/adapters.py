@@ -217,6 +217,15 @@ class Llama31MLXAdapter:
         self._last_capture = capture
         return capture
 
+    def check_equivalence(
+        self, prompt_ids: Sequence[int], token_ids: Sequence[int], **options: int
+    ) -> dict[str, Any]:
+        """The bit comparison of :func:`llama31_equivalence_check` on this adapter's provider."""
+        # Lazy import of a sibling module: it is the one that imports MLX; this module never does.
+        from sensos_inference.llama31_equivalence import llama31_equivalence_check
+
+        return llama31_equivalence_check(self._provider, prompt_ids, token_ids, **options)
+
     def origin_facts(self) -> dict[str, Any]:
         model_ref = getattr(self._provider, "model_id", None)
         revision = getattr(self._provider, "revision", None)
