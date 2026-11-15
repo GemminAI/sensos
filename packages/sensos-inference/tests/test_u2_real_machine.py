@@ -995,9 +995,8 @@ def llama() -> Iterator[LlamaReal]:
         not_verified=[
             *DEFAULT_NOT_VERIFIED,
             *sorted(set(ctx.rec.not_verified)),
-            "p04 (4,969 tokens, split prefill) not run for Llama: memory plan undecided",
-            "the U1 converter (from_llama31) does not carry eos_ids into the provenance: "
-            "the provider result has it (R-14), the ObservationCapture does not",
+            "p04 for Llama: only the capture-only checks and the body-only comparison were run",
+            "p04 answers end after 1 token (EOS): rows over a long p04 generation not checked",
         ],
         host=hardware if isinstance(hardware, str) else "unknown",
         started_at=started,
