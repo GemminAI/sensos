@@ -80,8 +80,28 @@ LLAMA_ONLY_PROMPTS: dict[str, list[dict[str, str]]] = {
 }
 
 
+def _g02_messages() -> list[dict[str, str]]:
+    """Neutral English notes (over 2,048 tokens) and an instruction to expand them at length."""
+    parts = ["pump", "valve", "filter", "gauge", "pipe", "tank", "sensor", "gasket", "motor",
+             "coupling", "screen", "meter"]
+    systems = ["north station", "east tower", "river intake", "south reservoir", "main plant",
+               "west depot", "hill booster", "lake outlet"]
+    notes = "\n".join(
+        f"Note {i}: the {parts[i % 12]} of the {systems[i % 8]} is checked every {i % 9 + 2} weeks "
+        f"and its reading is logged at {10 + 3 * i} units."
+        for i in range(1, 121)
+    )
+    task = (
+        "Below are notes about a municipal water supply system. Write a long, detailed report "
+        "that expands on these notes, section by section, in full paragraphs.\n\nNOTES:\n"
+    )
+    return [{"role": "user", "content": task + notes}]
+
+
 def _messages(prompt_id: str) -> list[dict[str, str]]:
     """The fixed prompts; p04 is expanded here to a prompt of more than 2,048 tokens."""
+    if prompt_id == "g02":
+        return _g02_messages()
     if prompt_id in LLAMA_ONLY_PROMPTS:
         return [dict(m) for m in LLAMA_ONLY_PROMPTS[prompt_id]]
     if prompt_id != "p04":
@@ -893,7 +913,9 @@ def test_t_u2_r_16_arrays_are_read_only_and_a_second_capture_is_unchanged(real: 
 LLAMA_BUILD_ID = "llama3.1-8b-instruct-r241a666d-4bit"
 LLAMA_COMPUTE_ENVIRONMENT = "mlx-metal"
 LLAMA_PROMPT_IDS = ("p01", "p02", "p03", "g01")
-LLAMA_MAX_TOKENS = {"g01": 96}  # the others: 64
+LLAMA_MAX_TOKENS = {"g01": 96, "g02": 128}  # the others: 64
+# positions compared at the end of the p04/g02 prefill (16 if the peak passes 9 GB)
+LLAMA_P04_TAIL = 48
 # set to 1 only after the p04 capture peak is known (<= 8 GB)
 LLAMA_P04_BODY_ENV = "U2_LLAMA_P04_BODY"
 LLAMA_PEAK_LIMIT_MB = 12 * 1024
@@ -1623,4 +1645,262 @@ def test_u2_llama_p04_body_only_comparison(llama: LlamaReal, llama_case: None) -
     assert worst == 0.0, (worst, where)
     llama.rec.not_verified.append(
         "p04 body-only comparison covers model.model only (lm_head and logits are not compared)"
+    )
+
+
+# ---- long input: g02 (prompt > 2,048 tokens, 128 generated) and the chunked comparison ----------
+
+
+def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
+    """R-01, R-09, R-10, R-11 (length), R-12, R-13, R-16 on g02: a long prompt, a long answer."""
+    import mlx.core as mx
+    import numpy as np
+    from mlx_lm.models.cache import make_prompt_cache
+
+    prompt = llama.prompt_ids("g02")
+    assert len(prompt) > PREFILL_STEP, len(prompt)
+    eos = set(llama.provider._eos_ids())
+    started = time.perf_counter()
+    for name, sampling in (("greedy", GREEDY), ("seeded", SEEDED)):
+        cap = llama.capture("g02", ("final_norm",), 128, sampling)
+        reference = llama.provider.generate_chat(_messages("g02"), max_tokens=128, **sampling)
+        expected = [int(i) for i in reference.token_ids]
+        same = _tokens(cap) == expected and cap.finish_reason == reference.finish_reason
+        llama.rec.add(
+            "T-U2-R-01",
+            "AC-B1/B2a",
+            f"g02/{name}",
+            input=_inp("g02", prompt, sampling, 128, ["final_norm"]),
+            output={**_out(cap), "reference_gen_token_ids_sha256": prompt_ids_sha256(expected)},
+            compared_with="Llama31MLXProvider.generate_chat (mlx_lm.stream_generate)",
+            criterion="exact",
+            result="PASS" if same else "FAIL",
+            started=started,
+        )
+        assert same, name
+        started = time.perf_counter()
+
+    cap = llama.capture("g02", ("final_norm",), 128, GREEDY)
+    n_in, n_gen = cap.n_in, cap.n_gen
+    pos = np.arange(n_in - 1, n_in - 1 + n_gen, dtype=np.int64)
+    rows_ok = (
+        cap.finish_reason == "length"
+        and n_gen == 128
+        and bool(np.array_equal(cap.row_pos["final_norm"], pos))
+        and bool(np.array_equal(cap.row_decides["final_norm"], np.arange(n_gen, dtype=np.int64)))
+        and cap.states["final_norm"].shape[0] == n_gen == len(cap.token_ids)
+        and not (eos & set(_tokens(cap)))
+    )
+    llama.rec.add(
+        "T-U2-R-11",
+        "AC-C1(1)(3)",
+        f"g02/128 (length, prefill split, n_in={n_in})",
+        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        output={**_out(cap), "reached_eos": cap.finish_reason == "eos"},
+        compared_with="the row rule decides-next/1 computed from n_in and n_gen",
+        criterion="exact",
+        result="PASS" if rows_ok else "FAIL",
+        started=started,
+    )
+    assert rows_ok
+
+    started = time.perf_counter()
+    full = _llama_forward_hidden(llama.provider._model, [*prompt, *_tokens(cap)])
+    rows = cap.states["final_norm"]
+    unit_full = full / np.linalg.norm(full, axis=1, keepdims=True)
+    unit_rows = rows / np.linalg.norm(rows, axis=1, keepdims=True)
+    nearest = (unit_rows @ unit_full.T).argmax(axis=1)
+    right = bool(np.array_equal(nearest, pos))
+    llama.rec.add(
+        "T-U2-R-10",
+        "AC-C1(2)",
+        "g02/128 (length)",
+        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        output={
+            "n_gen": n_gen,
+            "rows_at_the_expected_nearest_position": int((nearest == pos).sum()),
+        },
+        compared_with="positions of one full forward over prompt+generated tokens",
+        criterion="nearest_position",
+        result="PASS" if right else "FAIL",
+        started=started,
+    )
+    assert right
+
+    started = time.perf_counter()
+    dtype = cap.state_dtype
+    finite = bool(np.all(np.isfinite(cap.states["final_norm"])))
+    exact = _representable(cap.states["final_norm"], dtype)
+    llama.rec.add(
+        "T-U2-R-12",
+        "AC-C3",
+        f"g02/{dtype}",
+        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        output={"state_dtype": dtype, "all_finite": finite, "representable": exact},
+        compared_with="the values the native dtype can hold",
+        criterion="bit",
+        result="PASS" if finite and exact else "FAIL",
+        started=started,
+    )
+    assert finite and exact
+
+    started = time.perf_counter()
+    model = llama.provider._model
+    cache = make_prompt_cache(model)
+    last = mx.array(prompt)
+    hidden = None
+    while last.shape[0] > 0:
+        hidden = model.model(last[:PREFILL_STEP][None], cache=cache)
+        mx.eval(hidden)
+        last = last[PREFILL_STEP:]
+    assert hidden is not None
+    value = hidden[0, -1, :]
+    ok = bool(mx.array_equal(value.astype(mx.float32).astype(value.dtype), value))
+    llama.rec.add(
+        "T-U2-R-13",
+        "AC-C3",
+        f"g02/{value.dtype}",
+        input=_inp("g02", prompt, {}, 0, ["final_norm"]),
+        output={"native_dtype": str(value.dtype), "roundtrip_equal": {"final_norm": ok}},
+        compared_with="the value in its native dtype",
+        criterion="bit",
+        result="PASS" if ok else "FAIL",
+        started=started,
+    )
+    assert ok
+
+    started = time.perf_counter()
+    kept = cap.states["final_norm"].copy()
+    read_only = not cap.states["final_norm"].flags.writeable
+    second = llama.capture("g02", ("final_norm",), 128, GREEDY)
+    same_again = _tokens(second) == _tokens(cap) and bool(
+        np.array_equal(second.states["final_norm"], kept)
+    )
+    llama.rec.add(
+        "T-U2-R-16",
+        "AC-A3/G2",
+        "g02/greedy",
+        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        output={"read_only": read_only, "second_capture_equal": same_again},
+        compared_with="the first capture",
+        criterion="exact",
+        result="PASS" if read_only and same_again else "FAIL",
+        started=started,
+    )
+    assert read_only and same_again
+
+
+@pytest.mark.parametrize("prompt_id", ["p04", "g02"])
+def test_u2_llama_long_04_05_chunked_bit_comparison(
+    llama: LlamaReal, llama_case: None, prompt_id: str
+) -> None:
+    """R-04 / R-05 for a prompt longer than 2,048 tokens: the capture path against ``model(...)``,
+    both prefilled in chunks of 2,048 with new caches. Compared: the 8 positions on each side of
+    the chunk boundary and the last LLAMA_P04_TAIL positions (logits and final_norm), and the first
+    32 decode steps (log-probabilities and state). No tolerance."""
+    started = time.perf_counter()
+    prompt = llama.prompt_ids(prompt_id)
+    assert len(prompt) > PREFILL_STEP
+    cap = llama.capture(prompt_id, ("final_norm",), 32 if prompt_id == "g02" else 64, GREEDY)
+    result = llama.adapter.check_equivalence(prompt, _tokens(cap), tail=LLAMA_P04_TAIL)
+    llama.rec.add(
+        "T-U2-R-04",
+        "AC-B2b",
+        f"{prompt_id}/chunked, boundary and last {LLAMA_P04_TAIL} positions",
+        input=_inp(prompt_id, prompt, GREEDY, cap.n_gen, ["final_norm"]),
+        output=result,
+        compared_with="model(chunk, cache) over the same 2,048-token chunks, a new cache",
+        criterion="bit",
+        result="PASS" if result["bit_identical"] else "FAIL",
+        started=started,
+    )
+    assert result["bit_identical"], result
+    llama.rec.add(
+        "T-U2-R-05",
+        "AC-B2b",
+        f"{prompt_id}/{result['steps']} steps after the chunked prefill",
+        input=_inp(prompt_id, prompt, GREEDY, cap.n_gen, ["final_norm"]),
+        output={
+            "steps": result["steps"],
+            "verified_steps": result["steps"],
+            "max_abs_logprob_diff": result["max_abs_logprob_diff"],
+            "max_abs_state_diff": result["max_abs_state_diff"],
+        },
+        compared_with="model(token, cache) after the same chunked prefill",
+        criterion="bit",
+        result="PASS"
+        if result["max_abs_logprob_diff"] == result["max_abs_state_diff"] == 0.0
+        else "FAIL",
+        started=started,
+    )
+    if prompt_id == "g02":
+        assert result["steps"] >= LLAMA_STEPS, result["steps"]
+    else:
+        llama.rec.not_verified.append(
+            "p04 decode steps: its answer is 1 token, so only that many steps were verified"
+        )
+
+
+def test_u2_llama_p04_08_chunked_against_one_shot(llama: LlamaReal, llama_case: None) -> None:
+    """R-08, p04 (numbers only): the chunked prefill against one ``model(ids)`` over the whole
+    prompt, last LLAMA_P04_TAIL positions, logits and final_norm. Memory estimate before running:
+    weights 4.5 GB + whole-prompt logits (3,678 x 128,256 x 2 B = 0.9 GB) + activations and two
+    caches about 1.5 GB = about 7 GB."""
+    import mlx.core as mx
+    import mlx.nn as nn
+    import numpy as np
+    from mlx_lm.models.cache import make_prompt_cache
+
+    class Tap(nn.Module):  # type: ignore[misc]
+        def __init__(self, inner: Any) -> None:
+            super().__init__()
+            self.inner = inner
+            self.last: Any = None
+
+        def __call__(self, x: Any) -> Any:
+            self.last = self.inner(x)
+            return self.last
+
+    started = time.perf_counter()
+    model = llama.provider._model
+    head = llama.prompt_ids("p04")[:-1]
+    n = LLAMA_P04_TAIL
+    original = model.model.norm
+    tap = Tap(original)
+    model.model.norm = tap
+    try:
+        logits = model(mx.array(head)[None], cache=make_prompt_cache(model))
+        one_logits = _np32(logits[0, -n:, :])
+        one_hidden = _np32(tap.last[0, -n:, :])
+        del logits
+        mx.clear_cache()
+        cache = make_prompt_cache(model)
+        start = 0
+        while start < len(head):
+            piece = mx.array(head[start : start + PREFILL_STEP])[None]
+            out = model(piece, cache=cache)
+            mx.eval(out, [c.state for c in cache])
+            start += PREFILL_STEP
+        seq_logits = _np32(out[0, -n:, :])
+        seq_hidden = _np32(tap.last[0, -n:, :])
+    finally:
+        model.model.norm = original
+
+    def stats(a: Any, b: Any) -> dict[str, float]:
+        cos = (a * b).sum(axis=1) / (np.linalg.norm(a, axis=1) * np.linalg.norm(b, axis=1))
+        return {"max_abs_diff": float(np.abs(a - b).max()), "cosine_min": float(cos.min())}
+
+    llama.rec.add(
+        "T-U2-R-08",
+        "AC-B3",
+        f"p04/chunked vs one-shot, last {n} positions",
+        input=_inp("p04", head, {}, 0, ["final_norm"]),
+        output={
+            "logits": stats(seq_logits, one_logits),
+            "final_norm": stats(seq_hidden, one_hidden),
+        },
+        compared_with="one model(ids) over the whole prompt",
+        criterion="report",
+        result="NUMBERS",
+        started=started,
     )
