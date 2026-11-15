@@ -1,4 +1,4 @@
-"""U2 real-machine tests (T-U2-R-*). Qwen3.5 part (U2-3); the Llama part (U2-4) is a placeholder.
+"""U2 real-machine tests (T-U2-R-*): Qwen3.5 (U2-3) and Llama 3.1 (U2-4, p01-p03; p04 not run).
 
 Real-model cases are skipped unless ``LLAMA31_SNAPSHOT`` / ``QWEN35_SNAPSHOT`` name a local
 snapshot directory. Collection must not import ``mlx`` or load weights: ``mlx`` is imported only
@@ -62,14 +62,6 @@ def test_u2_fixed_prompt_set_and_not_verified_defaults() -> None:
     """Always runs: defines the fixed prompt ids and the mandatory not_verified baseline."""
     assert set(FIXED_PROMPTS) >= {"p01", "p02", "p03", "p04"}
     assert len(DEFAULT_NOT_VERIFIED) >= 1
-
-
-@pytest.mark.skipif(not llama_real_machine_available(), reason=f"{ENV_LLAMA} not set")
-def test_t_u2_r_llama_placeholder_requires_snapshot() -> None:
-    """U2-4 will implement AC-B/C checks. This placeholder only proves the skip gate."""
-    path = os.environ[ENV_LLAMA]
-    assert path.strip()
-    pytest.skip("U2-4 real-machine body not implemented in U2-1/U2-2")
 
 
 def _messages(prompt_id: str) -> list[dict[str, str]]:
@@ -284,7 +276,7 @@ def real() -> Iterator[Real]:
         not_verified=[
             *DEFAULT_NOT_VERIFIED,
             *sorted(set(ctx.rec.not_verified)),
-            "Llama 3.1 (U2-4 not run)",
+            "Llama 3.1 is recorded in its own evidence folder (u2-llama31-*)",
         ],
         host=hardware if isinstance(hardware, str) else "unknown",
         started_at=started,
@@ -860,6 +852,560 @@ def test_t_u2_r_16_arrays_are_read_only_and_a_second_capture_is_unchanged(real: 
         "AC-A3/G2",
         "p01/greedy",
         input=_inp("p01", real.prompt_ids("p01"), GREEDY, 32, PILOT_POINTS),
+        output={
+            "read_only": read_only,
+            "assignment_refused": refused,
+            "unchanged_after_write_attempt": untouched,
+            "second_capture_equal": same_again,
+        },
+        compared_with="the first capture",
+        criterion="exact",
+        result="PASS" if ok else "FAIL",
+        started=started,
+    )
+    assert ok
+
+
+# =================================================================================================
+# Llama 3.1 (U2-4): p01-p03 only. p04 (4,969 tokens) is NOT run and is listed in not_verified.
+# Cases run in the order p01, p02, p03; a failed criterion stops the run (``-x``); an MLX peak above
+# LLAMA_PEAK_LIMIT_MB or a vanished snapshot volume stops the whole session.
+# =================================================================================================
+
+LLAMA_BUILD_ID = "llama3.1-8b-instruct-r241a666d-4bit"
+LLAMA_COMPUTE_ENVIRONMENT = "mlx-metal"
+LLAMA_PROMPT_IDS = ("p01", "p02", "p03")
+LLAMA_PEAK_LIMIT_MB = 12 * 1024
+LLAMA_STEPS = 32
+
+
+class LlamaReal:
+    def __init__(self, provider: Any, adapter: Any, recorder: Recorder, snapshot: Path) -> None:
+        self.provider = provider
+        self.adapter = adapter
+        self.rec = recorder
+        self.snapshot = snapshot
+        self.info: dict[str, Any] = {}
+
+    def capture(
+        self, prompt_id: str, points: Sequence[str], max_tokens: int, sampling: dict[str, Any]
+    ) -> Any:
+        from sensos_inference.observation import CaptureRequest
+
+        request = CaptureRequest(
+            points=tuple(points), max_tokens=max_tokens, sampling=dict(sampling)
+        )
+        return self.adapter.capture(
+            _messages(prompt_id),
+            request,
+            model_build_id=LLAMA_BUILD_ID,
+            compute_environment=LLAMA_COMPUTE_ENVIRONMENT,
+        )
+
+    def prompt_ids(self, prompt_id: str) -> list[int]:
+        ids = self.provider._tokenizer.apply_chat_template(
+            _messages(prompt_id), add_generation_prompt=True, tokenize=True
+        )
+        return [int(i) for i in (ids["input_ids"] if hasattr(ids, "keys") else ids)]
+
+
+def _hash_source(snapshot: Path, weights_sha256: str | None) -> str:
+    cache_dir = os.environ.get(ENV_HASH_CACHE)
+    if not cache_dir:
+        return "computed_or_default_cache"
+    key = re.sub(r"[^A-Za-z0-9._-]+", "_", str(snapshot.resolve()))
+    files = sorted(snapshot.glob("*.safetensors"), key=lambda p: p.name)
+    try:
+        cached = json.loads((Path(cache_dir) / f"{key}.json").read_text(encoding="utf-8"))
+        stamp = [[p.name, p.stat().st_size, p.stat().st_mtime_ns] for p in files]
+        if cached.get("files") == stamp and cached.get("weights_sha256") == weights_sha256:
+            return "cache_stamp_matched"
+    except (OSError, ValueError):
+        pass
+    return "computed_or_default_cache"
+
+
+@pytest.fixture(scope="module")
+def llama() -> Iterator[LlamaReal]:
+    if not llama_real_machine_available():
+        pytest.skip(f"{ENV_LLAMA} not set")
+    from sensos_inference.adapters import Llama31MLXAdapter, _hardware_string
+    from sensos_inference.providers.llama31_mlx_capture import Llama31MLXCaptureProvider
+
+    snapshot = Path(os.environ[ENV_LLAMA])
+    cache_dir = os.environ.get(ENV_HASH_CACHE)
+    provider = Llama31MLXCaptureProvider(
+        snapshot_dir=snapshot, hash_cache_dir=Path(cache_dir) if cache_dir else None
+    )
+    provider._ensure_loaded_from(provider._load_target())
+    adapter = Llama31MLXAdapter(provider)
+    ctx = LlamaReal(provider, adapter, Recorder(), snapshot)
+    started = datetime.now().astimezone().isoformat(timespec="seconds")
+    yield ctx
+    hardware = _hardware_string()
+    facts = adapter.origin_facts()["origin"]
+    record = build_evidence_record(
+        run_id=f"u2-llama31-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+        adapter="llama31-mlx-capture",
+        code={
+            "repository": "sensos",
+            "branch": _git("branch", "--show-current"),
+            "commit": _git("rev-parse", "--short", "HEAD"),
+            "dirty": bool(_git("status", "--porcelain", "--", ".")),
+        },
+        environment={
+            "python": platform.python_version(),
+            "mlx": _pkg("mlx"),
+            "mlx_lm": _pkg("mlx-lm"),
+            "transformers": _pkg("transformers"),
+            "numpy": _pkg("numpy"),
+        },
+        model={
+            "model_ref": LLAMA_BUILD_ID,
+            "snapshot": snapshot_basename(snapshot),
+            "revision": facts["revision"],
+            "weights_sha256": facts["weights_sha256"],
+            "hash_source": ctx.info.get("hash_source", "unknown"),
+            "quantization": facts["quantization"],
+            "state_dtype": adapter.observed_state_dtype,
+            "provenance": ctx.info.get("provenance"),
+        },
+        checks=ctx.rec.checks,
+        not_verified=[
+            *DEFAULT_NOT_VERIFIED,
+            *sorted(set(ctx.rec.not_verified)),
+            "p04 (4,969 tokens, split prefill) not run for Llama: memory plan undecided",
+            "the U1 converter (from_llama31) does not carry eos_ids into the provenance: "
+            "the provider result has it (R-14), the ObservationCapture does not",
+        ],
+        host=hardware if isinstance(hardware, str) else "unknown",
+        started_at=started,
+    )
+    maybe_write_evidence(record)
+
+
+@pytest.fixture
+def llama_case(llama: LlamaReal) -> Iterator[None]:
+    """Per-case guard: the snapshot volume must be visible; the MLX peak must stay under 12 GB."""
+    import mlx.core as mx
+
+    if not llama.snapshot.exists():
+        pytest.exit("STOP: the Llama snapshot is no longer visible (SSD?)", returncode=3)
+    mx.reset_peak_memory()
+    yield
+    peak = float(mx.get_peak_memory()) / 2**20
+    if peak > LLAMA_PEAK_LIMIT_MB:
+        pytest.exit(f"STOP: MLX peak {peak:.0f} MB is over {LLAMA_PEAK_LIMIT_MB} MB", returncode=3)
+
+
+def _llama_logits(model: Any, hidden: Any) -> Any:
+    """The same expression as ``MLXEngine.step`` / mlx_lm's ``Model.__call__``."""
+    if model.args.tie_word_embeddings:
+        return model.model.embed_tokens.as_linear(hidden)
+    return model.lm_head(hidden)
+
+
+def _llama_forward_hidden(model: Any, ids: Sequence[int]) -> Any:
+    """Final-normed hidden states of a whole sequence with a fresh cache, (len, 4096) float32."""
+    import mlx.core as mx
+    from mlx_lm.models.cache import make_prompt_cache
+
+    hidden = model.model(mx.array(list(ids))[None], cache=make_prompt_cache(model))
+    mx.eval(hidden)
+    return _np32(hidden[0])
+
+
+@pytest.mark.parametrize("prompt_id", LLAMA_PROMPT_IDS)
+def test_u2_llama_01_tokens_equal_reference(
+    llama: LlamaReal, llama_case: None, prompt_id: str
+) -> None:
+    """T-U2-R-01 (AC-B1, B2a): the adapter's tokens equal ``generate_chat`` (no capture)."""
+    for name, sampling in (("greedy", GREEDY), ("seeded", SEEDED)):
+        started = time.perf_counter()
+        cap = llama.capture(prompt_id, ("final_norm",), 64, sampling)
+        reference = llama.provider.generate_chat(_messages(prompt_id), max_tokens=64, **sampling)
+        expected = [int(i) for i in reference.token_ids]
+        same = _tokens(cap) == expected and cap.finish_reason == reference.finish_reason
+        llama.rec.add(
+            "T-U2-R-01",
+            "AC-B1/B2a",
+            f"{prompt_id}/{name}",
+            input=_inp(prompt_id, llama.prompt_ids(prompt_id), sampling, 64, ["final_norm"]),
+            output={
+                **_out(cap),
+                "reference_gen_token_ids_sha256": prompt_ids_sha256(expected),
+                "reference_finish_reason": reference.finish_reason,
+            },
+            compared_with="Llama31MLXProvider.generate_chat (mlx_lm.stream_generate)",
+            criterion="exact",
+            result="PASS" if same else "FAIL",
+            started=started,
+        )
+        assert same, (prompt_id, name)
+
+
+@pytest.mark.parametrize("prompt_id", LLAMA_PROMPT_IDS)
+def test_u2_llama_04_05_logits_against_the_model_call(
+    llama: LlamaReal, llama_case: None, prompt_id: str
+) -> None:
+    """T-U2-R-04 (whole sequence, fresh caches) and T-U2-R-05 (32 steps): bit-identical logits."""
+    import mlx.core as mx
+    from mlx_lm.models.cache import make_prompt_cache
+
+    from sensos_inference.providers.llama31_mlx_capture import MLXEngine
+
+    model = llama.provider._model
+    prompt = llama.prompt_ids(prompt_id)
+    cap = llama.capture(prompt_id, ("final_norm",), LLAMA_STEPS, GREEDY)
+    tokens = _tokens(cap)
+    sequence = [*prompt, *tokens]
+
+    started = time.perf_counter()
+    own = model.model(mx.array(sequence)[None], cache=make_prompt_cache(model))
+    mine = _llama_logits(model, own)
+    theirs = model(mx.array(sequence)[None], cache=make_prompt_cache(model))
+    mx.eval(mine, theirs)
+    diff_i = float(mx.max(mx.abs(mine.astype(mx.float32) - theirs.astype(mx.float32))))
+    llama.rec.add(
+        "T-U2-R-04",
+        "AC-B2b",
+        f"{prompt_id}/whole sequence",
+        input=_inp(prompt_id, prompt, GREEDY, LLAMA_STEPS, ["final_norm"]),
+        output={"sequence_length": len(sequence), "max_abs_logit_diff": diff_i},
+        compared_with="model(...) with its own fresh cache",
+        criterion="bit",
+        result="PASS" if diff_i == 0.0 else "FAIL",
+        started=started,
+    )
+    assert diff_i == 0.0, diff_i
+
+    started = time.perf_counter()
+    engine = MLXEngine(model)
+    own_cache = make_prompt_cache(model)
+    if len(prompt) > 1:
+        engine.prefill(prompt[:-1])
+        head = mx.array(prompt[:-1])
+        while head.shape[0] > 0:
+            model(head[:2048][None], cache=own_cache)
+            mx.eval([c.state for c in own_cache])
+            head = head[2048:]
+            mx.clear_cache()
+    steps, worst, where = 0, 0.0, -1
+    feed = [prompt[-1], *tokens][:LLAMA_STEPS]
+    for index, token in enumerate(feed):
+        logprobs, _ = engine.step(token)
+        logits = model(mx.array([token])[None], cache=own_cache)[:, -1, :]
+        reference = logits - mx.logsumexp(logits, keepdims=True)
+        mx.eval(reference)
+        diff = float(_max_abs(logprobs, _np32(reference).reshape(-1)))
+        steps += 1
+        if diff > worst:
+            worst, where = diff, index
+    llama.rec.add(
+        "T-U2-R-05",
+        "AC-B2b",
+        f"{prompt_id}/{steps} steps",
+        input=_inp(prompt_id, prompt, GREEDY, LLAMA_STEPS, ["final_norm"]),
+        output={"steps": steps, "max_abs_logprob_diff": worst, "worst_step": where},
+        compared_with="model(token, cache) log-probabilities, same prefill, step by step",
+        criterion="bit",
+        result="PASS" if worst == 0.0 else "FAIL",
+        started=started,
+    )
+    assert worst == 0.0, (worst, where)
+
+
+def _max_abs(a: Any, b: Any) -> float:
+    import numpy as np
+
+    return float(np.max(np.abs(np.asarray(a, dtype=np.float32) - np.asarray(b, dtype=np.float32))))
+
+
+@pytest.mark.parametrize("prompt_id", LLAMA_PROMPT_IDS)
+def test_u2_llama_07_08_numbers(llama: LlamaReal, llama_case: None, prompt_id: str) -> None:
+    """T-U2-R-07 (same seed twice) and T-U2-R-08 (sequential vs one full pass): numbers only."""
+    import numpy as np
+
+    started = time.perf_counter()
+    a = llama.capture(prompt_id, ("final_norm",), 64, SEEDED)
+    b = llama.capture(prompt_id, ("final_norm",), 64, SEEDED)
+    same_tokens = _tokens(a) == _tokens(b)
+    diff = (
+        float(np.max(np.abs(a.states["final_norm"] - b.states["final_norm"])))
+        if same_tokens
+        else None
+    )
+    llama.rec.add(
+        "T-U2-R-07",
+        "AC-B3",
+        f"{prompt_id}/twice",
+        input=_inp(prompt_id, llama.prompt_ids(prompt_id), SEEDED, 64, ["final_norm"]),
+        output={"same_tokens": same_tokens, "first": _out(a), "second": _out(b)},
+        compared_with="the same request again",
+        criterion="report",
+        result="NUMBERS",
+        numbers={"max_abs_diff_final_norm": diff},
+        started=started,
+    )
+
+    started = time.perf_counter()
+    cap = llama.capture(prompt_id, ("final_norm",), 48, GREEDY)
+    prompt = llama.prompt_ids(prompt_id)
+    full = _llama_forward_hidden(llama.provider._model, [*prompt, *_tokens(cap)])
+    rows = cap.states["final_norm"]
+    ref = full[cap.n_in - 1 : cap.n_in - 1 + cap.n_gen]
+    cos = (rows * ref).sum(axis=1) / (np.linalg.norm(rows, axis=1) * np.linalg.norm(ref, axis=1))
+    llama.rec.add(
+        "T-U2-R-08",
+        "AC-B3",
+        f"{prompt_id}/sequential vs full pass",
+        input=_inp(prompt_id, prompt, GREEDY, 48, ["final_norm"]),
+        output=_out(cap),
+        compared_with="one full forward over prompt+generated tokens, same positions",
+        criterion="report",
+        result="NUMBERS",
+        numbers={
+            "max_abs_diff": float(np.abs(rows - ref).max()),
+            "cosine_min": float(cos.min()),
+            "cosine_mean": float(cos.mean()),
+        },
+        started=started,
+    )
+
+
+LLAMA_ROW_CASES = [
+    ("p01", 160, "p01/160 (may reach EOS)"),
+    ("p02", 160, "p02/160 (may reach EOS)"),
+    ("p03", 160, "p03/160 (may reach EOS)"),
+    ("p01", 1, "p01/max_tokens=1"),
+    ("p03", 8, "p03/max_tokens=8 (length)"),
+]
+
+
+@pytest.mark.parametrize("prompt_id", LLAMA_PROMPT_IDS)
+def test_u2_llama_09_10_11_rows(llama: LlamaReal, llama_case: None, prompt_id: str) -> None:
+    """T-U2-R-09/10/11 (AC-C1): row positions, EOS gives no row, the nearest position is right."""
+    import numpy as np
+
+    eos = set(llama.provider._eos_ids())
+    for case_prompt, max_tokens, label in LLAMA_ROW_CASES:
+        if case_prompt != prompt_id:
+            continue
+        started = time.perf_counter()
+        cap = llama.capture(prompt_id, ("final_norm",), max_tokens, GREEDY)
+        prompt = llama.prompt_ids(prompt_id)
+        assert len(prompt) == cap.n_in
+        n_in, n_gen = cap.n_in, cap.n_gen
+        pos = np.arange(n_in - 1, n_in - 1 + n_gen, dtype=np.int64)
+        exact = (
+            bool(np.array_equal(cap.row_pos["final_norm"], pos))
+            and bool(
+                np.array_equal(cap.row_decides["final_norm"], np.arange(n_gen, dtype=np.int64))
+            )
+            and cap.states["final_norm"].shape[0] == n_gen == len(cap.token_ids)
+            and not (eos & set(_tokens(cap)))
+        )
+        llama.rec.add(
+            "T-U2-R-11" if max_tokens == 1 else "T-U2-R-09",
+            "AC-C1(1)(3)",
+            label,
+            input=_inp(prompt_id, prompt, GREEDY, max_tokens, ["final_norm"]),
+            output={**_out(cap), "reached_eos": cap.finish_reason == "eos"},
+            compared_with="the row rule decides-next/1 computed from n_in and n_gen",
+            criterion="exact",
+            result="PASS" if exact else "FAIL",
+            started=started,
+        )
+        assert exact, label
+        if cap.finish_reason != "eos":
+            llama.rec.not_verified.append("EOS boundary not reached in some row cases")
+        if n_gen < 2:
+            continue
+        full = _llama_forward_hidden(llama.provider._model, [*prompt, *_tokens(cap)])
+        rows = cap.states["final_norm"]
+        unit_full = full / np.linalg.norm(full, axis=1, keepdims=True)
+        unit_rows = rows / np.linalg.norm(rows, axis=1, keepdims=True)
+        nearest = (unit_rows @ unit_full.T).argmax(axis=1)
+        right = bool(np.array_equal(nearest, pos))
+        llama.rec.add(
+            "T-U2-R-10",
+            "AC-C1(2)",
+            label,
+            input=_inp(prompt_id, prompt, GREEDY, max_tokens, ["final_norm"]),
+            output={
+                "n_gen": n_gen,
+                "rows_at_the_expected_nearest_position": int((nearest == pos).sum()),
+            },
+            compared_with="positions of one full forward over prompt+generated tokens",
+            criterion="nearest_position",
+            result="PASS" if right else "FAIL",
+            started=started,
+        )
+        assert right, label
+
+
+@pytest.mark.parametrize("prompt_id", LLAMA_PROMPT_IDS)
+def test_u2_llama_12_float32_is_exact(llama: LlamaReal, llama_case: None, prompt_id: str) -> None:
+    """T-U2-R-12 (AC-C3): the stored float32 values are exactly representable in the state dtype."""
+    import numpy as np
+
+    started = time.perf_counter()
+    cap = llama.capture(prompt_id, ("final_norm",), 64, SEEDED)
+    dtype = cap.state_dtype
+    finite = all(bool(np.all(np.isfinite(a))) for a in cap.states.values())
+    exact = {n: _representable(a, dtype) for n, a in cap.states.items()}
+    ok = finite and all(exact.values())
+    llama.rec.add(
+        "T-U2-R-12",
+        "AC-C3",
+        f"{prompt_id}/{dtype}",
+        input=_inp(prompt_id, llama.prompt_ids(prompt_id), SEEDED, 64, ["final_norm"]),
+        output={"state_dtype": dtype, "all_finite": finite, "representable_in_native_dtype": exact},
+        compared_with="the values the native dtype can hold",
+        criterion="bit",
+        result="PASS" if ok else "FAIL",
+        started=started,
+    )
+    assert ok, (dtype, finite, exact)
+
+
+def test_u2_llama_13_roundtrip_inside_mlx(llama: LlamaReal, llama_case: None) -> None:
+    """T-U2-R-13 (AC-C3): native dtype -> float32 -> native dtype is the identity, inside MLX."""
+    import mlx.core as mx
+    from mlx_lm.models.cache import make_prompt_cache
+
+    started = time.perf_counter()
+    model = llama.provider._model
+    ids = llama.prompt_ids("p01")
+    hidden = model.model(mx.array(ids)[None], cache=make_prompt_cache(model))[0, -1, :]
+    mx.eval(hidden)
+    back = hidden.astype(mx.float32).astype(hidden.dtype)
+    ok = bool(mx.array_equal(back, hidden))
+    dtype = str(hidden.dtype)
+    llama.rec.add(
+        "T-U2-R-13",
+        "AC-C3",
+        f"p01/{dtype}",
+        input=_inp("p01", ids, {}, 0, ["final_norm"]),
+        output={"native_dtype": dtype, "roundtrip_equal": {"final_norm": ok}},
+        compared_with="the value in its native dtype",
+        criterion="bit",
+        result="PASS" if ok else "FAIL",
+        started=started,
+    )
+    assert ok
+
+
+def test_u2_llama_14_provenance_material(llama: LlamaReal, llama_case: None) -> None:
+    """T-U2-R-14 (AC-C2 material): which provenance fields are real values. A table, no verdict."""
+    started = time.perf_counter()
+    cap = llama.capture("p01", ("final_norm",), 1, GREEDY)
+    assert cap.dimension == 4096 and cap.n_gen == 1
+    prov = cap.provenance
+    result = llama.provider.capture_chat(_messages("p01"), max_tokens=1, top_k=1, seed=0)
+    table = {
+        "revision": prov.revision is not None,
+        "weights_sha256": prov.weights_sha256 is not None,
+        "tokenizer_sha256": prov.tokenizer_sha256 is not None,
+        "chat_template_sha256": prov.chat_template_sha256 is not None,
+        "special_tokens_in": prov.special_tokens_in is not None,
+        "eos_ids (provider result)": bool(result.eos_ids),
+        "eos_ids (provenance after the U1 converter)": prov.eos_ids is not None,
+        "runtime.mlx": prov.runtime.get("mlx") is not None,
+        "runtime.mlx_lm": prov.runtime.get("mlx_lm") is not None,
+        "runtime.device": prov.runtime.get("device") is not None,
+        "state_dtype": cap.state_dtype != "unknown",
+    }
+    source = _hash_source(llama.snapshot, prov.weights_sha256)
+    llama.info["hash_source"] = source
+    llama.info["provenance"] = {
+        "real_values": table,
+        "state_dtype": cap.state_dtype,
+        "eos_ids": list(result.eos_ids or []),
+        "tokenizer_sha256": prov.tokenizer_sha256,
+        "chat_template_sha256": prov.chat_template_sha256,
+        "runtime": dict(prov.runtime),
+    }
+    llama.rec.add(
+        "T-U2-R-14",
+        "AC-C2 (material)",
+        "provenance fields that are real values",
+        input=_inp("p01", llama.prompt_ids("p01"), GREEDY, 1, ["final_norm"]),
+        output={"fields": table, "hash_source": source, "state_dtype": cap.state_dtype},
+        compared_with="-",
+        criterion="report",
+        result="NUMBERS",
+        started=started,
+    )
+    assert cap.state_dtype in ("float16", "bfloat16"), cap.state_dtype
+    assert all(v for k, v in table.items() if "after the U1 converter" not in k), table
+
+
+@pytest.mark.parametrize("point", ["block_out:3", "mlp_out:0", "embed:0", "block_out:-1"])
+def test_u2_llama_15_undeclared_points_are_refused(
+    llama: LlamaReal, llama_case: None, point: str
+) -> None:
+    """T-U2-R-15 (AC-C4): a point the Llama adapter does not declare is refused before any run."""
+    from sensos_inference.observation import ObservationError
+
+    started = time.perf_counter()
+    calls: list[int] = []
+    original = llama.provider.capture_chat
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    llama.provider.capture_chat = counting
+    try:
+        with pytest.raises(ObservationError) as raised:
+            llama.capture("p01", (point,), 8, GREEDY)
+    finally:
+        llama.provider.capture_chat = original
+    codes = [i.code for i in raised.value.issues]
+    ok = not calls and bool(codes)
+    llama.rec.add(
+        "T-U2-R-15",
+        "AC-C4",
+        point,
+        input={"point": point, "prompt_id": "p01"},
+        output={"codes": codes, "provider_calls": len(calls)},
+        compared_with="-",
+        criterion="exact",
+        result="PASS" if ok else "FAIL",
+        started=started,
+    )
+    assert ok, (codes, calls)
+
+
+def test_u2_llama_16_read_only_and_second_capture_unchanged(
+    llama: LlamaReal, llama_case: None
+) -> None:
+    """T-U2-R-16 (AC-A3, G2): arrays are read-only; a second capture equals the first."""
+    import numpy as np
+
+    started = time.perf_counter()
+    first = llama.capture("p01", ("final_norm",), 32, GREEDY)
+    kept = {n: a.copy() for n, a in first.states.items()}
+    read_only = all(not a.flags.writeable for a in first.states.values())
+    refused = True
+    for arr in first.states.values():
+        try:
+            arr[0, 0] = 9e9
+            refused = False
+        except ValueError:
+            pass
+    untouched = all(np.array_equal(first.states[n], kept[n]) for n in kept)
+    second = llama.capture("p01", ("final_norm",), 32, GREEDY)
+    same_again = _tokens(second) == _tokens(first) and all(
+        np.array_equal(second.states[n], kept[n]) for n in kept
+    )
+    ok = read_only and refused and untouched and same_again
+    llama.rec.add(
+        "T-U2-R-16",
+        "AC-A3/G2",
+        "p01/greedy",
+        input=_inp("p01", llama.prompt_ids("p01"), GREEDY, 32, ["final_norm"]),
         output={
             "read_only": read_only,
             "assignment_refused": refused,
