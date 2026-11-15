@@ -797,6 +797,16 @@ def _require_success(result: Any) -> None:
         raise ObservationError((_issue("OBS_SRC_FAILED", "finish_reason", message),))
 
 
+def _refuse_eos_among_tokens(result: Any, token_ids: np.ndarray) -> None:
+    """``OBS_SRC_EOS`` if a stop id the provider reports is among the generated token ids.
+
+    ``eos_ids`` absent or ``None`` (not reported): not checked.
+    """
+    eos_ids = getattr(result, "eos_ids", None)
+    if eos_ids is not None and set(token_ids.tolist()) & {int(i) for i in eos_ids}:
+        raise ObservationError((_issue("OBS_SRC_EOS", "token_ids", "an EOS id is among the generated token ids"),))
+
+
 def _source_text_issue(result: Any, texts: set[str]) -> list[ObservationIssue]:
     if result.row_rule in texts:
         return []
@@ -811,11 +821,10 @@ def _build_provenance(
         raise ObservationError((_issue("OBS_SRC_FIELD", "sampler", "must be a mapping"),))
     special = getattr(result, "special_tokens_in", None)
     prompt_hash = _ids_sha256(prompt_ids)
-    eos_ids: tuple[int, ...] | None = None
+    raw_eos = getattr(result, "eos_ids", None)
+    eos_ids = None if raw_eos is None else tuple(int(i) for i in raw_eos)
     kwargs: Mapping[str, Any] = _empty_mapping()
     if qwen:
-        raw_eos = getattr(result, "eos_ids", None)
-        eos_ids = None if raw_eos is None else tuple(int(i) for i in raw_eos)
         kwargs = MappingProxyType(copy.deepcopy(dict(getattr(result, "chat_template_kwargs", None) or {})))
         source_hash = getattr(result, "prompt_ids_sha256", None)
         prompt_hash = source_hash if source_hash is not None else prompt_hash  # the checker compares it
@@ -865,6 +874,7 @@ def from_llama31(result: Any, *, model_build_id: str, compute_environment: str) 
     ensure_valid(issues)
     prompt_ids = _ids_array(result.prompt_ids, "prompt_ids")
     token_ids = _ids_array(result.token_ids, "token_ids")
+    _refuse_eos_among_tokens(result, token_ids)
     row_pos, row_decides = row_positions(len(prompt_ids), len(token_ids))
     state_dtype = getattr(result, "state_dtype", None)
     provenance = _build_provenance(result, prompt_ids, token_ids, qwen=False)
@@ -939,9 +949,7 @@ def from_qwen35(result: Any, *, model_build_id: str, compute_environment: str) -
     pairs = _qwen_positions(result)
     prompt_ids = _ids_array(result.prompt_ids, "prompt_ids")
     token_ids = _ids_array(result.token_ids, "token_ids")
-    eos_ids = getattr(result, "eos_ids", None)
-    if eos_ids is not None and set(token_ids.tolist()) & {int(i) for i in eos_ids}:
-        raise ObservationError((_issue("OBS_SRC_EOS", "token_ids", "an EOS id is among the generated token ids"),))
+    _refuse_eos_among_tokens(result, token_ids)
     states = {p.name: _states_array(result.states[p.legacy_name], f"states.{p.legacy_name}") for p, _ in pairs}
     names = tuple(p.name for p, _ in pairs)
     hidden = getattr(result, "hidden_size", None)

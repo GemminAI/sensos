@@ -935,7 +935,7 @@ def test_t_fl_08_provenance(tmp_path: Path) -> None:
     capture = _llama_capture(tmp_path)
     assert capture.provenance.prompt_ids_sha256 == input_ids_sha256(PROMPT)
     assert capture.provenance.gen_token_ids_sha256 == input_ids_sha256([7, 8, 9])
-    assert capture.provenance.eos_ids is None and "provenance.eos_ids" in capture.unknowns
+    assert capture.provenance.eos_ids == (EOS,) and "provenance.eos_ids" not in capture.unknowns
     assert capture.provenance.revision is None and "provenance.revision" in capture.unknowns
     assert capture.provenance.chat_template_sha256 == hashlib.sha256(b"{{ messages }}").hexdigest()
     assert capture.provenance.special_tokens_in == ((0, 100),)
