@@ -1017,7 +1017,8 @@ def llama() -> Iterator[LlamaReal]:
         not_verified=[
             *DEFAULT_NOT_VERIFIED,
             *sorted(set(ctx.rec.not_verified)),
-            "p04 for Llama: only the capture-only checks and the body-only comparison were run",
+            "p04 for Llama: the bit comparison is the chunked one (2,048-token chunks); "
+            "no whole-prompt one-shot logits bit check",
             "p04 answers end after 1 token (EOS): rows over a long p04 generation not checked",
         ],
         host=hardware if isinstance(hardware, str) else "unknown",
@@ -1599,7 +1600,8 @@ def test_u2_llama_p04_capture_only(llama: LlamaReal, llama_case: None) -> None:
     )
     assert read_only and same_again
     llama.rec.not_verified.append(
-        "p04: whole-sequence checks R-04, R-05, R-08 (logits / full-pass comparison) not run"
+        "p04: bit comparison of whole-prompt logits from one model(ids) not run "
+        "(R-04/R-05 are chunked; the one-shot comparison is NUMBERS, R-08)"
     )
 
 
