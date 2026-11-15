@@ -96,8 +96,8 @@ def _peak_mb() -> float | None:
     try:
         import mlx.core as mx
 
-        return round(mx.get_peak_memory() / 2**20, 1)
-    except Exception:
+        return round(float(mx.get_peak_memory()) / 2**20, 1)
+    except Exception:  # noqa: BLE001  # memory stats are optional evidence; any failure means "not recorded"
         return None
 
 
@@ -167,7 +167,9 @@ class Real:
     ) -> Any:
         from sensos_inference.observation import CaptureRequest
 
-        request = CaptureRequest(points=tuple(points), max_tokens=max_tokens, sampling=dict(sampling))
+        request = CaptureRequest(
+            points=tuple(points), max_tokens=max_tokens, sampling=dict(sampling)
+        )
         return self.adapter.capture(
             _messages(prompt_id),
             request,
@@ -177,7 +179,10 @@ class Real:
 
     def prompt_ids(self, prompt_id: str, thinking: bool = True) -> list[int]:
         ids = self.provider._tokenizer.apply_chat_template(
-            _messages(prompt_id), add_generation_prompt=True, tokenize=True, enable_thinking=thinking
+            _messages(prompt_id),
+            add_generation_prompt=True,
+            tokenize=True,
+            enable_thinking=thinking,
         )
         return [int(i) for i in (ids["input_ids"] if hasattr(ids, "keys") else ids)]
 
@@ -240,7 +245,9 @@ def real() -> Iterator[Real]:
     config = json.loads((snapshot / "config.json").read_text(encoding="utf-8"))
     text = config.get("text_config", config)
     adapter = Qwen35MLXAdapter(
-        provider, n_layers=int(text["num_hidden_layers"]), dimension=int(provider.hidden_size() or 0)
+        provider,
+        n_layers=int(text["num_hidden_layers"]),
+        dimension=int(provider.hidden_size() or 0),
     )
     ctx = Real(provider, adapter, Recorder(), snapshot)
     started = datetime.now().astimezone().isoformat(timespec="seconds")
@@ -460,7 +467,7 @@ def _own_pass(real: Real, ids: Sequence[int], layers: Sequence[int]) -> dict[str
     model = real.provider._model
     tm = model.language_model.model
 
-    class Tap(nn.Module):
+    class Tap(nn.Module):  # type: ignore[misc]  # mlx is untyped, so nn.Module is Any
         def __init__(self, inner: Any) -> None:
             super().__init__()
             self.inner = inner
@@ -551,7 +558,7 @@ def test_t_u2_r_06_tapped_points_against_own_layers(real: Real, prompt_id: str) 
             diffs[f"{p.kind}:{p.layer}"] = float(
                 mx.max(mx.abs(mine.astype(mx.float32) - theirs.astype(mx.float32)))
             )
-    except Exception as exc:  # the comparison could not be made: N-4, recorded, not forced
+    except Exception as exc:  # noqa: BLE001  # the comparison could not be made: N-4, recorded, not forced
         real.rec.not_verified.append(
             "tapped mlp_out/block_out against the model's own layers: not possible "
             f"({type(exc).__name__})"
@@ -655,7 +662,9 @@ ROW_CASES = [
 ]
 
 
-@pytest.mark.parametrize("prompt_id,max_tokens,extra,label", ROW_CASES, ids=[c[3] for c in ROW_CASES])
+@pytest.mark.parametrize(
+    "prompt_id,max_tokens,extra,label", ROW_CASES, ids=[c[3] for c in ROW_CASES]
+)
 def test_t_u2_r_09_10_11_rows(
     real: Real, prompt_id: str, max_tokens: int, extra: dict[str, Any], label: str
 ) -> None:
@@ -704,7 +713,10 @@ def test_t_u2_r_09_10_11_rows(
         "AC-C1(2)",
         label,
         input=_inp(prompt_id, prompt, sampling, max_tokens, ["final_norm"]),
-        output={"n_gen": n_gen, "rows_at_the_expected_nearest_position": int((nearest == pos).sum())},
+        output={
+            "n_gen": n_gen,
+            "rows_at_the_expected_nearest_position": int((nearest == pos).sum()),
+        },
         compared_with="positions of the model's own forward over prompt+generated tokens",
         criterion="nearest_position",
         result="PASS" if right else "FAIL",
