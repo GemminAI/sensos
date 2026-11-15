@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sensos:contracts/nvs/hidden-trajectory/0.1.0",
+  "title": "nvs.hidden-trajectory (payload) 0.1.0 — 1 点の隠れ状態の軌跡（T-hid。1 点につき 1 封筒）",
+  "description": "推論器が取得した隠れ状態の 1 点（final_norm、または層ごとの block_out・mlp_out）の軌跡。points は binary32 の length 行 × dimension 列（float32 Blob。D-100）、token_index は arange(length)（式 decides-next/1）。D-100・D-179（layer は数のまま、kind は空間の材料に入れない）・U5 hidden-trajectory 詳細設計書 v0.2 §3 に従う。欠損の語は \"unknown\" と \"not_applicable\" だけで、\"unknown\" を書けるのは state_dtype と capture_provenance の中だけ、\"not_applicable\" を書けるのは chat_template_sha256 だけ（設計書 §3.4）。空間の材料（model_build_id・layer・row_rule・compute_environment・dimension）、length、points、token_index、raw_ref.trajectory_id、binding の全欄、final_norm_applied には欠損の語を書けない（型だけで拒否される）。スキーマが表せない意味の検査は Gate の側で行う：HT-04〜HT-17 など（length と binding.n_gen の一致、row_rule の登録簿との照合と kind との整合、space_id の再計算、layer・point・kind の整合、final_norm_applied、points.sha256 と raw_ref.trajectory_id の一致、token_index の値と行数、points の shape と length・dimension の一致、unknowns が \"unknown\" の場所とちょうど一致し field の昇順であること（HT-15）など）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "position",
+    "point",
+    "kind",
+    "layer",
+    "length",
+    "dimension",
+    "points",
+    "token_index",
+    "raw_ref",
+    "row_rule",
+    "binding",
+    "final_norm_applied",
+    "state_dtype",
+    "model_build_id",
+    "compute_environment",
+    "policy",
+    "capture_provenance",
+    "contract_ref",
+    "unknowns"
+  ],
+  "properties": {
+    "source": {
+      "const": "T-hid"
+    },
+    "position": {
+      "type": "string",
+      "pattern": "^(final_norm|L(0|[1-9][0-9]*)\\.(block_out|mlp_out))$",
+      "description": "U1 の legacy_name（例：L15.mlp_out、final_norm）。IC-02 が読む欄で、名前と型は変えない"
+    },
+    "point": {
+      "type": "string",
+      "pattern": "^(final_norm|(block_out|mlp_out):(0|[1-9][0-9]*))$",
+      "description": "U1 の正規の点名（例：mlp_out:15、final_norm）"
+    },
+    "kind": {
+      "enum": [
+        "block_out",
+        "mlp_out",
+        "final_norm"
+      ],
+      "description": "U1 の kind。空間の材料ではない（D-179 (2)）"
+    },
+    "layer": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "const": "final_norm"
+        }
+      ],
+      "description": "整数（0 以上）か \"final_norm\"。数のまま（15 と \"15\" は別物。D-179 (2)）"
+    },
+    "length": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991,
+      "description": "行数 T。points.shape[0] および token_index.shape[0] との一致は Gate が確かめる"
+    },
+    "dimension": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "1 行の次元（単数）"
+    },
+    "points": {
+      "$ref": "sensos:contracts/common/float32-blob/0.1.0"
+    },
+    "token_index": {
+      "allOf": [
+        {
+          "$ref": "sensos:contracts/common/blob/0.7.0#/$defs/intBlob"
+        },
+        {
+          "properties": {
+            "shape": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "x-sensos-ordered": true,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              ],
+              "items": false
+            },
+            "quantization": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "raw_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trajectory_id",
+        "copied"
+      ],
+      "properties": {
+        "trajectory_id": {
+          "$ref": "#/$defs/sha256hex"
+        },
+        "copied": {
+          "type": "boolean"
+        }
+      },
+      "description": "取得元の RAW。trajectory_id は RAW の行のバイト列の sha256（points.sha256 と一致することは Gate が確かめる）"
+    },
+    "row_rule": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-(?:block-out|mlp-out|final-norm)/[1-9][0-9]*$",
+      "description": "行の規則の基底の形だけ（窓の派生の形は不可）。登録簿との照合と kind との整合は Gate が確かめる"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alignment",
+        "n_in",
+        "n_gen",
+        "finish_reason"
+      ],
+      "properties": {
+        "alignment": {
+          "const": "decides-next/1"
+        },
+        "n_in": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "n_gen": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "finish_reason": {
+          "enum": [
+            "eos",
+            "length"
+          ]
+        }
+      },
+      "description": "取得と生成の結び付け"
+    },
+    "final_norm_applied": {
+      "type": "boolean"
+    },
+    "state_dtype": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+      "not": {
+        "const": "not_applicable"
+      },
+      "description": "RAW の状態の dtype。\"unknown\" を書ける。\"not_applicable\" は書けない（chat_template_sha256 だけ）"
+    },
+    "model_build_id": {
+      "$ref": "#/$defs/name"
+    },
+    "compute_environment": {
+      "$ref": "#/$defs/name"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sha256"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256hex"
+        }
+      },
+      "description": "取得の方針。sha256 は name の UTF-8 の sha256（Gate が確かめる）。全行なら capture-all-rows/1"
+    },
+    "capture_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "weights_sha256",
+        "tokenizer_sha256",
+        "chat_template_sha256",
+        "prompt_ids_sha256",
+        "gen_token_ids_sha256",
+        "capture",
+        "runtime",
+        "model_source"
+      ],
+      "properties": {
+        "weights_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256hex"
+            },
+            {
+              "const": "unknown"
+            }
+          ]
+        },
+        "tokenizer_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256hex"
+            },
+            {
+              "const": "unknown"
+            }
+          ]
+        },
+        "chat_template_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256hex"
+            },
+            {
+              "const": "unknown"
+            },
+            {
+              "const": "not_applicable"
+            }
+          ]
+        },
+        "prompt_ids_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256hex"
+            },
+            {
+              "const": "unknown"
+            }
+          ]
+        },
+        "gen_token_ids_sha256": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256hex"
+            },
+            {
+              "const": "unknown"
+            }
+          ]
+        },
+        "capture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "package",
+            "version",
+            "adapter"
+          ],
+          "properties": {
+            "package": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "adapter": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "required": [
+            "backend"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "model_source": {
+          "const": null
+        }
+      },
+      "description": "来歴。\"unknown\" は書けるが unknowns に載せること（HT-15）。\"not_applicable\" は chat_template_sha256 だけで、unknowns に載せない"
+    },
+    "contract_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "contract_sha256"
+          ],
+          "properties": {
+            "name": {
+              "const": "RawObservationContract"
+            },
+            "version": {
+              "const": 2
+            },
+            "contract_sha256": {
+              "$ref": "#/$defs/sha256hex"
+            }
+          }
+        }
+      ],
+      "description": "U4 の契約への参照、または null。version は整数の 2"
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "reason"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "reason": {
+            "enum": [
+              "unknown",
+              "not_recorded",
+              "unavailable",
+              "failed"
+            ]
+          }
+        }
+      },
+      "description": "\"unknown\" の値の場所（JSON Pointer）と理由。field の昇順で、\"unknown\" の場所とちょうど一致することは Gate が確かめる（HT-15。スキーマは表せない）"
+    }
+  },
+  "$defs": {
+    "sha256hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:/+@=-]{1,256}$",
+      "not": {
+        "const": "unknown"
+      }
+    }
+  }
+}
