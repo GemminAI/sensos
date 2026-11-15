@@ -740,7 +740,17 @@ def _check_against(c: ObservationCapture, caps: CaptureCapabilities, keyed: Mapp
 
 
 def llama31_mlx_capabilities(*, native_dtype: str = UNKNOWN) -> CaptureCapabilities:
-    """The declaration of ``Llama31MLXCaptureProvider``: one point, ``final_norm``, 4096-D."""
+    """The declaration of ``Llama31MLXCaptureProvider``: one point, ``final_norm``, 4096-D.
+
+    ``equivalence_check="bit"`` is a statement about what was checked, not a general guarantee.
+    Checked bit for bit (differences exactly 0.0, no tolerance) on real weights
+    (Meta-Llama-3.1-8B-Instruct-4bit r241a666d, MLX 0.32.4, mlx-lm 0.32.2, Apple M3 Pro, float16):
+    whole sequences of 44 to 105 tokens (prompts p01-p03 and g01), and, with the prefill split at
+    2,048 tokens, prompts of 3,679 (p04) and 3,198 (g02) tokens: the 8 positions on each side of
+    the split, the last 48 prefill positions, and 2 to 32 decode steps. Not checked: whole-sequence
+    logits for p04 and g02 (only the chunked path was compared), other MLX versions or hardware,
+    other weights, other prompts, lengths or seeds. The check is ``Llama31MLXAdapter.check_equivalence``.
+    """
     return CaptureCapabilities(
         adapter=_LLAMA_ADAPTER,
         runtime="mlx-lm",
@@ -750,7 +760,7 @@ def llama31_mlx_capabilities(*, native_dtype: str = UNKNOWN) -> CaptureCapabilit
         final_norm_applied=_frozen({"final_norm": True}),
         delivery="per-request",
         native_dtype=native_dtype,
-        equivalence_check="none",
+        equivalence_check="bit",
         unknowns=_caps_unknowns(native_dtype, {}),
     )
 

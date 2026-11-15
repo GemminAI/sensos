@@ -484,5 +484,5 @@ def test_from_llama31_still_works_on_fake_result() -> None:
     # Sanity: fake result shape matches U1 conversion (Adapter depends on this).
     capture = from_llama31(_llama_ok_result(), model_build_id=LLAMA_BUILD, compute_environment="mlx-4bit")
     assert capture.points == ("final_norm",)
-    assert llama31_mlx_capabilities().equivalence_check == "none"
+    assert llama31_mlx_capabilities().equivalence_check == "bit"
     assert qwen35_mlx_capabilities(n_layers=2, dimension=6).equivalence_check == "bit"

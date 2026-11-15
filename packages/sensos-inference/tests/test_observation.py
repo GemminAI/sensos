@@ -449,7 +449,7 @@ def test_t_cap_01_llama_capabilities() -> None:
     caps = llama31_mlx_capabilities()
     assert validate_capabilities(caps) == []
     assert caps.points == ("final_norm",) and caps.dimension == 4096
-    assert caps.equivalence_check == "none" and caps.unknowns == ("native_dtype",)
+    assert caps.equivalence_check == "bit" and caps.unknowns == ("native_dtype",)
     assert caps.row_rule == {"final_norm": "llama31-mlx-final-norm/1"}
     assert caps.final_norm_applied == {"final_norm": True} and caps.delivery == "per-request"
     assert caps.token_scope == TOKEN_SCOPES == ("gen",)
