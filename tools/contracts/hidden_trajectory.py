@@ -91,6 +91,11 @@ class Unverifiable(NamedTuple):
     reason: str
 
 
+STATUS_PASS: Final = "PASS"
+STATUS_PASS_UNVERIFIED: Final = "PASS_UNVERIFIED"
+STATUS_FAIL: Final = "FAIL"
+
+
 @dataclass(frozen=True)
 class HiddenTrajectoryResult:
     violations: tuple[Violation, ...] = ()
@@ -99,6 +104,19 @@ class HiddenTrajectoryResult:
     @property
     def ok(self) -> bool:
         return not self.violations
+
+    @property
+    def status(self) -> str:
+        """``FAIL`` when there is a violation; ``PASS_UNVERIFIED`` when only UNVERIFIABLE remains; else ``PASS``.
+
+        No ``layers`` (L1 / L2 / L3). Which layer was reached is the caller's job (U6T-1); T-U5-21 moves there in
+        design v0.3.
+        """
+        if self.violations:
+            return STATUS_FAIL
+        if self.unverifiable:
+            return STATUS_PASS_UNVERIFIED
+        return STATUS_PASS
 
 
 # ------------------------------------------------------------------------------------------ the registry
