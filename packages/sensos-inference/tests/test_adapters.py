@@ -6,6 +6,7 @@ import ast
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -22,6 +23,7 @@ from u2_support import (
     maybe_write_evidence,
 )
 
+import sensos_inference.adapters as adapters_module
 from sensos_inference.adapters import Llama31MLXAdapter, OriginUnknown, Qwen35MLXAdapter
 from sensos_inference.observation import (
     UNKNOWN,
@@ -486,3 +488,89 @@ def test_from_llama31_still_works_on_fake_result() -> None:
     assert capture.points == ("final_norm",)
     assert llama31_mlx_capabilities().equivalence_check == "bit"
     assert qwen35_mlx_capabilities(n_layers=2, dimension=6).equivalence_check == "bit"
+
+
+# ---- origin.capture.source_commit (DC-U2-5 (a)) --------------------------------------------------
+
+COMMIT_A = "0123456789abcdef0123456789abcdef01234567"
+COMMIT_B = "fedcba9876543210fedcba9876543210fedcba98"
+
+
+def _make_adapter(kind: str) -> Any:
+    if kind == "llama":
+        return Llama31MLXAdapter(FakeLlamaProvider(result=_llama_ok_result()))
+    return Qwen35MLXAdapter(FakeQwenProvider(result=_qwen_ok_result()), n_layers=2, dimension=DIM_Q)
+
+
+def _patch_git(monkeypatch: pytest.MonkeyPatch, behaviour: Any, calls: list[dict[str, Any]] | None = None) -> None:
+    """Replace ``subprocess.check_output`` for git only; the other calls (sysctl) keep a fixed answer."""
+
+    def fake(cmd: list[str], **kwargs: Any) -> str:
+        if cmd[0] != "git":
+            raise OSError("not available in this test")
+        if calls is not None:
+            calls.append({"cmd": list(cmd), **kwargs})
+        if isinstance(behaviour, BaseException):
+            raise behaviour
+        return str(behaviour)
+
+    monkeypatch.setattr(adapters_module.subprocess, "check_output", fake)
+
+
+@pytest.mark.parametrize("kind", ["llama", "qwen"])
+def test_source_commit_is_emitted(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
+    _patch_git(monkeypatch, COMMIT_A + "\n")
+    capture = _make_adapter(kind).origin_facts()["origin"]["capture"]
+    assert capture["source_commit"] == COMMIT_A
+    assert set(capture) == {"package", "version", "adapter", "alignment", "source_commit"}
+
+
+@pytest.mark.parametrize("kind", ["llama", "qwen"])
+@pytest.mark.parametrize(
+    "behaviour",
+    [
+        FileNotFoundError("no git"),
+        subprocess.CalledProcessError(128, "git"),
+        subprocess.TimeoutExpired("git", 2),
+        "",
+        "abc123",
+        COMMIT_A.upper(),
+        COMMIT_A + "0",
+        "not a hash at all, fatal: not a git repository",
+    ],
+)
+def test_source_commit_is_omitted_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch, kind: str, behaviour: Any
+) -> None:
+    _patch_git(monkeypatch, behaviour)
+    capture = _make_adapter(kind).origin_facts()["origin"]["capture"]
+    assert "source_commit" not in capture
+    assert set(capture) == {"package", "version", "adapter", "alignment"}  # no Unknown placeholder either
+
+
+@pytest.mark.parametrize("kind", ["llama", "qwen"])
+def test_source_commit_runs_in_the_package_source_not_the_cwd(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
+) -> None:
+    calls: list[dict[str, Any]] = []
+    _patch_git(monkeypatch, COMMIT_A, calls)
+    monkeypatch.chdir(tmp_path)
+    _make_adapter(kind).origin_facts()
+    assert len(calls) == 1
+    assert calls[0]["cmd"] == ["git", "rev-parse", "HEAD"]
+    assert Path(calls[0]["cwd"]) == Path(adapters_module.__file__).resolve().parent
+    assert Path(calls[0]["cwd"]) != tmp_path
+    assert calls[0]["timeout"] > 0
+
+
+@pytest.mark.parametrize("kind", ["llama", "qwen"])
+def test_version_does_not_depend_on_the_commit(monkeypatch: pytest.MonkeyPatch, kind: str) -> None:
+    _patch_git(monkeypatch, COMMIT_A)
+    first = _make_adapter(kind).origin_facts()["origin"]["capture"]
+    _patch_git(monkeypatch, COMMIT_B)
+    second = _make_adapter(kind).origin_facts()["origin"]["capture"]
+    _patch_git(monkeypatch, FileNotFoundError("no git"))
+    third = _make_adapter(kind).origin_facts()["origin"]["capture"]
+    assert first["source_commit"] == COMMIT_A and second["source_commit"] == COMMIT_B
+    assert first["version"] == second["version"] == third["version"]
+    assert COMMIT_A[:7] not in str(first["version"]) and COMMIT_B[:7] not in str(second["version"])

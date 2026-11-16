@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import platform
+import re
 import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -80,6 +81,44 @@ def _package_version() -> str | OriginUnknown:
         return importlib.metadata.version(_PACKAGE)
     except importlib.metadata.PackageNotFoundError:
         return OriginUnknown(source="origin.capture.version", reason="unavailable")
+
+
+_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+
+
+def _source_commit() -> str | None:
+    """The sensos checkout commit this module was loaded from, or ``None`` (the key is then omitted).
+
+    Runs ``git rev-parse HEAD`` in the package source directory, not in the cwd, so another
+    repository in the cwd is never read. Any failure (no git, not a checkout, timeout, an output
+    that is not 40 lowercase hex digits) gives ``None``; nothing is raised. DC-U2-5 (a): the commit
+    goes to ``origin.capture.source_commit`` only, never into ``version``.
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            text=True,
+            timeout=2,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    return out if _COMMIT_PATTERN.fullmatch(out) else None
+
+
+def _capture_origin(adapter_name: str) -> dict[str, Any]:
+    """``origin.capture``: package version, adapter, alignment, and ``source_commit`` if known."""
+    capture: dict[str, Any] = {
+        "package": _PACKAGE,
+        "version": _origin_leaf(_package_version()),
+        "adapter": adapter_name,
+        "alignment": ALIGNMENT_DECIDES_NEXT,
+    }
+    commit = _source_commit()
+    if commit is not None:
+        capture["source_commit"] = commit
+    return capture
 
 
 def _transformers_version() -> str | OriginUnknown:
@@ -240,15 +279,9 @@ class Llama31MLXAdapter:
             mlx_lm = runtime.get("mlx_lm")
             device = runtime.get("device")
 
-        version = _package_version()
         return {
             "origin": {
-                "capture": {
-                    "package": _PACKAGE,
-                    "version": _origin_leaf(version),
-                    "adapter": _LLAMA_ADAPTER,
-                    "alignment": ALIGNMENT_DECIDES_NEXT,
-                },
+                "capture": _capture_origin(_LLAMA_ADAPTER),
                 "runtime": {
                     "backend": "mlx",
                     "mlx": _origin_leaf(_str_or_unknown(mlx, "origin.runtime.mlx")),
@@ -344,15 +377,9 @@ class Qwen35MLXAdapter:
             mlx = runtime.get("mlx")
             mlx_lm = runtime.get("mlx_lm")
             device = runtime.get("device")
-        version = _package_version()
         return {
             "origin": {
-                "capture": {
-                    "package": _PACKAGE,
-                    "version": _origin_leaf(version),
-                    "adapter": _QWEN_ADAPTER,
-                    "alignment": ALIGNMENT_DECIDES_NEXT,
-                },
+                "capture": _capture_origin(_QWEN_ADAPTER),
                 "runtime": {
                     "backend": "mlx",
                     "mlx": _origin_leaf(_str_or_unknown(mlx, "origin.runtime.mlx")),
