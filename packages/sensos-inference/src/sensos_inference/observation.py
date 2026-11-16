@@ -747,8 +747,13 @@ def llama31_mlx_capabilities(*, native_dtype: str = UNKNOWN) -> CaptureCapabilit
     (Meta-Llama-3.1-8B-Instruct-4bit r241a666d, MLX 0.32.4, mlx-lm 0.32.2, Apple M3 Pro, float16):
     whole sequences of 44 to 105 tokens (prompts p01-p03 and g01), and, with the prefill split at
     2,048 tokens, prompts of 3,679 (p04) and 3,198 (g02) tokens: the 8 positions on each side of
-    the split, the last 48 prefill positions, and 2 to 32 decode steps. Not checked: whole-sequence
-    logits for p04 and g02 (only the chunked path was compared), other MLX versions or hardware,
+    the split, the last 48 prefill positions, and 2 to 32 decode steps. Also checked, for long
+    generations from g02 (3,198-token prompt, greedy) of 256 and 512 tokens: the row rule and
+    float16 exactness, and, for the last 8 generated steps, bit equality (differences 0.0) from the
+    re-prefilled state. Not checked: whole-sequence logits for p04 and g02 (only the chunked path
+    was compared), a bit comparison of every decode step of a long generation (only the first 32
+    steps of the 128-token run and the last 8 steps of the 256- and 512-token runs, after
+    re-prefill, were compared), seeded runs at 256 and 512 tokens, other MLX versions or hardware,
     other weights, other prompts, lengths or seeds. The check is ``Llama31MLXAdapter.check_equivalence``.
     """
     return CaptureCapabilities(
