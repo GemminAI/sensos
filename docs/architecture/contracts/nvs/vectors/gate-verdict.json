@@ -1,0 +1,556 @@
+{
+ "cases": [
+  {
+   "description": "L1 and L2 pass; blobs and contract facts were given; no window",
+   "id": "pass",
+   "verdict": {
+    "codes": [],
+    "gate": {
+     "checker": {
+      "bundle_sha256": "aa9f93d00149377b6d1ec8d2e35cb6b67f13751e52f9cbccc0109972efa4bcc0",
+      "files": [
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/_gate_child.py",
+        "repo": "nvs-runtime",
+        "sha256": "6f7710e11214a28299f10d51b1272595b67b5bb25b535593a4a67176be77b18b"
+       },
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/gate_client.py",
+        "repo": "nvs-runtime",
+        "sha256": "77479c316ac0ca404d24a09a238bcbb7f4c6fc17712589fbca62a290466bdad5"
+       },
+       {
+        "path": "tools/contracts/gate_nvs.py",
+        "repo": "sensos",
+        "sha256": "76310642bcb4fa549b43235acdd5a4eb5ee6407516689659e2e95ad466bd6835"
+       },
+       {
+        "path": "tools/contracts/hidden_trajectory.py",
+        "repo": "sensos",
+        "sha256": "63d2f62fc05473034344d13143229264d2b1e72e595f8c8134a925c14e0fcd96"
+       }
+      ],
+      "nvs_runtime_commit": null,
+      "sensos_commit": "4cdb968000000000000000000000000000000000"
+     },
+     "runtime": {
+      "implementation": "CPython",
+      "packages": {
+       "jsonschema": "4.26.0",
+       "referencing": "0.37.0"
+      },
+      "platform": {
+       "machine": "arm64",
+       "system": "Darwin"
+      },
+      "python": "3.14.7"
+     },
+     "unverifiable_catalog": {
+      "sha256": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+      "version": "4cdb968000000000000000000000000000000000"
+     }
+    },
+    "inputs": {
+     "blobs_checked": [
+      "57b65c6185648ee6d081912df3a23fbc9aa1c2dc4a89bb91f1c2931351ab77b2",
+      "9ee4ff5fe3dc28c3517d242f5d9de350aa77644b0d739d9e75c3e56f5c6e78f3"
+     ],
+     "contract_facts_sha256": "45394c2c31365db949371497ec9403b5ac28565ba0d3985a419eb7aa5eb8abbb",
+     "lookup": {
+      "art:08d6b656bc1f9523ec555e873c652249ec87d660c0be9cf2def9f5fe855b9b83": {
+       "content_id": "cnt:1d210e450f772c42e31b4b0a5760f34090070dd170360b8330c4ed799512cde9",
+       "observation_id": "obs:4e290bbdc78650a0a923693705438461693bf1b8526665c921e25573d5686479",
+       "seq": 1
+      }
+     },
+     "lookup_sha256": "87af7fbf663a2b15c3b04c5fe3c91d0dc832aeed1a3efbf16cfbc4871a9482c0",
+     "stored": []
+    },
+    "layers": {
+     "L1": {
+      "codes": [],
+      "status": "PASS"
+     },
+     "L2": {
+      "codes": [],
+      "kind": "hidden_trajectory",
+      "status": "PASS"
+     },
+     "L3": {
+      "codes": [],
+      "status": "not_applicable"
+     }
+    },
+    "produced_by": {
+     "build": "example",
+     "name": "nvs-runtime",
+     "version": "1.0.0"
+    },
+    "result": "PASS",
+    "rules": {
+     "ic00_contract_version": "1.1.0",
+     "payload_schema": {
+      "id": "nvs.hidden-trajectory",
+      "version": "0.1.0"
+     }
+    },
+    "subject": {
+     "artifact_id": "art:fe94a9a087129947cc76a6749363bff39e0dcfd64398906bb3123df38913b2a9",
+     "content_id": "cnt:bd7f5b2826dc502689356fe10e4ab9cce47ff5cc5a3554ca3d7ec275648569a1",
+     "envelope_sha256": "61c9eb65356912a3a08486ab0b6788f68f443dbbf7f8f48adc78d1adccbfe0f8"
+    },
+    "unverifiable": [],
+    "verdict_sha256": "263e34868981db0b4e37db56e8ecee38b1c219260951300afcfd47d9d51e6797",
+    "verdict_version": "gate-verdict/1",
+    "violations": [],
+    "waived": []
+   }
+  },
+  {
+   "description": "nothing is violated; the Blobs and the contract facts were not given, so two checks cannot be made",
+   "id": "pass-unverified",
+   "verdict": {
+    "codes": [],
+    "gate": {
+     "checker": {
+      "bundle_sha256": "aa9f93d00149377b6d1ec8d2e35cb6b67f13751e52f9cbccc0109972efa4bcc0",
+      "files": [
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/_gate_child.py",
+        "repo": "nvs-runtime",
+        "sha256": "6f7710e11214a28299f10d51b1272595b67b5bb25b535593a4a67176be77b18b"
+       },
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/gate_client.py",
+        "repo": "nvs-runtime",
+        "sha256": "77479c316ac0ca404d24a09a238bcbb7f4c6fc17712589fbca62a290466bdad5"
+       },
+       {
+        "path": "tools/contracts/gate_nvs.py",
+        "repo": "sensos",
+        "sha256": "76310642bcb4fa549b43235acdd5a4eb5ee6407516689659e2e95ad466bd6835"
+       },
+       {
+        "path": "tools/contracts/hidden_trajectory.py",
+        "repo": "sensos",
+        "sha256": "63d2f62fc05473034344d13143229264d2b1e72e595f8c8134a925c14e0fcd96"
+       }
+      ],
+      "nvs_runtime_commit": null,
+      "sensos_commit": "4cdb968000000000000000000000000000000000"
+     },
+     "runtime": {
+      "implementation": "CPython",
+      "packages": {
+       "jsonschema": "4.26.0",
+       "referencing": "0.37.0"
+      },
+      "platform": {
+       "machine": "arm64",
+       "system": "Darwin"
+      },
+      "python": "3.14.7"
+     },
+     "unverifiable_catalog": {
+      "sha256": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+      "version": "4cdb968000000000000000000000000000000000"
+     }
+    },
+    "inputs": {
+     "blobs_checked": [],
+     "contract_facts_sha256": null,
+     "lookup": {},
+     "lookup_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+     "stored": []
+    },
+    "layers": {
+     "L1": {
+      "codes": [],
+      "status": "PASS"
+     },
+     "L2": {
+      "codes": [],
+      "kind": "hidden_trajectory",
+      "status": "PASS_UNVERIFIED"
+     },
+     "L3": {
+      "codes": [],
+      "status": "not_applicable"
+     }
+    },
+    "produced_by": {
+     "build": "example",
+     "name": "nvs-runtime",
+     "version": "1.0.0"
+    },
+    "result": "PASS_UNVERIFIED",
+    "rules": {
+     "ic00_contract_version": "1.1.0",
+     "payload_schema": {
+      "id": "nvs.hidden-trajectory",
+      "version": "0.1.0"
+     }
+    },
+    "subject": {
+     "artifact_id": "art:fe94a9a087129947cc76a6749363bff39e0dcfd64398906bb3123df38913b2a9",
+     "content_id": "cnt:bd7f5b2826dc502689356fe10e4ab9cce47ff5cc5a3554ca3d7ec275648569a1",
+     "envelope_sha256": "61c9eb65356912a3a08486ab0b6788f68f443dbbf7f8f48adc78d1adccbfe0f8"
+    },
+    "unverifiable": [
+     {
+      "check": "contract_binding",
+      "layer": "L2",
+      "reason": "contract_not_supplied"
+     },
+     {
+      "check": "points_bytes",
+      "layer": "L2",
+      "reason": "blob_not_supplied"
+     }
+    ],
+    "verdict_sha256": "5167e8bfe7eee41281276c8b60369e759c770ad15820f279f2d069f84473ce98",
+    "verdict_version": "gate-verdict/1",
+    "violations": [],
+    "waived": []
+   }
+  },
+  {
+   "description": "the envelope rule fails (S8); the payload and the window are not run",
+   "id": "fail-l1",
+   "verdict": {
+    "codes": [
+     "S8"
+    ],
+    "gate": {
+     "checker": {
+      "bundle_sha256": "aa9f93d00149377b6d1ec8d2e35cb6b67f13751e52f9cbccc0109972efa4bcc0",
+      "files": [
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/_gate_child.py",
+        "repo": "nvs-runtime",
+        "sha256": "6f7710e11214a28299f10d51b1272595b67b5bb25b535593a4a67176be77b18b"
+       },
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/gate_client.py",
+        "repo": "nvs-runtime",
+        "sha256": "77479c316ac0ca404d24a09a238bcbb7f4c6fc17712589fbca62a290466bdad5"
+       },
+       {
+        "path": "tools/contracts/gate_nvs.py",
+        "repo": "sensos",
+        "sha256": "76310642bcb4fa549b43235acdd5a4eb5ee6407516689659e2e95ad466bd6835"
+       },
+       {
+        "path": "tools/contracts/hidden_trajectory.py",
+        "repo": "sensos",
+        "sha256": "63d2f62fc05473034344d13143229264d2b1e72e595f8c8134a925c14e0fcd96"
+       }
+      ],
+      "nvs_runtime_commit": null,
+      "sensos_commit": "4cdb968000000000000000000000000000000000"
+     },
+     "runtime": {
+      "implementation": "CPython",
+      "packages": {
+       "jsonschema": "4.26.0",
+       "referencing": "0.37.0"
+      },
+      "platform": {
+       "machine": "arm64",
+       "system": "Darwin"
+      },
+      "python": "3.14.7"
+     },
+     "unverifiable_catalog": {
+      "sha256": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+      "version": "4cdb968000000000000000000000000000000000"
+     }
+    },
+    "inputs": {
+     "blobs_checked": [
+      "57b65c6185648ee6d081912df3a23fbc9aa1c2dc4a89bb91f1c2931351ab77b2",
+      "9ee4ff5fe3dc28c3517d242f5d9de350aa77644b0d739d9e75c3e56f5c6e78f3"
+     ],
+     "contract_facts_sha256": "45394c2c31365db949371497ec9403b5ac28565ba0d3985a419eb7aa5eb8abbb",
+     "lookup": {},
+     "lookup_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+     "stored": []
+    },
+    "layers": {
+     "L1": {
+      "codes": [
+       "S8"
+      ],
+      "status": "FAIL"
+     },
+     "L2": {
+      "codes": [],
+      "kind": null,
+      "status": "not_run"
+     },
+     "L3": {
+      "codes": [],
+      "status": "not_run"
+     }
+    },
+    "produced_by": {
+     "build": "example",
+     "name": "nvs-runtime",
+     "version": "1.0.0"
+    },
+    "result": "FAIL",
+    "rules": {
+     "ic00_contract_version": "1.1.0",
+     "payload_schema": {
+      "id": "nvs.hidden-trajectory",
+      "version": "0.1.0"
+     }
+    },
+    "subject": {
+     "artifact_id": "art:fe94a9a087129947cc76a6749363bff39e0dcfd64398906bb3123df38913b2a9",
+     "content_id": "cnt:bd7f5b2826dc502689356fe10e4ab9cce47ff5cc5a3554ca3d7ec275648569a1",
+     "envelope_sha256": "61c9eb65356912a3a08486ab0b6788f68f443dbbf7f8f48adc78d1adccbfe0f8"
+    },
+    "unverifiable": [],
+    "verdict_sha256": "98991d26a08052deafeda26253196e6dfbec84db8eca72ad3c0ee3b201f34b17",
+    "verdict_version": "gate-verdict/1",
+    "violations": [
+     {
+      "code": "S8",
+      "layer": "L1",
+      "message": "parent is not in the lookup"
+     }
+    ],
+    "waived": []
+   }
+  },
+  {
+   "description": "the envelope is well formed; the payload check fails (E_TRAJ_SYNTHETIC)",
+   "id": "fail-l2",
+   "verdict": {
+    "codes": [
+     "E_TRAJ_SYNTHETIC"
+    ],
+    "gate": {
+     "checker": {
+      "bundle_sha256": "aa9f93d00149377b6d1ec8d2e35cb6b67f13751e52f9cbccc0109972efa4bcc0",
+      "files": [
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/_gate_child.py",
+        "repo": "nvs-runtime",
+        "sha256": "6f7710e11214a28299f10d51b1272595b67b5bb25b535593a4a67176be77b18b"
+       },
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/gate_client.py",
+        "repo": "nvs-runtime",
+        "sha256": "77479c316ac0ca404d24a09a238bcbb7f4c6fc17712589fbca62a290466bdad5"
+       },
+       {
+        "path": "tools/contracts/gate_nvs.py",
+        "repo": "sensos",
+        "sha256": "76310642bcb4fa549b43235acdd5a4eb5ee6407516689659e2e95ad466bd6835"
+       },
+       {
+        "path": "tools/contracts/hidden_trajectory.py",
+        "repo": "sensos",
+        "sha256": "63d2f62fc05473034344d13143229264d2b1e72e595f8c8134a925c14e0fcd96"
+       }
+      ],
+      "nvs_runtime_commit": null,
+      "sensos_commit": "4cdb968000000000000000000000000000000000"
+     },
+     "runtime": {
+      "implementation": "CPython",
+      "packages": {
+       "jsonschema": "4.26.0",
+       "referencing": "0.37.0"
+      },
+      "platform": {
+       "machine": "arm64",
+       "system": "Darwin"
+      },
+      "python": "3.14.7"
+     },
+     "unverifiable_catalog": {
+      "sha256": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+      "version": "4cdb968000000000000000000000000000000000"
+     }
+    },
+    "inputs": {
+     "blobs_checked": [
+      "57b65c6185648ee6d081912df3a23fbc9aa1c2dc4a89bb91f1c2931351ab77b2",
+      "9ee4ff5fe3dc28c3517d242f5d9de350aa77644b0d739d9e75c3e56f5c6e78f3"
+     ],
+     "contract_facts_sha256": "45394c2c31365db949371497ec9403b5ac28565ba0d3985a419eb7aa5eb8abbb",
+     "lookup": {},
+     "lookup_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+     "stored": []
+    },
+    "layers": {
+     "L1": {
+      "codes": [],
+      "status": "PASS"
+     },
+     "L2": {
+      "codes": [
+       "E_TRAJ_SYNTHETIC"
+      ],
+      "kind": "hidden_trajectory",
+      "status": "FAIL"
+     },
+     "L3": {
+      "codes": [],
+      "status": "not_applicable"
+     }
+    },
+    "produced_by": {
+     "build": "example",
+     "name": "nvs-runtime",
+     "version": "1.0.0"
+    },
+    "result": "FAIL",
+    "rules": {
+     "ic00_contract_version": "1.1.0",
+     "payload_schema": {
+      "id": "nvs.hidden-trajectory",
+      "version": "0.1.0"
+     }
+    },
+    "subject": {
+     "artifact_id": "art:fe94a9a087129947cc76a6749363bff39e0dcfd64398906bb3123df38913b2a9",
+     "content_id": "cnt:bd7f5b2826dc502689356fe10e4ab9cce47ff5cc5a3554ca3d7ec275648569a1",
+     "envelope_sha256": "61c9eb65356912a3a08486ab0b6788f68f443dbbf7f8f48adc78d1adccbfe0f8"
+    },
+    "unverifiable": [],
+    "verdict_sha256": "1c97074a03d23a5ac67d11e28e0ecad305e0f333d324a8d1ed948aff5fc27e70",
+    "verdict_version": "gate-verdict/1",
+    "violations": [
+     {
+      "code": "E_TRAJ_SYNTHETIC",
+      "layer": "L2",
+      "message": "the contract is synthetic"
+     }
+    ],
+    "waived": []
+   }
+  },
+  {
+   "description": "a msr.trajectory-window payload: L2 is IC-02, L3 (the window space) is checked and one derivation cannot be",
+   "id": "pass-unverified-window",
+   "verdict": {
+    "codes": [],
+    "gate": {
+     "checker": {
+      "bundle_sha256": "aa9f93d00149377b6d1ec8d2e35cb6b67f13751e52f9cbccc0109972efa4bcc0",
+      "files": [
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/_gate_child.py",
+        "repo": "nvs-runtime",
+        "sha256": "6f7710e11214a28299f10d51b1272595b67b5bb25b535593a4a67176be77b18b"
+       },
+       {
+        "path": "src/nvs_runtime/hidden_trajectory/gate_client.py",
+        "repo": "nvs-runtime",
+        "sha256": "77479c316ac0ca404d24a09a238bcbb7f4c6fc17712589fbca62a290466bdad5"
+       },
+       {
+        "path": "tools/contracts/gate_nvs.py",
+        "repo": "sensos",
+        "sha256": "76310642bcb4fa549b43235acdd5a4eb5ee6407516689659e2e95ad466bd6835"
+       },
+       {
+        "path": "tools/contracts/hidden_trajectory.py",
+        "repo": "sensos",
+        "sha256": "63d2f62fc05473034344d13143229264d2b1e72e595f8c8134a925c14e0fcd96"
+       }
+      ],
+      "nvs_runtime_commit": null,
+      "sensos_commit": "4cdb968000000000000000000000000000000000"
+     },
+     "runtime": {
+      "implementation": "CPython",
+      "packages": {
+       "jsonschema": "4.26.0",
+       "referencing": "0.37.0"
+      },
+      "platform": {
+       "machine": "arm64",
+       "system": "Darwin"
+      },
+      "python": "3.14.7"
+     },
+     "unverifiable_catalog": {
+      "sha256": "652f55016243bf1b9f1bbea46d5749ef892dbe394e46de9d66ab1aacf0b4af57",
+      "version": "4cdb968000000000000000000000000000000000"
+     }
+    },
+    "inputs": {
+     "blobs_checked": [
+      "57b65c6185648ee6d081912df3a23fbc9aa1c2dc4a89bb91f1c2931351ab77b2",
+      "9ee4ff5fe3dc28c3517d242f5d9de350aa77644b0d739d9e75c3e56f5c6e78f3"
+     ],
+     "contract_facts_sha256": null,
+     "lookup": {
+      "art:08d6b656bc1f9523ec555e873c652249ec87d660c0be9cf2def9f5fe855b9b83": {
+       "content_id": "cnt:1d210e450f772c42e31b4b0a5760f34090070dd170360b8330c4ed799512cde9",
+       "observation_id": "obs:4e290bbdc78650a0a923693705438461693bf1b8526665c921e25573d5686479",
+       "seq": 1
+      }
+     },
+     "lookup_sha256": "87af7fbf663a2b15c3b04c5fe3c91d0dc832aeed1a3efbf16cfbc4871a9482c0",
+     "stored": [
+      "art:08d6b656bc1f9523ec555e873c652249ec87d660c0be9cf2def9f5fe855b9b83"
+     ]
+    },
+    "layers": {
+     "L1": {
+      "codes": [],
+      "status": "PASS"
+     },
+     "L2": {
+      "codes": [],
+      "kind": "ic02",
+      "status": "PASS"
+     },
+     "L3": {
+      "codes": [],
+      "status": "PASS_UNVERIFIED"
+     }
+    },
+    "produced_by": {
+     "build": "example",
+     "name": "nvs-runtime",
+     "version": "1.0.0"
+    },
+    "result": "PASS_UNVERIFIED",
+    "rules": {
+     "ic00_contract_version": "1.1.0",
+     "payload_schema": {
+      "id": "msr.trajectory-window",
+      "version": "0.10.0"
+     }
+    },
+    "subject": {
+     "artifact_id": "art:fe94a9a087129947cc76a6749363bff39e0dcfd64398906bb3123df38913b2a9",
+     "content_id": "cnt:bd7f5b2826dc502689356fe10e4ab9cce47ff5cc5a3554ca3d7ec275648569a1",
+     "envelope_sha256": "61c9eb65356912a3a08486ab0b6788f68f443dbbf7f8f48adc78d1adccbfe0f8"
+    },
+    "unverifiable": [
+     {
+      "check": "window_space_derivation",
+      "layer": "L3",
+      "reason": "rule_not_derivable"
+     }
+    ],
+    "verdict_sha256": "a8a2b2966018d983add7bc078648a8421e0b4cbd4eee80e4e4d8696d94611427",
+    "verdict_version": "gate-verdict/1",
+    "violations": [],
+    "waived": []
+   }
+  }
+ ],
+ "format": "gate-verdict-examples/1",
+ "rule": "Each verdict is accepted by the schema (draft 2020-12), and its verdict_sha256 is the SHA-256 of the JCS (contracts/jcs.py) of the verdict without that key. The values (ids, hashes of files, versions) are illustrative.",
+ "schema": "nvs/gate-verdict.schema.json",
+ "status": "草案 (gate-verdict/1。U6T-1a。適格性・鎖への採用・時刻は入れない：D-185 (9)、DC-T1-2)"
+}
