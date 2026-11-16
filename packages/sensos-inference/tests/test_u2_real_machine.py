@@ -1654,7 +1654,15 @@ def test_u2_llama_p04_body_only_comparison(llama: LlamaReal, llama_case: None) -
 
 
 def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
-    """R-01, R-09, R-10, R-11 (length), R-12, R-13, R-16 on g02: a long prompt, a long answer."""
+    """The g02 checks at 128 generated tokens (greedy and seeded)."""
+    _g02_long_checks(llama, 128, "g02", (("greedy", GREEDY), ("seeded", SEEDED)))
+
+
+
+def _g02_long_checks(
+    llama: LlamaReal, n: int, tag: str, samplings: Sequence[tuple[str, dict[str, Any]]]
+) -> None:
+    """R-01, R-09, R-10, R-11 (length), R-12, R-13, R-16 on g02 for ``n`` generated tokens."""
     import mlx.core as mx
     import numpy as np
     from mlx_lm.models.cache import make_prompt_cache
@@ -1663,16 +1671,16 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     assert len(prompt) > PREFILL_STEP, len(prompt)
     eos = set(llama.provider._eos_ids())
     started = time.perf_counter()
-    for name, sampling in (("greedy", GREEDY), ("seeded", SEEDED)):
-        cap = llama.capture("g02", ("final_norm",), 128, sampling)
-        reference = llama.provider.generate_chat(_messages("g02"), max_tokens=128, **sampling)
+    for name, sampling in samplings:
+        cap = llama.capture("g02", ("final_norm",), n, sampling)
+        reference = llama.provider.generate_chat(_messages("g02"), max_tokens=n, **sampling)
         expected = [int(i) for i in reference.token_ids]
         same = _tokens(cap) == expected and cap.finish_reason == reference.finish_reason
         llama.rec.add(
             "T-U2-R-01",
             "AC-B1/B2a",
-            f"g02/{name}",
-            input=_inp("g02", prompt, sampling, 128, ["final_norm"]),
+            f"{tag}/{name}",
+            input=_inp("g02", prompt, sampling, n, ["final_norm"]),
             output={**_out(cap), "reference_gen_token_ids_sha256": prompt_ids_sha256(expected)},
             compared_with="Llama31MLXProvider.generate_chat (mlx_lm.stream_generate)",
             criterion="exact",
@@ -1682,12 +1690,25 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
         assert same, name
         started = time.perf_counter()
 
-    cap = llama.capture("g02", ("final_norm",), 128, GREEDY)
+    cap = llama.capture("g02", ("final_norm",), n, GREEDY)
     n_in, n_gen = cap.n_in, cap.n_gen
+    if cap.finish_reason != "length" or n_gen != n:  # not a length verification: record apart
+        llama.rec.add(
+            "T-U2-R-LONG-EOS",
+            "AC-C1",
+            f"{tag}/{n}: ended early",
+            input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
+            output={"finish_reason": cap.finish_reason, "n_gen": n_gen, "asked": n},
+            compared_with="-",
+            criterion="report",
+            result="NOT_A_LENGTH_RUN",
+            started=started,
+        )
+        pytest.skip(f"{tag}/{n}: finished with {cap.finish_reason} after {n_gen} tokens")
     pos = np.arange(n_in - 1, n_in - 1 + n_gen, dtype=np.int64)
     rows_ok = (
         cap.finish_reason == "length"
-        and n_gen == 128
+        and n_gen == n
         and bool(np.array_equal(cap.row_pos["final_norm"], pos))
         and bool(np.array_equal(cap.row_decides["final_norm"], np.arange(n_gen, dtype=np.int64)))
         and cap.states["final_norm"].shape[0] == n_gen == len(cap.token_ids)
@@ -1696,8 +1717,8 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     llama.rec.add(
         "T-U2-R-11",
         "AC-C1(1)(3)",
-        f"g02/128 (length, prefill split, n_in={n_in})",
-        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        f"{tag}/{n} (length, prefill split, n_in={n_in})",
+        input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
         output={**_out(cap), "reached_eos": cap.finish_reason == "eos"},
         compared_with="the row rule decides-next/1 computed from n_in and n_gen",
         criterion="exact",
@@ -1716,8 +1737,8 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     llama.rec.add(
         "T-U2-R-10",
         "AC-C1(2)",
-        "g02/128 (length)",
-        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        f"{tag}/{n} (length)",
+        input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
         output={
             "n_gen": n_gen,
             "rows_at_the_expected_nearest_position": int((nearest == pos).sum()),
@@ -1736,8 +1757,8 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     llama.rec.add(
         "T-U2-R-12",
         "AC-C3",
-        f"g02/{dtype}",
-        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        f"{tag}/{dtype}",
+        input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
         output={"state_dtype": dtype, "all_finite": finite, "representable": exact},
         compared_with="the values the native dtype can hold",
         criterion="bit",
@@ -1761,7 +1782,7 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     llama.rec.add(
         "T-U2-R-13",
         "AC-C3",
-        f"g02/{value.dtype}",
+        f"{tag}/{value.dtype}",
         input=_inp("g02", prompt, {}, 0, ["final_norm"]),
         output={"native_dtype": str(value.dtype), "roundtrip_equal": {"final_norm": ok}},
         compared_with="the value in its native dtype",
@@ -1774,15 +1795,15 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
     started = time.perf_counter()
     kept = cap.states["final_norm"].copy()
     read_only = not cap.states["final_norm"].flags.writeable
-    second = llama.capture("g02", ("final_norm",), 128, GREEDY)
+    second = llama.capture("g02", ("final_norm",), n, GREEDY)
     same_again = _tokens(second) == _tokens(cap) and bool(
         np.array_equal(second.states["final_norm"], kept)
     )
     llama.rec.add(
         "T-U2-R-16",
         "AC-A3/G2",
-        "g02/greedy",
-        input=_inp("g02", prompt, GREEDY, 128, ["final_norm"]),
+        f"{tag}/greedy",
+        input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
         output={"read_only": read_only, "second_capture_equal": same_again},
         compared_with="the first capture",
         criterion="exact",
@@ -1790,6 +1811,46 @@ def test_u2_llama_g02_capture(llama: LlamaReal, llama_case: None) -> None:
         started=started,
     )
     assert read_only and same_again
+
+
+def _g02_last_steps(llama: LlamaReal, n: int, tag: str) -> None:
+    """R-05 near the end of a long generation, with the existing comparison function: prefill the
+    prompt plus the generated tokens before the last 8 (in 2,048-token chunks), then 8 decode
+    steps that feed generated tokens n-9 .. n-2 (the last token is never fed).
+    This is not the decode state reached by decoding step by step from the prompt."""
+    started = time.perf_counter()
+    prompt = llama.prompt_ids("g02")
+    cap = llama.capture("g02", ("final_norm",), n, GREEDY)
+    tokens = _tokens(cap)
+    if cap.finish_reason != "length" or len(tokens) != n:
+        pytest.skip(f"{tag}/{n}: not a length run")
+    last = 8
+    result = llama.adapter.check_equivalence(
+        [*prompt, *tokens[: n - last]], tokens[n - last :], steps=last
+    )
+    llama.rec.add(
+        "T-U2-R-05",
+        "AC-B2b",
+        f"{tag}/{n}: last {result['steps']} steps (prefill of prompt + {n - last} tokens)",
+        input=_inp("g02", prompt, GREEDY, n, ["final_norm"]),
+        output=result,
+        compared_with="model(chunk, cache) / model(token, cache) over the same sequence",
+        criterion="bit",
+        result="PASS" if result["bit_identical"] else "FAIL",
+        started=started,
+    )
+    assert result["bit_identical"], result
+
+
+@pytest.mark.parametrize("n", [256, 512])
+def test_u2_llama_g02_long_generation(llama: LlamaReal, llama_case: None, n: int) -> None:
+    """g02 at 256, then 512 generated tokens, greedy: the capture checks and the last 8 steps."""
+    _g02_long_checks(llama, n, f"g02-{n}", (("greedy", GREEDY),))
+    _g02_last_steps(llama, n, f"g02-{n}")
+    llama.rec.not_verified.append(
+        f"g02-{n}: bit comparison of every decode step of the long generation not run; only the "
+        "first 32 steps (128-token run) and the last 8 steps after a re-prefill were compared"
+    )
 
 
 @pytest.mark.parametrize("prompt_id", ["p04", "g02"])
