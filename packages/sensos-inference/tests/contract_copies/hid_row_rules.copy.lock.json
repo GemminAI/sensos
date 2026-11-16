@@ -1,0 +1,14 @@
+{
+  "note": "hid_row_rules.json is a byte-for-byte copy of the row-rule registry of nvs.hidden-trajectory, whose source of truth is the contract side (sensos feature/u5-hidden-trajectory). A rule is added there first, then this copy is taken again and this lock updated (DC-T2b-3). tests/test_row_rules_registry_copy.py checks the copy against this lock and against ROW_RULES.",
+  "source": {
+    "branch": "feature/u5-hidden-trajectory",
+    "commit": "bd1630a",
+    "path": "tools/contracts/hid_row_rules.json",
+    "sha256": "10a320b49b04d43b338f7dcc56bba220f2d59d21410036d11324cfffc56e8aae",
+    "contract_lock": "tests/contracts/contract-hid-row-rules.lock"
+  },
+  "copy": {
+    "path": "packages/sensos-inference/tests/contract_copies/hid_row_rules.json",
+    "sha256": "10a320b49b04d43b338f7dcc56bba220f2d59d21410036d11324cfffc56e8aae"
+  }
+}
