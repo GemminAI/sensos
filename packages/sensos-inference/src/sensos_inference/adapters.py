@@ -298,8 +298,8 @@ class Llama31MLXAdapter:
             },
             "capabilities_phase": self.capabilities_phase,
             "observed_state_dtype": self._observed_state_dtype,
-            # DC-U2-5 unresolved: version is package metadata only (no commit suffix).
-            "version_policy": "package_metadata_only_pending_DC-U2-5",
+            # DC-U2-5 (a): version is the package version only; the commit is in source_commit.
+            "version_policy": "package_version_only",
         }
 
 
@@ -396,7 +396,7 @@ class Qwen35MLXAdapter:
             },
             "capabilities_phase": self.capabilities_phase,
             "observed_state_dtype": self._observed_state_dtype,
-            "version_policy": "package_metadata_only_pending_DC-U2-5",
+            "version_policy": "package_version_only",
         }
 
 

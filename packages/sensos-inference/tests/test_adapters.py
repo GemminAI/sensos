@@ -359,7 +359,7 @@ def test_t_u2_p_08_origin_facts() -> None:
     assert after["origin"]["revision"] == "a" * 40
     assert after["origin"]["weights_sha256"] == "e" * 64
     assert after["origin"]["runtime"]["mlx"] == "0.32.4"
-    assert after["version_policy"] == "package_metadata_only_pending_DC-U2-5"
+    assert after["version_policy"] == "package_version_only"
     assert isinstance(after["origin"]["capture"]["version"], (str, dict))
 
 
