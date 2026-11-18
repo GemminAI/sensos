@@ -355,8 +355,9 @@ def test_t_u5_c09_unknown_on_the_payload_side_is_unverifiable_too() -> None:
 
 def test_t_u5_c09_all_the_contract_side_unknowns_at_once() -> None:
     facts = facts_of(payload_of())
-    facts["origin"]["weights_sha256"] = "unknown"
-    facts["binding"].update(n_in="unknown", n_gen="unknown", tokenizer_sha256="unknown")
+    unknown = "unknown"
+    facts["origin"]["weights_sha256"] = unknown
+    facts["binding"].update(n_in=unknown, n_gen=unknown, tokenizer_sha256=unknown)
     facts["positions"][POINT].update(
         trajectory_id="unknown", final_norm_applied="unknown"
     )

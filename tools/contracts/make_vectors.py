@@ -937,7 +937,7 @@ def float32_blob_cases() -> dict[str, Any]:
     case("reject-schema-big-endian", {**good, "byte_order": "big"}, d, ["schema"])
     case("reject-schema-fortran-order", {**good, "order": "F"}, d, ["schema"])
     case("reject-schema-zero-in-shape", {**good, "shape": [0, 3]}, d, ["schema"], "each dimension >= 1")
-    case("reject-schema-file-uri", {**good, "uri": "file:///tmp/x"}, d, ["schema"], "no place in the address")
+    case("reject-schema-file-uri", {**good, "uri": "file:x"}, d, ["schema"], "no place in the address")
     case("reject-schema-missing-unit", {k: v for k, v in good.items() if k != "unit"}, d, ["schema"])
     return {"cases": out}
 
