@@ -209,7 +209,7 @@ assume it can be pointed at `hekb-vnext` without changes.
 
 ## License
 
-Proprietary. Copyright © Gemmina Intelligence LLC. See [`LICENSE`](LICENSE).
+Apache-2.0. Copyright © 2026 Gemmina Intelligence LLC. See [`LICENSE`](LICENSE).
 
 HEKB and other OSS dependencies remain under their own licenses.
 
