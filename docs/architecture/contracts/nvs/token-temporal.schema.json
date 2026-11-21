@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "sensos:contracts/nvs/token-temporal/0.1.0",
-  "title": "nvs.token-temporal (payload) 0.1.0 草案 — LLM が処理したトークン列の時間軸（入力区間と生成区間。ID 列は Blob）",
+  "title": "nvs.token-temporal (payload) 0.1.0 確定 — LLM が処理したトークン列の時間軸（入力区間と生成区間。ID 列は Blob）",
   "description": "親は nvs.hidden-trajectory の観測。位置は保存せず、input は [0, n_in)、generated は [n_in, n_in+n_gen) と導出する。ids の中身（sha256・長さ・非負）、n と shape の一致、親との整合、segment_id と axis_id の再計算、区間の順序、producer 名は Gate が確かめる（スキーマは表せない）。",
   "type": "object",
   "additionalProperties": false,
