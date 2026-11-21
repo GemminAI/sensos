@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sensos:contracts/nvs/meaning-frame/0.1.0",
+  "title": "nvs.meaning-frame (payload) 0.1.0 確定 — MM の座標系（μ、B、Σ0。float64 の Blob）",
+  "description": "producer は meaning-mapper、kind は interpretation。frame_id は content_rule のバイト列（domain、各配列の名前・次元数・長さのヘッダ、float64・リトルエンディアン・C 順の値。mu、basis、sigma0 の順）の sha256。Gate が Blob から再計算する。shape と d・D の一致、値が有限、sigma0 が対称正定値（Cholesky）、source_space と測定の窓の親の観測の space_id との一致は Gate が確かめる（スキーマは表せない）。floatBlob を使う理由は封筒の extensions に書く（S25）。Blob の comparison は、frame_id がバイト列の同一性なので、frame の検査には使わない。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["frame_id", "content_rule", "d", "D", "source_space", "mu", "basis", "sigma0"],
+  "properties": {
+    "frame_id": {
+      "type": "string",
+      "pattern": "^frame:sha256:[0-9a-f]{64}$",
+      "description": "frame の内容の sha256（content address）。"
+    },
+    "content_rule": {
+      "const": "meaning-mapper.window-frame/1",
+      "description": "frame_id のバイト列の規則。-0.0 は正規化しない。規則を変えるときは新しい名前にする。"
+    },
+    "d": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "frame の座標の次元（basis の行数）。"
+    },
+    "D": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "元の隠れ状態の空間の次元（mu の長さ、basis の列数）。"
+    },
+    "source_space": {
+      "type": "string",
+      "pattern": "^hid:[0-9a-f]{64}$",
+      "description": "mu と basis が作用する空間。隠れ状態の観測（nvs.hidden-trajectory）の envelope の space_id。窓の space_id（行の範囲を含む）ではない。"
+    },
+    "mu": { "$ref": "#/$defs/float64Blob" },
+    "basis": { "$ref": "#/$defs/float64Blob" },
+    "sigma0": { "$ref": "#/$defs/float64Blob" }
+  },
+  "$defs": {
+    "float64Blob": {
+      "allOf": [
+        { "$ref": "sensos:contracts/common/blob/0.7.0#/$defs/floatBlob" },
+        { "properties": { "dtype": { "const": "float64" } } }
+      ]
+    }
+  }
+}
