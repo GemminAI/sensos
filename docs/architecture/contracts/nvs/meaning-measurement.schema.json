@@ -20,7 +20,9 @@
     },
     "frame_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^frame:sha256:[0-9a-f]{64}$",
+      "description": "frame_id は frame の内容の sha256（content address）。"
     },
     "input": {
       "type": "object",

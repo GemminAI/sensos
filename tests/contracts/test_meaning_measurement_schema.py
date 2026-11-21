@@ -14,6 +14,7 @@ from referencing.jsonschema import DRAFT202012
 from contracts.schemas import load_schema, registry
 
 SCHEMA_PATH = "nvs/meaning-measurement.schema.json"
+_FRAME = "frame:sha256:" + "ab" * 32
 
 
 def _validator() -> Draft202012Validator:
@@ -43,7 +44,7 @@ def _floats(shape: list[int]) -> dict[str, Any]:
 def _payload() -> dict[str, Any]:
     return {
         "measurement_id": "ab" * 32,
-        "frame_id": "frame-1",
+        "frame_id": _FRAME,
         "input": {
             "kind": "window",
             "window_artifact_id": "art:" + "a" * 64,
@@ -85,6 +86,19 @@ def test_another_input_kind_is_rejected() -> None:
     payload = _payload()
     payload["input"]["kind"] = "token"
     assert list(_validator().iter_errors(payload))
+
+
+def test_a_frame_id_must_be_a_content_address() -> None:
+    for frame_id in (
+        "f",
+        "frame:sha256:" + "AB" * 32,
+        "frame:sha256:" + "a" * 63,
+        "frame:sha256:" + "a" * 65,
+        "id:sha256:" + "a" * 64,
+    ):
+        payload = _payload()
+        payload["frame_id"] = frame_id
+        assert list(_validator().iter_errors(payload)), frame_id
 
 
 def test_an_extra_property_is_rejected() -> None:

@@ -13,6 +13,7 @@ from contracts.jcs import jcs
 from contracts.meaning_measurement import check_meaning_measurement
 
 _OBS = "art:" + "1" * 64
+_FRAME = "frame:sha256:" + "a" * 64
 _WINDOW = "art:" + "a" * 64
 _AXIS = "art:" + "b" * 64
 _D = 2
@@ -92,7 +93,7 @@ def _world(
     density, density_bytes = _ref([0.5] * n, [n])
     payload: dict[str, Any] = {
         "measurement_id": "ab" * 32,
-        "frame_id": "frame-1",
+        "frame_id": _FRAME,
         "input": {
             "kind": "window",
             "window_artifact_id": _WINDOW,
@@ -184,6 +185,20 @@ def test_a_small_asymmetry_within_the_spd_tolerance_is_clean() -> None:
     envelope, stored, blobs = _world()
     _replace(envelope["payload"], blobs, "sigma", [1.0, 1e-9, 0.0, 1.0], [1, _D, _D])
     assert _codes(envelope, stored, blobs) == []
+
+
+def test_a_frame_id_that_is_not_a_content_address_is_schema() -> None:
+    for frame_id in (
+        "f",
+        "frame:sha256:" + "A" * 64,
+        "frame:sha256:" + "a" * 63,
+        "frame:sha256:" + "a" * 65,
+        "id:sha256:" + "a" * 64,
+    ):
+        envelope, stored, blobs = _world()
+        envelope["payload"]["frame_id"] = frame_id
+        envelope["payload"]["measurement_id"] = _measurement_id(envelope["payload"])
+        assert _codes(envelope, stored, blobs) == ["schema"], frame_id
 
 
 def test_a_schema_failure_is_reported_alone() -> None:
