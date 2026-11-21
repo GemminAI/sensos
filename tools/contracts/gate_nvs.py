@@ -8,6 +8,8 @@
   Another version is ``S39``. ``gate.PAYLOAD_SCHEMAS`` is not extended.
 * ``nvs.meaning-measurement`` ``0.1.0``: ``check_meaning_measurement`` and its ``list[Violation]`` as it is.
   Another version is ``S39``. ``gate.PAYLOAD_SCHEMAS`` is not extended.
+* ``nvs.meaning-frame`` ``0.1.0``: ``check_meaning_frame`` and its ``HiddenTrajectoryResult``.
+  Another version is ``S39``, in a ``HiddenTrajectoryResult``. ``gate.PAYLOAD_SCHEMAS`` is not extended.
 * any other ``payload_schema``: ``gate.check_payload`` with the same arguments and its return value as it is
   (``list[Violation]``; an unknown id is ``S39``, as before).
 
@@ -31,6 +33,9 @@ from contracts.hidden_trajectory import (
     HiddenTrajectoryResult,
     check_hidden_trajectory,
 )
+from contracts.meaning_frame import PAYLOAD_SCHEMA_ID as FRAME_SCHEMA_ID
+from contracts.meaning_frame import PAYLOAD_SCHEMA_VERSION as FRAME_SCHEMA_VERSION
+from contracts.meaning_frame import check_meaning_frame
 from contracts.meaning_measurement import check_meaning_measurement
 from contracts.token_temporal import check_token_temporal
 
@@ -56,6 +61,11 @@ def check_nvs_payload(
             message = f"unknown payload_schema {declared['id']} {declared['version']}"
             return [Violation("S39", message)]
         return check_token_temporal(envelope, stored, blobs)
+    if declared["id"] == FRAME_SCHEMA_ID:
+        if declared["version"] != FRAME_SCHEMA_VERSION:
+            message = f"unknown payload_schema {declared['id']} {declared['version']}"
+            return HiddenTrajectoryResult(violations=(Violation("S39", message),))
+        return check_meaning_frame(envelope, stored, blobs)
     if declared["id"] == "nvs.meaning-measurement":
         if declared["version"] != "0.1.0":
             message = f"unknown payload_schema {declared['id']} {declared['version']}"

@@ -701,6 +701,10 @@ def test_the_unverifiable_catalogue_is_next_to_the_checker() -> None:
         ("nvs.hidden-trajectory", "contract_binding.<field>", "contract_field_unknown"),
         ("msr.trajectory-window", "window_rows", "raw_not_in_artifact"),
         ("msr.trajectory-window", "window_space_derivation", "rule_not_derivable"),
+        ("nvs.meaning-frame", "frame_content", "blob_not_supplied"),
+        ("nvs.meaning-measurement", "frame_binding", "frame_not_supplied"),
+        ("nvs.meaning-measurement", "frame_binding", "blob_not_supplied"),
+        ("nvs.meaning-measurement", "frame_space", "observation_not_supplied"),
     }
     produced = {(u.check, u.reason) for u in run(blobs={}).unverifiable} | {
         (u.check, u.reason)

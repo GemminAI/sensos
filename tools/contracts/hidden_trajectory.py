@@ -69,6 +69,8 @@ E_SYNTHETIC: Final = "E_TRAJ_SYNTHETIC"
 # ----------------------------------------------------------------------- the UNVERIFIABLE catalogue (4.4)
 # The source of truth is here, next to the checker (DC-7). One row per (payload_schema, check, reason).
 BLOB_NOT_SUPPLIED: Final = "blob_not_supplied"
+FRAME_NOT_SUPPLIED: Final = "frame_not_supplied"
+OBSERVATION_NOT_SUPPLIED: Final = "observation_not_supplied"
 CONTRACT_NOT_SUPPLIED: Final = "contract_not_supplied"
 CONTRACT_ABSENT: Final = "contract_absent"
 CONTRACT_FIELD_UNKNOWN: Final = "contract_field_unknown"
@@ -83,6 +85,10 @@ UNVERIFIABLE_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     (PAYLOAD_SCHEMA_ID, "contract_binding.<field>", CONTRACT_FIELD_UNKNOWN),
     ("msr.trajectory-window", "window_rows", RAW_NOT_IN_ARTIFACT),  # IC-02
     ("msr.trajectory-window", "window_space_derivation", RULE_NOT_DERIVABLE),  # U5-6
+    ("nvs.meaning-frame", "frame_content", BLOB_NOT_SUPPLIED),
+    ("nvs.meaning-measurement", "frame_binding", FRAME_NOT_SUPPLIED),
+    ("nvs.meaning-measurement", "frame_binding", BLOB_NOT_SUPPLIED),
+    ("nvs.meaning-measurement", "frame_space", OBSERVATION_NOT_SUPPLIED),
 )
 
 
