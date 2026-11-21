@@ -7,7 +7,7 @@
     {
       "path": "nvs/gate-verdict.schema.json",
       "id": "sensos:contracts/nvs/gate-verdict/1",
-      "sha256": "5cfc1a36f069f34ea54ac70cb9ae40079ae7f595a598db6d24a7b0b54c508527"
+      "sha256": "4358d4d02d6ee26af3d450fdff029036b2a2ce4d5500912171b9d3a984e3971b"
     }
   ]
 }

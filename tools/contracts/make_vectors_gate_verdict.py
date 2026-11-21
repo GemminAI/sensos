@@ -226,6 +226,25 @@ def examples() -> list[dict[str, Any]]:
             "verdict": seal(window),
         }
     )
+
+    def kind_pass(kind: str, schema_id: str, case_id: str, description: str) -> None:
+        verdict = _base(with_parent=False)
+        verdict["layers"]["L2"]["kind"] = kind
+        verdict["rules"]["payload_schema"] = {"id": schema_id, "version": "0.1.0"}
+        out.append({"id": case_id, "description": description, "verdict": seal(verdict)})
+
+    kind_pass(
+        "meaning_frame",
+        "nvs.meaning-frame",
+        "pass-meaning-frame",
+        "a nvs.meaning-frame payload: L2 kind is meaning_frame",
+    )
+    kind_pass(
+        "meaning_measurement",
+        "nvs.meaning-measurement",
+        "pass-meaning-measurement",
+        "a nvs.meaning-measurement payload: L2 kind is meaning_measurement",
+    )
     return out
 
 

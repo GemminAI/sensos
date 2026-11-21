@@ -285,6 +285,28 @@ def test_l2_kind_is_null_exactly_when_not_run() -> None:
     assert not accepted(verdict)
 
 
+def test_meaning_frame_and_meaning_measurement_are_accepted_l2_kinds() -> None:
+    schema = load_schema(SCHEMA_PATH)
+    layer = schema["properties"]["layers"]["properties"]["L2"]
+    assert layer["properties"]["kind"]["enum"] == [
+        "hidden_trajectory",
+        "ic02",
+        "meaning_frame",
+        "meaning_measurement",
+        None,
+    ]
+    assert layer["else"]["properties"]["kind"]["enum"] == [
+        "hidden_trajectory",
+        "ic02",
+        "meaning_frame",
+        "meaning_measurement",
+    ]
+    assert CASES["pass-meaning-frame"]["layers"]["L2"]["kind"] == "meaning_frame"
+    assert CASES["pass-meaning-measurement"]["layers"]["L2"]["kind"] == "meaning_measurement"
+    assert CASES["pass-meaning-frame"]["result"] == "PASS"
+    assert CASES["pass-meaning-measurement"]["result"] == "PASS"
+
+
 @pytest.mark.parametrize(
     ("path", "value"),
     [
