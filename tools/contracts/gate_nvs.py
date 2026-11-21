@@ -6,6 +6,8 @@
   not called); the result is a ``HiddenTrajectoryResult`` (violations and UNVERIFIABLE).
 * ``nvs.token-temporal`` ``0.1.0``: ``check_token_temporal`` and its ``list[Violation]`` as it is.
   Another version is ``S39``. ``gate.PAYLOAD_SCHEMAS`` is not extended.
+* ``nvs.meaning-measurement`` ``0.1.0``: ``check_meaning_measurement`` and its ``list[Violation]`` as it is.
+  Another version is ``S39``. ``gate.PAYLOAD_SCHEMAS`` is not extended.
 * any other ``payload_schema``: ``gate.check_payload`` with the same arguments and its return value as it is
   (``list[Violation]``; an unknown id is ``S39``, as before).
 
@@ -29,6 +31,7 @@ from contracts.hidden_trajectory import (
     HiddenTrajectoryResult,
     check_hidden_trajectory,
 )
+from contracts.meaning_measurement import check_meaning_measurement
 from contracts.token_temporal import check_token_temporal
 
 
@@ -53,4 +56,9 @@ def check_nvs_payload(
             message = f"unknown payload_schema {declared['id']} {declared['version']}"
             return [Violation("S39", message)]
         return check_token_temporal(envelope, stored, blobs)
+    if declared["id"] == "nvs.meaning-measurement":
+        if declared["version"] != "0.1.0":
+            message = f"unknown payload_schema {declared['id']} {declared['version']}"
+            return [Violation("S39", message)]
+        return check_meaning_measurement(envelope, stored, blobs)
     return gate.check_payload(envelope, stored, blobs, parent_contents)
