@@ -1,13 +1,23 @@
 """Gate checks for ``nvs.meaning-measurement`` 0.1.0.
 
-The return is ``list[Violation]``. A schema failure is reported alone. After that,
-every failure that is found is returned. A missing Blob is
-``meaning_measurement_blob_not_supplied`` and ``check_blob`` is not called for it.
+The return is a ``HiddenTrajectoryResult``. Stage 1 is the checks that were already
+here: a schema failure is reported alone, and after that every failure that is
+found is returned. A missing Blob is ``meaning_measurement_blob_not_supplied``
+and ``check_blob`` is not called for it. Any stage-1 violation is ``FAIL`` and
+stage 2 is not run.
 
-A window-only measurement does not require the observation. When a token_axis
-parent is present, that observation envelope must be in ``stored``
+A window-only measurement does not require the observation for stage 1. When a
+token_axis parent is present, that observation envelope must be in ``stored``
 (``meaning_measurement_observation_not_supplied``). Its ``binding.alignment``
 must be ``decides-next/1``. The token_axis producer must be ``sensos-inference``.
+
+Stage 2 binds ``frame_id`` to a stored ``nvs.meaning-frame``. No such frame is
+``PASS_UNVERIFIED`` (``frame_binding`` / ``frame_not_supplied``), not a violation.
+A stored frame that fails its own check is ``FAIL``. A frame whose Blobs are
+absent is ``PASS_UNVERIFIED``. The window's ``source_trajectory`` observation is
+required for the space comparison; its absence is ``PASS_UNVERIFIED``. ``D``
+against the window, and ``d`` against theta, are checked whether or not that
+observation is stored.
 """
 
 from __future__ import annotations
@@ -25,7 +35,18 @@ from referencing.jsonschema import DRAFT202012
 
 from contracts.blob import check_blob
 from contracts.check import Violation
+from contracts.hidden_trajectory import (
+    BLOB_NOT_SUPPLIED,
+    FRAME_NOT_SUPPLIED,
+    OBSERVATION_NOT_SUPPLIED,
+    STATUS_PASS,
+    STATUS_PASS_UNVERIFIED,
+    HiddenTrajectoryResult,
+    Unverifiable,
+)
 from contracts.jcs import jcs
+from contracts.meaning_frame import PAYLOAD_SCHEMA_ID as FRAME_SCHEMA_ID
+from contracts.meaning_frame import check_meaning_frame
 from contracts.schemas import load_schema, registry
 
 SCHEMA_PATH = "nvs/meaning-measurement.schema.json"
@@ -57,13 +78,13 @@ def check_meaning_measurement(
     envelope: Mapping[str, Any],
     stored: Mapping[str, Any] | None,
     blobs: Mapping[str, bytes] | None,
-) -> list[Violation]:
-    """Schema first (alone if it fails); then every check that fails."""
+) -> HiddenTrajectoryResult:
+    """Stage 1 first. A violation there is ``FAIL``. Stage 2 binds the frame."""
     stored = stored or {}
     blobs = blobs or {}
     schema_error = _schema_violation(envelope.get("payload"))
     if schema_error:
-        return schema_error
+        return HiddenTrajectoryResult(violations=tuple(schema_error))
     payload = envelope["payload"]
     out: list[Violation] = []
     _producer(envelope, out)
@@ -89,7 +110,9 @@ def check_meaning_measurement(
     _rows(payload, window, axis, out)
     _values(payload, blobs, out)
     _measurement_id(payload, out)
-    return out
+    if out:
+        return HiddenTrajectoryResult(violations=tuple(out))
+    return _bind_frame(payload, window, stored, blobs)
 
 
 def _schema_violation(payload: Any) -> list[Violation]:
@@ -394,3 +417,138 @@ def _measurement_id(payload: Mapping[str, Any], out: list[Violation]) -> None:
     ).hexdigest()
     if payload["measurement_id"] != expect:
         out.append(Violation("meaning_measurement_id", "measurement_id differs from the recomputed id"))
+
+
+def _bind_frame(
+    payload: Mapping[str, Any],
+    window: Mapping[str, Any] | None,
+    stored: Mapping[str, Any],
+    blobs: Mapping[str, bytes],
+) -> HiddenTrajectoryResult:
+    frames = _frames_for(stored, payload["frame_id"])
+    if not frames:
+        return HiddenTrajectoryResult(
+            unverifiable=(Unverifiable("frame_binding", FRAME_NOT_SUPPLIED),)
+        )
+    checked = [(frame, check_meaning_frame(frame, stored, blobs)) for frame in frames]
+    passed = [frame for frame, result in checked if result.status == STATUS_PASS]
+    unverified = [frame for frame, result in checked if result.status == STATUS_PASS_UNVERIFIED]
+    unverifiable: list[Unverifiable] = []
+    if passed:
+        chosen = passed[0]
+    elif unverified:
+        chosen = unverified[0]
+        unverifiable.append(Unverifiable("frame_binding", BLOB_NOT_SUPPLIED))
+    else:
+        seen: list[str] = []
+        for _, result in checked:
+            for item in result.violations:
+                if item.code not in seen:
+                    seen.append(item.code)
+        return HiddenTrajectoryResult(
+            violations=(
+                Violation(
+                    "meaning_measurement_frame_invalid",
+                    "frame failed: " + " ".join(seen),
+                ),
+            )
+        )
+    out: list[Violation] = []
+    _frame_dimensions(payload, chosen["payload"], window, out)
+    _frame_observation(chosen["payload"], window, stored, out, unverifiable)
+    return HiddenTrajectoryResult(violations=tuple(out), unverifiable=tuple(unverifiable))
+
+
+def _frames_for(stored: Mapping[str, Any], frame_id: str) -> list[Mapping[str, Any]]:
+    found: list[Mapping[str, Any]] = []
+    for held in stored.values():
+        envelope = held.get("envelope") if isinstance(held, Mapping) else None
+        if not isinstance(envelope, Mapping):
+            continue
+        schema = envelope.get("payload_schema")
+        if not isinstance(schema, Mapping) or schema.get("id") != FRAME_SCHEMA_ID:
+            continue
+        body = envelope.get("payload")
+        if isinstance(body, Mapping) and body.get("frame_id") == frame_id:
+            found.append(envelope)
+    return found
+
+
+def _frame_dimensions(
+    payload: Mapping[str, Any],
+    frame: Mapping[str, Any],
+    window: Mapping[str, Any] | None,
+    out: list[Violation],
+) -> None:
+    depth = frame["D"]
+    rank = frame["d"]
+    window_depth = _int_field(_dig(window, ("payload", "dimension"))) if window is not None else None
+    if window_depth != depth:
+        out.append(
+            Violation(
+                "meaning_measurement_frame_dimension",
+                "frame D differs from the window dimension",
+            )
+        )
+    theta = payload["theta"]["shape"]
+    theta_d = theta[1] if isinstance(theta, list) and len(theta) >= 2 else None
+    if theta_d != rank:
+        out.append(
+            Violation(
+                "meaning_measurement_frame_dimension",
+                "frame d differs from theta",
+            )
+        )
+
+
+def _frame_observation(
+    frame: Mapping[str, Any],
+    window: Mapping[str, Any] | None,
+    stored: Mapping[str, Any],
+    out: list[Violation],
+    unverifiable: list[Unverifiable],
+) -> None:
+    observation = _stored_envelope(stored, _source_trajectory(window))
+    if observation is None:
+        unverifiable.append(Unverifiable("frame_space", OBSERVATION_NOT_SUPPLIED))
+        return
+    if observation.get("space_id") != frame["source_space"]:
+        out.append(
+            Violation(
+                "meaning_measurement_frame_space",
+                "observation space_id differs from source_space",
+            )
+        )
+    if _int_field(_dig(observation, ("payload", "dimension"))) != frame["D"]:
+        out.append(
+            Violation(
+                "meaning_measurement_frame_dimension",
+                "frame D differs from the observation dimension",
+            )
+        )
+
+
+def _source_trajectory(window: Mapping[str, Any] | None) -> str | None:
+    if window is None:
+        return None
+    parents = window.get("parents")
+    if not isinstance(parents, list):
+        return None
+    for entry in parents:
+        if not isinstance(entry, Mapping) or entry.get("role") != "source_trajectory":
+            continue
+        ids = entry.get("artifact_ids")
+        if isinstance(ids, list) and len(ids) == 1 and isinstance(ids[0], str):
+            return ids[0]
+        return None
+    return None
+
+
+def _stored_envelope(stored: Mapping[str, Any], artifact_id: str | None) -> Mapping[str, Any] | None:
+    if artifact_id is None:
+        return None
+    held = stored.get(artifact_id)
+    envelope = held.get("envelope") if isinstance(held, Mapping) else None
+    if not isinstance(envelope, Mapping):
+        return None
+    return envelope

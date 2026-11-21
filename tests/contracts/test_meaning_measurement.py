@@ -9,8 +9,15 @@ import struct
 from typing import Any
 
 from contracts.gate_nvs import check_nvs_payload
+from contracts.hidden_trajectory import (
+    STATUS_FAIL,
+    STATUS_PASS,
+    STATUS_PASS_UNVERIFIED,
+    Unverifiable,
+)
 from contracts.jcs import jcs
 from contracts.meaning_measurement import check_meaning_measurement
+from test_meaning_frame import _SPACE, _world as _frame_world
 
 _OBS = "art:" + "1" * 64
 _FRAME = "frame:sha256:" + "a" * 64
@@ -149,20 +156,39 @@ def _world(
     return envelope, stored, blobs
 
 
+def _checked(
+    envelope: dict[str, Any],
+    stored: dict[str, Any],
+    blobs: dict[str, bytes],
+):
+    return check_meaning_measurement(envelope, stored, blobs)
+
+
 def _codes(
     envelope: dict[str, Any],
     stored: dict[str, Any],
     blobs: dict[str, bytes],
 ) -> list[str]:
-    return [item.code for item in check_meaning_measurement(envelope, stored, blobs)]
+    return [item.code for item in _checked(envelope, stored, blobs).violations]
+
+
+def _assert_unverified(
+    envelope: dict[str, Any],
+    stored: dict[str, Any],
+    blobs: dict[str, bytes],
+) -> None:
+    result = _checked(envelope, stored, blobs)
+    assert result.status == STATUS_PASS_UNVERIFIED
+    assert result.violations == ()
+    assert result.unverifiable == (Unverifiable("frame_binding", "frame_not_supplied"),)
 
 
 def test_window_only_and_with_an_axis_are_clean() -> None:
     for n in (1, 3):
         envelope, stored, blobs = _world(n, axis=False)
-        assert _codes(envelope, stored, blobs) == [], n
+        _assert_unverified(envelope, stored, blobs)
         envelope, stored, blobs = _world(n, axis=True, observation=True)
-        assert _codes(envelope, stored, blobs) == [], n
+        _assert_unverified(envelope, stored, blobs)
 
 
 def test_an_axis_without_the_observation_is_refused() -> None:
@@ -178,13 +204,13 @@ def test_an_axis_producer_that_is_not_sensos_inference_is_refused() -> None:
 
 def test_a_stored_observation_with_decides_next_is_clean() -> None:
     envelope, stored, blobs = _world(axis=True, observation=True)
-    assert _codes(envelope, stored, blobs) == []
+    _assert_unverified(envelope, stored, blobs)
 
 
 def test_a_small_asymmetry_within_the_spd_tolerance_is_clean() -> None:
     envelope, stored, blobs = _world()
     _replace(envelope["payload"], blobs, "sigma", [1.0, 1e-9, 0.0, 1.0], [1, _D, _D])
-    assert _codes(envelope, stored, blobs) == []
+    _assert_unverified(envelope, stored, blobs)
 
 
 def test_a_frame_id_that_is_not_a_content_address_is_schema() -> None:
@@ -204,7 +230,7 @@ def test_a_frame_id_that_is_not_a_content_address_is_schema() -> None:
 def test_a_schema_failure_is_reported_alone() -> None:
     envelope, stored, blobs = _world()
     envelope["payload"]["extra"] = 1
-    found = check_meaning_measurement(envelope, stored, blobs)
+    found = check_meaning_measurement(envelope, stored, blobs).violations
     assert [item.code for item in found] == ["schema"]
     assert found[0].message.startswith("payload/")
 
@@ -370,10 +396,137 @@ def _tamper_s25(envelope: dict[str, Any], stored: dict[str, Any], blobs: dict[st
 
 def test_an_unknown_version_is_s39_and_0_1_0_reaches_the_check() -> None:
     envelope, stored, blobs = _world()
-    assert check_nvs_payload(envelope, stored, blobs) == []
+    reached = check_nvs_payload(envelope, stored, blobs)
+    assert reached.status == STATUS_PASS_UNVERIFIED
+    assert reached.violations == ()
     other = copy.deepcopy(envelope)
     other["payload_schema"] = {"id": "nvs.meaning-measurement", "version": "0.2.0"}
     found = check_nvs_payload(other, stored, blobs)
-    assert [(item.code, item.message) for item in found] == [
+    assert [(item.code, item.message) for item in found.violations] == [
         ("S39", "unknown payload_schema nvs.meaning-measurement 0.2.0")
     ]
+
+
+_FRAME_ART = "art:" + "e" * 64
+
+
+def _install_frame(
+    envelope: dict[str, Any],
+    stored: dict[str, Any],
+    blobs: dict[str, bytes],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    frame, frame_blobs = _frame_world(**kwargs)
+    depth = frame["payload"]["D"]
+    envelope["payload"]["frame_id"] = frame["payload"]["frame_id"]
+    envelope["payload"]["measurement_id"] = _measurement_id(envelope["payload"])
+    stored[_FRAME_ART] = {"envelope": frame}
+    blobs.update(frame_blobs)
+    stored[_WINDOW]["envelope"]["payload"]["dimension"] = depth
+    return frame
+
+
+def _observe(
+    stored: dict[str, Any],
+    *,
+    space: str = _SPACE,
+    dimension: int = 3,
+) -> None:
+    stored[_OBS] = {
+        "envelope": {
+            "artifact_id": _OBS,
+            "space_id": space,
+            "payload": {"dimension": dimension, "binding": {"alignment": "decides-next/1"}},
+        }
+    }
+
+
+def test_a_frame_and_its_observation_pass() -> None:
+    envelope, stored, blobs = _world()
+    _install_frame(envelope, stored, blobs)
+    _observe(stored)
+    result = _checked(envelope, stored, blobs)
+    assert result.status == STATUS_PASS
+    assert result.violations == ()
+    assert result.unverifiable == ()
+
+
+def test_a_missing_frame_is_unverified_and_a_bad_frame_is_a_failure() -> None:
+    missing, stored, blobs = _world()
+    unverified = _checked(missing, stored, blobs)
+    assert unverified.status == STATUS_PASS_UNVERIFIED
+    assert unverified.violations == ()
+    assert unverified.unverifiable == (Unverifiable("frame_binding", "frame_not_supplied"),)
+
+    refused, stored, blobs = _world()
+    _install_frame(refused, stored, blobs, sigma0=[1.0, 0.0, 0.0, -1.0])
+    _observe(stored)
+    failed = _checked(refused, stored, blobs)
+    assert failed.status == STATUS_FAIL
+    assert failed.unverifiable == ()
+    assert [item.code for item in failed.violations] == ["meaning_measurement_frame_invalid"]
+    assert "meaning_frame_sigma0" in failed.violations[0].message
+
+
+def test_a_missing_observation_is_unverified_when_the_frame_is_present() -> None:
+    envelope, stored, blobs = _world()
+    _install_frame(envelope, stored, blobs)
+    result = _checked(envelope, stored, blobs)
+    assert result.status == STATUS_PASS_UNVERIFIED
+    assert result.violations == ()
+    assert result.unverifiable == (Unverifiable("frame_space", "observation_not_supplied"),)
+
+
+def test_a_different_space_id_is_refused() -> None:
+    envelope, stored, blobs = _world()
+    _install_frame(envelope, stored, blobs)
+    _observe(stored, space="hid:" + "cd" * 32)
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_frame_space"]
+
+
+def test_a_window_dimension_that_differs_from_frame_d_is_refused() -> None:
+    envelope, stored, blobs = _world()
+    _install_frame(envelope, stored, blobs)
+    _observe(stored)
+    stored[_WINDOW]["envelope"]["payload"]["dimension"] = 9
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_frame_dimension"]
+
+
+def test_an_observation_dimension_that_differs_from_frame_d_is_refused() -> None:
+    envelope, stored, blobs = _world()
+    _install_frame(envelope, stored, blobs)
+    _observe(stored, dimension=9)
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_frame_dimension"]
+
+
+def test_a_frame_rank_that_differs_from_theta_is_refused() -> None:
+    envelope, stored, blobs = _world()
+    identity = [1.0 if row == col else 0.0 for row in range(3) for col in range(3)]
+    _install_frame(
+        envelope,
+        stored,
+        blobs,
+        d=3,
+        depth=3,
+        mu=[1.0, 2.0, 3.0],
+        basis=identity,
+        sigma0=identity,
+    )
+    _observe(stored)
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_frame_dimension"]
+
+
+def test_a_stage1_violation_fails_with_or_without_a_frame() -> None:
+    without, stored, blobs = _world()
+    without["producer"]["name"] = "other"
+    refused = _checked(without, stored, blobs)
+    assert refused.status == STATUS_FAIL
+    assert _codes(without, stored, blobs) == ["meaning_measurement_producer"]
+
+    with_frame, stored, blobs = _world()
+    _install_frame(with_frame, stored, blobs)
+    _observe(stored)
+    with_frame["producer"]["name"] = "other"
+    refused = _checked(with_frame, stored, blobs)
+    assert refused.status == STATUS_FAIL
+    assert _codes(with_frame, stored, blobs) == ["meaning_measurement_producer"]
