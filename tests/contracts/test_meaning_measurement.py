@@ -158,9 +158,21 @@ def _codes(
 
 def test_window_only_and_with_an_axis_are_clean() -> None:
     for n in (1, 3):
-        for axis in (False, True):
-            envelope, stored, blobs = _world(n, axis=axis)
-            assert _codes(envelope, stored, blobs) == [], (n, axis)
+        envelope, stored, blobs = _world(n, axis=False)
+        assert _codes(envelope, stored, blobs) == [], n
+        envelope, stored, blobs = _world(n, axis=True, observation=True)
+        assert _codes(envelope, stored, blobs) == [], n
+
+
+def test_an_axis_without_the_observation_is_refused() -> None:
+    envelope, stored, blobs = _world(axis=True)
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_observation_not_supplied"]
+
+
+def test_an_axis_producer_that_is_not_sensos_inference_is_refused() -> None:
+    envelope, stored, blobs = _world(axis=True, observation=True)
+    stored[_AXIS]["envelope"]["producer"]["name"] = "nvs-runtime"
+    assert _codes(envelope, stored, blobs) == ["meaning_measurement_axis"]
 
 
 def test_a_stored_observation_with_decides_next_is_clean() -> None:
@@ -226,7 +238,7 @@ def test_each_tamper_emits_only_its_code() -> None:
         "s25": "S25",
     }
     for name, mutate in cases.items():
-        envelope, stored, blobs = _world(3, axis=True)
+        envelope, stored, blobs = _world(3, axis=True, observation=True)
         mutate(envelope, stored, blobs)
         assert _codes(envelope, stored, blobs) == [expected[name]], name
 

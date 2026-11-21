@@ -4,11 +4,10 @@ The return is ``list[Violation]``. A schema failure is reported alone. After tha
 every failure that is found is returned. A missing Blob is
 ``meaning_measurement_blob_not_supplied`` and ``check_blob`` is not called for it.
 
-The observation envelope is not required. ``gate_client`` stores only what the
-caller passes, and the measurement's stored parents are the window and, when
-present, the token-temporal artifact. Lineage compares those parents'
-observation artifact ids. ``binding.alignment`` is checked only when that
-observation envelope is actually in ``stored``.
+A window-only measurement does not require the observation. When a token_axis
+parent is present, that observation envelope must be in ``stored``
+(``meaning_measurement_observation_not_supplied``). Its ``binding.alignment``
+must be ``decides-next/1``. The token_axis producer must be ``sensos-inference``.
 """
 
 from __future__ import annotations
@@ -36,6 +35,7 @@ AXIS_ROLE = "token_axis"
 WINDOW_SCHEMA = ("msr.trajectory-window", "0.10.0")
 WINDOW_PRODUCER = "nvs-runtime"
 AXIS_SCHEMA = ("nvs.token-temporal", "0.1.0")
+AXIS_PRODUCER = "sensos-inference"
 ALIGNMENT = "decides-next/1"
 ID_DOMAIN = "nvs.meaning-measurement/1"
 _ROLES = (WINDOW_ROLE, AXIS_ROLE)
@@ -178,8 +178,15 @@ def _window(envelope: Mapping[str, Any], out: list[Violation]) -> None:
 def _axis(envelope: Mapping[str, Any], out: list[Violation]) -> None:
     schema = envelope.get("payload_schema")
     ident = (schema.get("id"), schema.get("version")) if isinstance(schema, Mapping) else (None, None)
-    if ident != AXIS_SCHEMA:
-        out.append(Violation("meaning_measurement_axis", f"token_axis is {ident[0]} {ident[1]}"))
+    producer = envelope.get("producer")
+    name = producer.get("name") if isinstance(producer, Mapping) else None
+    if ident != AXIS_SCHEMA or name != AXIS_PRODUCER:
+        out.append(
+            Violation(
+                "meaning_measurement_axis",
+                f"token_axis is {ident[0]} {ident[1]} producer {name!r}",
+            )
+        )
 
 
 def _lineage(
@@ -196,6 +203,12 @@ def _lineage(
     held = stored.get(window_obs)
     observation = held.get("envelope") if isinstance(held, Mapping) else None
     if not isinstance(observation, Mapping):
+        out.append(
+            Violation(
+                "meaning_measurement_observation_not_supplied",
+                "the observation is not in stored",
+            )
+        )
         return
     alignment = _dig(observation, ("payload", "binding", "alignment"))
     if alignment != ALIGNMENT:
