@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sensos:contracts/nvs/meaning-measurement/0.1.0",
+  "title": "nvs.meaning-measurement (payload) 0.1.0 確定 — MM の意味測定（点 N 個、theta と sigma は float64 の Blob）",
+  "description": "親は窓（role source_window）と、省略可の Token Temporal（role token_axis）。点 N 個は窓の行の範囲を指す。shape の一致（theta [N,d]、sigma [N,d,d]、density [N]）、各点の rows が窓の長さの内、値が有限、sigma が SPD、density が 0〜1、measurement_id の再計算（宣言された欄だけから決まる。sha256(JCS({domain:\"nvs.meaning-measurement/1\", frame_id, input, points, theta.sha256, sigma.sha256, density.sha256}))）、親の role との一致、2 つの親が同じ観測の子で alignment が decides-next/1 であることは Gate が確かめる（スキーマは表せない）。floatBlob を使う理由は封筒の extensions に書く（S25）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "measurement_id",
+    "frame_id",
+    "input",
+    "points",
+    "theta",
+    "sigma",
+    "density"
+  ],
+  "properties": {
+    "measurement_id": {
+      "$ref": "#/$defs/sha256hex"
+    },
+    "frame_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^frame:sha256:[0-9a-f]{64}$",
+      "description": "frame_id は frame の内容の sha256（content address）。"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "window_artifact_id",
+        "token_axis_artifact_id"
+      ],
+      "properties": {
+        "kind": {
+          "const": "window"
+        },
+        "window_artifact_id": {
+          "$ref": "#/$defs/artifactId"
+        },
+        "token_axis_artifact_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/artifactId"
+            }
+          ]
+        }
+      }
+    },
+    "points": {
+      "type": "array",
+      "minItems": 1,
+      "x-sensos-ordered": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rows"
+        ],
+        "properties": {
+          "rows": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "length"
+            ],
+            "properties": {
+              "start": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            }
+          }
+        }
+      }
+    },
+    "theta": {
+      "$ref": "#/$defs/float64Blob"
+    },
+    "sigma": {
+      "$ref": "#/$defs/float64Blob"
+    },
+    "density": {
+      "$ref": "#/$defs/float64Blob"
+    },
+    "temporal_context": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "sha256hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art:[0-9a-f]{64}$"
+    },
+    "float64Blob": {
+      "allOf": [
+        {
+          "$ref": "sensos:contracts/common/blob/0.7.0#/$defs/floatBlob"
+        },
+        {
+          "properties": {
+            "dtype": {
+              "const": "float64"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

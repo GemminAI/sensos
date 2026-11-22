@@ -1,0 +1,13 @@
+{
+  "contract_id": "nvs/gate-verdict",
+  "version": "1",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the GateVerdict (gate-verdict/1) schema (U6T-1a, design U6T-1 v0.1 section 3). Separate from contract.lock (IC-00 1.0.0) and contract-hidden-trajectory.lock: the schema is not part of IC-00 and not in SCHEMA_PATHS. It has no $ref outside itself.",
+  "schemas": [
+    {
+      "path": "nvs/gate-verdict.schema.json",
+      "id": "sensos:contracts/nvs/gate-verdict/1",
+      "sha256": "4358d4d02d6ee26af3d450fdff029036b2a2ce4d5500912171b9d3a984e3971b"
+    }
+  ]
+}

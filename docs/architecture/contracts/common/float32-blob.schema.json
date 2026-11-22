@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sensos:contracts/common/float32-blob/0.1.0",
+  "title": "float32 Blob の参照（草案 0.1.0。D-100）",
+  "description": "IEEE-754 binary32 の列を、そのまま保存する Blob の参照。バイト表現：リトルエンディアン、行優先（C の順）、ヘッダ・詰め物・圧縮なし。量子化・固定小数点化・比較の許容は持たない（再現はバイト同一性）。サブノーマルと −0 を保持する。NaN（指数部がすべて 1 で仮数部が 0 でない全パターン）と ±Inf は拒否する（S44）。undefined の宣言は持たない。ハッシュは common/blob と同じ SHA-256 を、このバイト列そのものに対して計算する。uri の形式も common/blob と同じ。common/blob 0.7.0 は変えない。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "uri",
+    "sha256",
+    "media_type",
+    "dtype",
+    "shape",
+    "byte_order",
+    "order",
+    "unit"
+  ],
+  "properties": {
+    "uri": {
+      "type": "string",
+      "pattern": "^blob:sha256:[0-9a-f]{64}$",
+      "description": "場所を含まない内容のアドレス。16 進の部分は同じ参照の sha256 と同じ（S34）"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "binary32 のバイト列（ヘッダなし）そのものの sha256（S42）"
+    },
+    "media_type": {
+      "const": "application/vnd.sensos.ndarray-raw"
+    },
+    "dtype": {
+      "const": "float32"
+    },
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740991
+      },
+      "x-sensos-ordered": true,
+      "description": "各次元は 1 以上。バイト長＝要素数×4（S43）"
+    },
+    "byte_order": {
+      "const": "little"
+    },
+    "order": {
+      "const": "C"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

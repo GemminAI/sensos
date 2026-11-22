@@ -1,0 +1,108 @@
+{
+ "facts": {
+  "binding": {
+   "alignment": "decides-next/1",
+   "chat_template_sha256": "not_applicable",
+   "finish_reason": "length",
+   "gen_token_ids_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+   "n_gen": 6,
+   "n_in": 5,
+   "prompt_ids_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+   "tokenizer_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "contract": {
+   "contract_sha256": "3a74705f486a5d2de9c0ccce87dee5ce08d607f52a37f25a146fe47fe8341644",
+   "name": "RawObservationContract",
+   "version": 2
+  },
+  "facts_version": "nvs.contract-facts/1",
+  "origin": {
+   "compute_environment": "synthetic-env",
+   "model_build_id": "synthetic-test-1",
+   "weights_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "positions": {
+   "block_out:3": {
+    "dimension": 16,
+    "final_norm_applied": false,
+    "row_rule": "synthetic-llama-block-out/1",
+    "space": {
+     "compute_environment": "synthetic-env",
+     "dimension": 16,
+     "layer": 3,
+     "model_build_id": "synthetic-test-1",
+     "row_rule": "synthetic-llama-block-out/1",
+     "space_rule": "nvs.hidden-trajectory.space/1"
+    },
+    "stored_range": {
+     "first_row_pos": 4,
+     "steps": 6
+    },
+    "trajectory_id": "6dd4c6246472f1bafa09bce19a967f152836b1974b847b8208280b9bc427afa0"
+   },
+   "block_out:7": {
+    "dimension": 16,
+    "final_norm_applied": false,
+    "row_rule": "synthetic-llama-block-out/1",
+    "space": {
+     "compute_environment": "synthetic-env",
+     "dimension": 16,
+     "layer": 7,
+     "model_build_id": "synthetic-test-1",
+     "row_rule": "synthetic-llama-block-out/1",
+     "space_rule": "nvs.hidden-trajectory.space/1"
+    },
+    "stored_range": {
+     "first_row_pos": 4,
+     "steps": 6
+    },
+    "trajectory_id": "0d48903c72674905489539c32aadee5349edde5d75fa3584def0561bb44e7090"
+   },
+   "final_norm": {
+    "dimension": 16,
+    "final_norm_applied": true,
+    "row_rule": "synthetic-llama-final-norm/1",
+    "space": {
+     "compute_environment": "synthetic-env",
+     "dimension": 16,
+     "layer": "final_norm",
+     "model_build_id": "synthetic-test-1",
+     "row_rule": "synthetic-llama-final-norm/1",
+     "space_rule": "nvs.hidden-trajectory.space/1"
+    },
+    "stored_range": {
+     "first_row_pos": 4,
+     "steps": 6
+    },
+    "trajectory_id": "c6c9bce47c9ef7c9f52cf2f824dcc167e969a1ada0240ca2de09232f947438d3"
+   },
+   "mlp_out:7": {
+    "dimension": 16,
+    "final_norm_applied": false,
+    "row_rule": "synthetic-llama-mlp-out/1",
+    "space": {
+     "compute_environment": "synthetic-env",
+     "dimension": 16,
+     "layer": 7,
+     "model_build_id": "synthetic-test-1",
+     "row_rule": "synthetic-llama-mlp-out/1",
+     "space_rule": "nvs.hidden-trajectory.space/1"
+    },
+    "stored_range": {
+     "first_row_pos": 4,
+     "steps": 6
+    },
+    "trajectory_id": "aa36819b1b45f668607c2284eacb7ba7885d00b78d1555de660ebe179ebacba8"
+   }
+  },
+  "synthetic": false
+ },
+ "format": "contract-facts-sample/1",
+ "source": {
+  "branch": "feature/contract-v2",
+  "built_by": "nvs_edge.contract_v2.build_contract_v2(**tests.test_contract_v2.base_parts(synthetic=False))",
+  "commit": "35f00e749810b7e604b1a48e68e3aa6c88e161eb",
+  "mapping": "facts are the verified fields of the contract copied as they are (design U5 v0.2 5.2); contract_sha256 = nvs_edge.contract.contract_sha256(document). The mapping was done by hand for this sample: contract_facts_from_v2 is U6 (nvs-runtime).",
+  "repository": "nvs-kernel"
+ }
+}

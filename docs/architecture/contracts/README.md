@@ -90,6 +90,9 @@ Unicode のエスケープを戻した後で比べて拒否（正規化はしな
 | S37 | `series` の各系列の最後の要素は `metrics` の同じ名前の値と同じ整数（値なしなら `metrics` は null。変位の区間が無い T=1 では変位の 3 値が null、`count` は 0） |
 | S38 | ペアの `verdict.state` は `distance.value` と calibration の `noise_floor_lower`・`noise_floor_upper` から §3.3.3 の式で計算し直した値と同じ |
 | S39 | `payload_schema` の `{id, version}` は Gate が知っているスキーマの `$id` と一致する（IC-00 の `contract.version` と別） |
+| S42（暫定） | float32 Blob（`common/float32-blob`、D-100）：sha256 は binary32 のバイト列（リトルエンディアン、C の順、ヘッダなし）そのものに対して計算（変換・正規化なし） |
+| S43（暫定） | float32 Blob：ファイルの長さ＝`shape` の積×4 |
+| S44（暫定） | float32 Blob：NaN（指数部がすべて 1 で仮数部≠0 の全パターン、符号・quiet/signaling を問わない）と ±Inf を拒否。サブノーマルと −0 は保持（+0 と −0 は別のバイトなので別のハッシュ） |
 
 IC-00 の参照実装（`tools/contracts/check.py`、凍結の範囲）が検査するのは、IC-00 だけで確かめられる S4・S5・S8・S16 と、スキーマ・id の計算し直し・親の既知。
 S1〜S3・S6・S7・S9〜S15・S17〜S25 は payload や他部品が要るので `check_envelope` には入れない（各部品の試験で）。

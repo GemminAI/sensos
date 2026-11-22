@@ -1,0 +1,13 @@
+title = "sensos gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+# regex, keywords, and entropy are omitted so the default rule's values are kept
+
+[[rules.allowlists]]
+description = "SHA-256 digests in fields whose name ends in _sha256 (contract vectors and tests). Not a guarantee that such a field never holds a secret."
+regexTarget = "line"
+regexes = ['''"[A-Za-z0-9_]*_sha256"\s*:\s*"[0-9a-f]{64}"''']

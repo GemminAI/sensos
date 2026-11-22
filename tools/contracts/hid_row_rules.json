@@ -1,0 +1,28 @@
+{
+  "format": "hid-row-rules/1",
+  "note": "Registry of base row rules of nvs.hidden-trajectory (design U5 v0.2, section 6.2): row_rule -> kind and alignment. Data on the contract side; the checker never imports sensos-inference. The match with sensos-inference observation.ROW_RULES (U1) is checked on the U1 side. llama31-mlx-final-norm/1 is a draft name (DC-E3 undecided).",
+  "base_rule_pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-(?:block-out|mlp-out|final-norm)/[1-9][0-9]*$",
+  "kind_slugs": {
+    "block-out": "block_out",
+    "final-norm": "final_norm",
+    "mlp-out": "mlp_out"
+  },
+  "rules": {
+    "llama31-mlx-final-norm/1": {
+      "alignment": "decides-next/1",
+      "kind": "final_norm"
+    },
+    "qwen35-mlx-block-out/1": {
+      "alignment": "decides-next/1",
+      "kind": "block_out"
+    },
+    "qwen35-mlx-final-norm/1": {
+      "alignment": "decides-next/1",
+      "kind": "final_norm"
+    },
+    "qwen35-mlx-mlp-out/1": {
+      "alignment": "decides-next/1",
+      "kind": "mlp_out"
+    }
+  }
+}

@@ -22,7 +22,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from contracts import ids  # noqa: E402
-from contracts.blob import check_blob  # noqa: E402
+from contracts.blob import check_blob, check_float32_blob  # noqa: E402
 from contracts.gate import check_payload  # noqa: E402
 from contracts.ic02 import SERIES, check_calibration_parents  # noqa: E402
 from contracts.check import check_envelope  # noqa: E402
@@ -853,6 +853,95 @@ def calibration_exponent_cases() -> dict[str, Any]:
     return {"cases": out}
 
 
+# ------------------------------------------------------------- float32 blob
+
+
+def float32_blob_cases() -> dict[str, Any]:
+    """common/float32-blob 0.1.0 (D-100). Expected codes are written here by hand and must equal
+    what the checker finds (the generator refuses to write otherwise)."""
+    out: list[dict[str, Any]] = []
+
+    def words(*ws: int) -> bytes:
+        return struct.pack(f"<{len(ws)}I", *ws)
+
+    def ref_of(data: bytes, shape: list[int], **over: Any) -> dict[str, Any]:
+        digest = sha256_hex(data)
+        ref: dict[str, Any] = {"uri": "blob:sha256:" + digest, "sha256": digest,
+                               "media_type": "application/vnd.sensos.ndarray-raw", "dtype": "float32",
+                               "shape": shape, "byte_order": "little", "order": "C", "unit": "dimensionless"}
+        ref.update(over)
+        return ref
+
+    def case(case_id: str, ref: dict[str, Any], data: bytes | None, expect: list[str], note: str = "") -> None:
+        found = sorted({v.code for v in check_float32_blob(ref, data)})
+        if found != sorted(expect):
+            raise AssertionError(f"{case_id}: expected {expect}, checker found {found}")
+        item: dict[str, Any] = {"id": case_id, "note": note, "ref": ref,
+                                "expect": {"result": "reject" if expect else "accept", "codes": sorted(expect)}}
+        if data is not None:
+            item["data_hex"] = data.hex()
+        out.append(item)
+
+    def one(case_id: str, word: int, expect: list[str], note: str = "") -> None:
+        data = words(word)
+        case(case_id, ref_of(data, [1]), data, expect, f"bits 0x{word:08x}. {note}".strip())
+
+    # accept: the boundaries of the finite values
+    one("accept-normal-positive", 0x3F800000, [], "+1.0")
+    one("accept-normal-negative", 0xBF800000, [], "-1.0")
+    one("accept-subnormal-positive", 0x00400000, [], "positive subnormal (mantissa MSB)")
+    one("accept-subnormal-negative", 0x80400000, [], "negative subnormal")
+    one("accept-min-subnormal", 0x00000001, [], "smallest positive subnormal 2^-149")
+    one("accept-max-subnormal", 0x007FFFFF, [], "largest subnormal")
+    one("accept-min-normal", 0x00800000, [], "smallest positive normal 2^-126")
+    one("accept-max-finite", 0x7F7FFFFF, [], "largest finite")
+    one("accept-max-finite-negative", 0xFF7FFFFF, [], "most negative finite")
+    one("accept-plus-zero", 0x00000000, [], "+0")
+    one("accept-minus-zero", 0x80000000, [], "-0: another bit pattern, so another sha256 than +0 (kept, not normalised)")
+    d = words(0x00000000, 0x80000000)
+    case("accept-both-zeros", ref_of(d, [2]), d, [], "[+0, -0]: both zeros kept in order")
+    d = words(*range(0x3F800000, 0x3F800006))
+    case("accept-shape-2x3", ref_of(d, [2, 3]), d, [], "shape [2,3] = 6 elements = 24 bytes")
+    # reject: NaN (exponent all ones, mantissa != 0), any sign, quiet or signaling
+    one("reject-nan-quiet-positive", 0x7FC00000, ["S44"], "canonical quiet NaN")
+    one("reject-nan-quiet-negative", 0xFFC00000, ["S44"], "negative quiet NaN")
+    one("reject-nan-signaling-positive", 0x7FA00000, ["S44"], "signaling NaN (quiet bit clear, payload set)")
+    one("reject-nan-signaling-negative", 0xFFA00000, ["S44"], "negative signaling NaN")
+    one("reject-nan-lsb-only-positive", 0x7F800001, ["S44"], "only the lowest mantissa bit set")
+    one("reject-nan-lsb-only-negative", 0xFF800001, ["S44"], "negative, only the lowest mantissa bit set")
+    one("reject-nan-all-ones-positive", 0x7FFFFFFF, ["S44"], "all mantissa bits set")
+    one("reject-nan-all-ones-negative", 0xFFFFFFFF, ["S44"], "all bits set")
+    one("reject-plus-inf", 0x7F800000, ["S44"], "+Inf")
+    one("reject-minus-inf", 0xFF800000, ["S44"], "-Inf")
+    d = words(0x3F800000, 0x7FC00000, 0x3F800000)
+    case("reject-nan-among-finite", ref_of(d, [3]), d, ["S44"], "one NaN in the middle of finite values")
+    # reject: shape and byte length, hash, uri
+    d = words(0x3F800000, 0x3F800000, 0x3F800000)
+    case("accept-shape-matches-length", ref_of(d, [3]), d, [], "3 elements, 12 bytes")
+    case("reject-shape-too-small", ref_of(d, [2]), d, ["S43"], "shape says 8 bytes, 12 given")
+    case("reject-shape-too-large", ref_of(d, [4]), d, ["S43"], "shape says 16 bytes, 12 given")
+    case("reject-shape-2d-mismatch", ref_of(d, [2, 2]), d, ["S43"], "shape [2,2] = 16 bytes, 12 given")
+    case("reject-truncated-bytes", ref_of(d[:-1], [3]), d[:-1], ["S43"], "11 bytes cannot be a multiple of 4")
+    good = ref_of(d, [3])
+    other = words(0x3F800000, 0x3F800000, 0x40000000)
+    case("reject-sha256-differs-from-bytes", good, other, ["S42"], "right length, other bytes")
+    case("reject-uri-hex-differs", {**good, "uri": "blob:sha256:" + "0" * 64}, d, ["S34"], "uri hex != sha256")
+    case("accept-reference-only", good, None, [], "reference without bytes: only the schema and S34 can be checked")
+    # reject: the schema (a float32 Blob has no quantization, comparison or undefined)
+    for key, value in (("undefined", "int64_min"),
+                       ("quantization", {"quantum": {"base": 2, "exponent": -30}, "rounding": "ties-to-even", "tolerance_quanta": 1}),
+                       ("comparison", {"rule": "absolute_error", "bound": {"base": 2, "exponent": -20}})):
+        case(f"reject-schema-extra-{key}", {**good, key: value}, d, ["schema"], f"`{key}` is not a float32 Blob field")
+    case("reject-schema-dtype-float64", {**good, "dtype": "float64"}, d, ["schema"], "float64 is another contract")
+    case("reject-schema-dtype-int64", {**good, "dtype": "int64"}, d, ["schema"], "dtype is fixed to float32")
+    case("reject-schema-big-endian", {**good, "byte_order": "big"}, d, ["schema"])
+    case("reject-schema-fortran-order", {**good, "order": "F"}, d, ["schema"])
+    case("reject-schema-zero-in-shape", {**good, "shape": [0, 3]}, d, ["schema"], "each dimension >= 1")
+    case("reject-schema-file-uri", {**good, "uri": "file:x"}, d, ["schema"], "no place in the address")
+    case("reject-schema-missing-unit", {k: v for k, v in good.items() if k != "unit"}, d, ["schema"])
+    return {"cases": out}
+
+
 # --------------------------------------------------------------------- main
 
 
@@ -891,6 +980,11 @@ def generate() -> dict[str, dict[str, Any]]:
             "format": "blob-refs/1",
             "rule": "check_blob(ref, data): ref must match common/blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes: S34 uri hex != sha256; S24 / S25 sha256 or length of an int / float Blob; S36 -2^63 without undefined: int64_min; count_negative a negative value in a count Blob (quantization null)",
             **blob_cases(),
+        },
+        "blob/float32-blob.json": {
+            "format": "float32-blob/1",
+            "rule": "check_float32_blob(ref, data): ref must match common/float32-blob.schema.json (else code `schema`, alone); data_hex are the Blob's bytes (absent = reference only). Codes (provisional numbers): S34 uri hex != sha256; S42 sha256 differs from the bytes; S43 length != prod(shape) x 4; S44 a NaN or +-Inf bit pattern (exponent bits all ones). Draft 0.1.0 (D-100). Words are little-endian binary32 bit patterns, given in the id/note as 0x........",
+            **float32_blob_cases(),
         },
         "msr/vectors/series.json": {
             "format": "ic02-series/1",

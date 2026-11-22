@@ -1,0 +1,13 @@
+{
+  "contract_id": "nvs/hidden-trajectory",
+  "version": "0.1.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the nvs.hidden-trajectory payload schema (U5-3, design U5 v0.2 section 3). Separate from tests/contracts/contract.lock, which stays IC-00 1.0.0 (test_schemas.py checks it): this schema is not part of IC-00 and not in SCHEMA_PATHS. It $refs common/float32-blob (contract-float32-blob.lock).",
+  "schemas": [
+    {
+      "path": "nvs/hidden-trajectory.schema.json",
+      "id": "sensos:contracts/nvs/hidden-trajectory/0.1.0",
+      "sha256": "834014205919fece7a8d692d2066d4a4c7df6c502ac0bd1051053d72bd989dc8"
+    }
+  ]
+}

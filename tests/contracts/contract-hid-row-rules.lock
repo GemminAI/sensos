@@ -1,0 +1,12 @@
+{
+  "contract_id": "nvs/hid-row-rules",
+  "version": "0.1.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the row-rule registry of nvs.hidden-trajectory (U5-4, design U5 v0.2 section 6.2). Separate from the IC-00 / IC-02 locks. Update only by an explicit, reviewed change; the match with sensos-inference observation.ROW_RULES (U1) is checked on the U1 side.",
+  "files": [
+    {
+      "path": "tools/contracts/hid_row_rules.json",
+      "sha256": "10a320b49b04d43b338f7dcc56bba220f2d59d21410036d11324cfffc56e8aae"
+    }
+  ]
+}

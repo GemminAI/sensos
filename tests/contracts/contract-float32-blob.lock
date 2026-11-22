@@ -1,0 +1,13 @@
+{
+  "contract_id": "common/float32-blob",
+  "version": "0.1.0",
+  "status": "draft (not frozen)",
+  "note": "sha256 of the float32 Blob schema (D-100). Separate from tests/contracts/contract.lock, which stays IC-00 1.0.0 (test_schemas.py checks it): this schema is not part of IC-00 and not in SCHEMA_PATHS.",
+  "schemas": [
+    {
+      "path": "common/float32-blob.schema.json",
+      "id": "sensos:contracts/common/float32-blob/0.1.0",
+      "sha256": "213654fde26f643612e4466f0a84b5f240163264c9077ebb18f40a2714e14975"
+    }
+  ]
+}
